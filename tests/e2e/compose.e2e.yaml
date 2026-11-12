@@ -1,0 +1,9 @@
+# Additions for the e2e stack. The fake App credentials reach the API as
+# environment variables, which the seeded secrets reference.
+services:
+  sayso:
+    environment:
+      E2E_GH_CLIENT_SECRET: acme-client-secret
+      E2E_GH_PRIVATE_KEY: ${E2E_GH_PRIVATE_KEY}
+      E2E_GH_WEBHOOK_SECRET: acme-webhook-secret
+      SAYSO_BOOTSTRAP_ADMINS: octo-admin

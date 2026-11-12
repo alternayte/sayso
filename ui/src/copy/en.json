@@ -59,6 +59,7 @@
   "general.save": "Save",
   "general.saved": "Saved",
   "general.history": "History",
+  "general.history_of": "History of {key}, revision {revision}",
   "general.invalid": "The value is not valid JSON.",
   "audit.title": "Audit log",
   "audit.hint": "Every change to settings, secrets, access and repositories. Nobody can edit it.",

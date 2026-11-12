@@ -739,6 +739,7 @@
   .animate-spin {
     animation-duration: 1.5s;
   }
+  ::view-transition-group(*),
   ::view-transition-group(main) {
     animation: none;
   }

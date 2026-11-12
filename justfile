@@ -9,6 +9,7 @@ setup:
     go mod download
     go install github.com/sqlc-dev/sqlc/cmd/sqlc@v1.31.1
     cd ui && bun install --frozen-lockfile
+    cd tests/ui && bun install --frozen-lockfile && bunx playwright install chromium
 
 # Build the UI into ui/dist, which the binary embeds
 ui-build:
@@ -54,6 +55,16 @@ gen-check: gen
     git diff --exit-code -- '*.gen.go' ui/openapi.json ui/src/client ui/src/routeTree.gen.ts
     test -z "$(git ls-files --others --exclude-standard -- '*.gen.go' ui/openapi.json ui/src/client ui/src/routeTree.gen.ts)" || { echo "gen-check: generated files are not added to git"; exit 1; }
 
+# End-to-end tests against Compose with the fakes (layer E)
+e2e: images
+    #!/usr/bin/env bash
+    set -euo pipefail
+    reports="$(just _reports)"; mkdir -p "$reports"
+    root="$PWD"; envfile="$(mktemp)"
+    trap '"$root/tests/e2e/stack.sh" down "$envfile"; rm -f "$envfile"' EXIT
+    "$root/tests/e2e/stack.sh" up "$envfile"
+    cd tests/ui && E2E_ENV_FILE="$envfile" E2E_REPORT="$PWD/../../$reports/ui.json" bunx playwright test
+
 # Build the sayso and sayso-agent images with the dev tag
 images:
     docker build -q -f deploy/docker/Dockerfile -t sayso:dev . >/dev/null
@@ -68,7 +79,7 @@ _reports:
     @if [ -d .build ]; then echo .build/reports; else echo tmp/reports; fi
 
 # The full gate
-ci: gen-check fmt-check lint test contract smoke
+ci: gen-check fmt-check lint test contract e2e smoke
 
 # The owner's gate name; runs the same recipes as ci
 check: ci

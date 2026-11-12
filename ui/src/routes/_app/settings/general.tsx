@@ -103,7 +103,13 @@ function Row({ setting }: { setting: SettingBody }) {
         ) : null}
       </TableCell>
       <TableCell>
-        <button type="button" className="link t-value" onClick={() => setOpen(!open)} aria-expanded={open}>
+        <button
+          type="button"
+          className="link t-value"
+          onClick={() => setOpen(!open)}
+          aria-expanded={open}
+          aria-label={t("general.history_of", { key: setting.key, revision: setting.revision })}
+        >
           r{setting.revision} · {t("general.history")}
         </button>
       </TableCell>
