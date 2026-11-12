@@ -38,7 +38,9 @@ export interface StageSession {
 /** Errors that move the session to the next target (§12.2). */
 export function retryable(message: string | undefined): boolean {
   if (!message) return false;
-  return /\b(429|5\d\d)\b|rate.?limit|overloaded|ECONN|ENOTFOUND|ETIMEDOUT|fetch failed|socket|network|terminated/i.test(message);
+  return /\b(429|5\d\d)\b|rate.?limit|overloaded|ECONN|ENOTFOUND|ETIMEDOUT|fetch failed|socket|network|terminated/i.test(
+    message,
+  );
 }
 
 function piModel(t: SpecModel) {
@@ -59,13 +61,21 @@ function piModel(t: SpecModel) {
  * project extensions, settings, skills or context files from the head
  * worktree. Models go through the model proxy with the run token.
  */
-export async function runStage(s: StageSession): Promise<{ error?: string; sessionFile?: string }> {
+export async function runStage(
+  s: StageSession,
+): Promise<{ error?: string; sessionFile?: string }> {
   const auth = AuthStorage.inMemory();
   const registry = ModelRegistry.inMemory(auth);
   const providers = new Map<string, SpecModel[]>();
-  for (const t of s.targets) providers.set(t.provider, [...(providers.get(t.provider) ?? []), t]);
+  for (const t of s.targets)
+    providers.set(t.provider, [...(providers.get(t.provider) ?? []), t]);
   for (const [name, ts] of providers) {
-    registry.registerProvider(name, { baseUrl: ts[0]!.base_url, api: ts[0]!.api as never, apiKey: s.token, models: ts.map(piModel) });
+    registry.registerProvider(name, {
+      baseUrl: ts[0]!.base_url,
+      api: ts[0]!.api as never,
+      apiKey: s.token,
+      models: ts.map(piModel),
+    });
     auth.setRuntimeApiKey(name, s.token);
   }
   const settings = SettingsManager.inMemory({
@@ -78,10 +88,18 @@ export async function runStage(s: StageSession): Promise<{ error?: string; sessi
   const guard: ExtensionFactory = (pi) => {
     pi.on("tool_call", (event) => {
       toolCalls++;
-      if (toolCalls > s.maxToolCalls) return { block: true, reason: `limit_reached: ${s.maxToolCalls} tool calls in this stage` };
-      if (isToolCallEventType("write", event) || isToolCallEventType("edit", event)) {
+      if (toolCalls > s.maxToolCalls)
+        return {
+          block: true,
+          reason: `limit_reached: ${s.maxToolCalls} tool calls in this stage`,
+        };
+      if (
+        isToolCallEventType("write", event) ||
+        isToolCallEventType("edit", event)
+      ) {
         const p = resolve(s.cwd, event.input.path);
-        if (p !== s.workRoot && !p.startsWith(s.workRoot + "/")) return { block: true, reason: "writes outside /work are refused" };
+        if (p !== s.workRoot && !p.startsWith(s.workRoot + "/"))
+          return { block: true, reason: "writes outside /work are refused" };
       }
       return undefined;
     });
@@ -118,7 +136,8 @@ export async function runStage(s: StageSession): Promise<{ error?: string; sessi
   });
   const started = new Map<string, number>();
   const unsubscribe = session.subscribe((ev: AgentSessionEvent) => {
-    if (ev.type === "tool_execution_start") started.set(ev.toolCallId, Date.now());
+    if (ev.type === "tool_execution_start")
+      started.set(ev.toolCallId, Date.now());
     if (ev.type === "tool_execution_end") {
       const begin = started.get(ev.toolCallId) ?? Date.now();
       const out = JSON.stringify(ev.result ?? "");
@@ -152,9 +171,19 @@ export async function runStage(s: StageSession): Promise<{ error?: string; sessi
       const next = s.targets[target]!;
       const m = registry.find(next.provider, next.model);
       if (!m) break;
-      s.emit({ stage: s.stage, type: "note", name: "fallback", status: "switched", preview: `Switched to ${next.provider}/${next.model}: ${error}`.slice(0, 500) });
+      s.emit({
+        stage: s.stage,
+        type: "note",
+        name: "fallback",
+        status: "switched",
+        preview: `Switched to ${next.provider}/${next.model}: ${error}`.slice(
+          0,
+          500,
+        ),
+      });
       await session.setModel(m);
-      message = "The model call failed and the session moved to another model. Continue the stage from where it stopped.";
+      message =
+        "The model call failed and the session moved to another model. Continue the stage from where it stopped.";
     }
   } finally {
     s.signal.removeEventListener("abort", onAbort);

@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { CreateAppManifestData, CreateAppManifestErrors, CreateAppManifestResponses, CreateProviderData, CreateProviderErrors, CreateProviderResponses, CreateSetupSessionData, CreateSetupSessionErrors, CreateSetupSessionResponses, DeleteGrantData, DeleteGrantErrors, DeleteGrantResponses, DeleteProfileData, DeleteProfileErrors, DeleteProfileResponses, DeleteProviderData, DeleteProviderErrors, DeleteProviderResponses, DeleteTeamRoleData, DeleteTeamRoleErrors, DeleteTeamRoleResponses, GetAccessData, GetAccessErrors, GetAccessResponses, GetDiagnosticsData, GetDiagnosticsErrors, GetDiagnosticsResponses, GetGithubData, GetGithubErrors, GetGithubResponses, GetMeData, GetMeErrors, GetMeResponses, GetRepositoryData, GetRepositoryErrors, GetRepositoryResponses, GetSettingHistoryData, GetSettingHistoryErrors, GetSettingHistoryResponses, GetSetupStateData, GetSetupStateErrors, GetSetupStateResponses, ListAuditActionsData, ListAuditActionsErrors, ListAuditActionsResponses, ListAuditData, ListAuditErrors, ListAuditResponses, ListProfilesData, ListProfilesErrors, ListProfilesResponses, ListProviderModelsData, ListProviderModelsErrors, ListProviderModelsResponses, ListProviderPresetsData, ListProviderPresetsErrors, ListProviderPresetsResponses, ListProvidersData, ListProvidersErrors, ListProvidersResponses, ListRepositoriesData, ListRepositoriesErrors, ListRepositoriesResponses, ListSettingsData, ListSettingsErrors, ListSettingsResponses, PutGrantData, PutGrantErrors, PutGrantResponses, PutProfileData, PutProfileErrors, PutProfileResponses, PutSettingData, PutSettingErrors, PutSettingResponses, PutTeamRoleData, PutTeamRoleErrors, PutTeamRoleResponses, SetRepositoryModeData, SetRepositoryModeErrors, SetRepositoryModeResponses, SetRepositoryProfilesData, SetRepositoryProfilesErrors, SetRepositoryProfilesResponses, TestProviderData, TestProviderErrors, TestProviderResponses, UpdateProviderData, UpdateProviderErrors, UpdateProviderResponses } from './types.gen';
+import type { CreateAppManifestData, CreateAppManifestErrors, CreateAppManifestResponses, CreateMcpServerData, CreateMcpServerErrors, CreateMcpServerResponses, CreateProviderData, CreateProviderErrors, CreateProviderResponses, CreateSetupSessionData, CreateSetupSessionErrors, CreateSetupSessionResponses, DeleteGrantData, DeleteGrantErrors, DeleteGrantResponses, DeleteMcpServerData, DeleteMcpServerErrors, DeleteMcpServerResponses, DeleteProfileData, DeleteProfileErrors, DeleteProfileResponses, DeleteProviderData, DeleteProviderErrors, DeleteProviderResponses, DeleteTeamRoleData, DeleteTeamRoleErrors, DeleteTeamRoleResponses, GetAccessData, GetAccessErrors, GetAccessResponses, GetDiagnosticsData, GetDiagnosticsErrors, GetDiagnosticsResponses, GetGithubData, GetGithubErrors, GetGithubResponses, GetMeData, GetMeErrors, GetMeResponses, GetRepositoryData, GetRepositoryErrors, GetRepositoryResponses, GetSettingHistoryData, GetSettingHistoryErrors, GetSettingHistoryResponses, GetSetupStateData, GetSetupStateErrors, GetSetupStateResponses, ListAuditActionsData, ListAuditActionsErrors, ListAuditActionsResponses, ListAuditData, ListAuditErrors, ListAuditResponses, ListMcpServersData, ListMcpServersErrors, ListMcpServersResponses, ListProfilesData, ListProfilesErrors, ListProfilesResponses, ListProviderModelsData, ListProviderModelsErrors, ListProviderModelsResponses, ListProviderPresetsData, ListProviderPresetsErrors, ListProviderPresetsResponses, ListProvidersData, ListProvidersErrors, ListProvidersResponses, ListRepositoriesData, ListRepositoriesErrors, ListRepositoriesResponses, ListSettingsData, ListSettingsErrors, ListSettingsResponses, PutGrantData, PutGrantErrors, PutGrantResponses, PutProfileData, PutProfileErrors, PutProfileResponses, PutSettingData, PutSettingErrors, PutSettingResponses, PutTeamRoleData, PutTeamRoleErrors, PutTeamRoleResponses, SetRepositoryMcpData, SetRepositoryMcpErrors, SetRepositoryMcpResponses, SetRepositoryModeData, SetRepositoryModeErrors, SetRepositoryModeResponses, SetRepositoryProfilesData, SetRepositoryProfilesErrors, SetRepositoryProfilesResponses, TestMcpServerData, TestMcpServerErrors, TestMcpServerResponses, TestProviderData, TestProviderErrors, TestProviderResponses, UpdateMcpServerData, UpdateMcpServerErrors, UpdateMcpServerResponses, UpdateProviderData, UpdateProviderErrors, UpdateProviderResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -49,6 +49,30 @@ export const listAuditActions = <ThrowOnError extends boolean = false>(options?:
 export const getDiagnostics = <ThrowOnError extends boolean = false>(options?: Options<GetDiagnosticsData, ThrowOnError>): RequestResult<GetDiagnosticsResponses, GetDiagnosticsErrors, ThrowOnError> => (options?.client ?? client).get<GetDiagnosticsResponses, GetDiagnosticsErrors, ThrowOnError>({ url: '/api/v1/diagnostics', ...options });
 
 export const getGithub = <ThrowOnError extends boolean = false>(options?: Options<GetGithubData, ThrowOnError>): RequestResult<GetGithubResponses, GetGithubErrors, ThrowOnError> => (options?.client ?? client).get<GetGithubResponses, GetGithubErrors, ThrowOnError>({ url: '/api/v1/github', ...options });
+
+export const listMcpServers = <ThrowOnError extends boolean = false>(options?: Options<ListMcpServersData, ThrowOnError>): RequestResult<ListMcpServersResponses, ListMcpServersErrors, ThrowOnError> => (options?.client ?? client).get<ListMcpServersResponses, ListMcpServersErrors, ThrowOnError>({ url: '/api/v1/mcp-servers', ...options });
+
+export const createMcpServer = <ThrowOnError extends boolean = false>(options: Options<CreateMcpServerData, ThrowOnError>): RequestResult<CreateMcpServerResponses, CreateMcpServerErrors, ThrowOnError> => (options.client ?? client).post<CreateMcpServerResponses, CreateMcpServerErrors, ThrowOnError>({
+    url: '/api/v1/mcp-servers',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+export const deleteMcpServer = <ThrowOnError extends boolean = false>(options: Options<DeleteMcpServerData, ThrowOnError>): RequestResult<DeleteMcpServerResponses, DeleteMcpServerErrors, ThrowOnError> => (options.client ?? client).delete<DeleteMcpServerResponses, DeleteMcpServerErrors, ThrowOnError>({ url: '/api/v1/mcp-servers/{name}', ...options });
+
+export const updateMcpServer = <ThrowOnError extends boolean = false>(options: Options<UpdateMcpServerData, ThrowOnError>): RequestResult<UpdateMcpServerResponses, UpdateMcpServerErrors, ThrowOnError> => (options.client ?? client).put<UpdateMcpServerResponses, UpdateMcpServerErrors, ThrowOnError>({
+    url: '/api/v1/mcp-servers/{name}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+export const testMcpServer = <ThrowOnError extends boolean = false>(options: Options<TestMcpServerData, ThrowOnError>): RequestResult<TestMcpServerResponses, TestMcpServerErrors, ThrowOnError> => (options.client ?? client).post<TestMcpServerResponses, TestMcpServerErrors, ThrowOnError>({ url: '/api/v1/mcp-servers/{name}/test', ...options });
 
 export const getMe = <ThrowOnError extends boolean = false>(options?: Options<GetMeData, ThrowOnError>): RequestResult<GetMeResponses, GetMeErrors, ThrowOnError> => (options?.client ?? client).get<GetMeResponses, GetMeErrors, ThrowOnError>({ url: '/api/v1/me', ...options });
 
@@ -103,6 +127,15 @@ export const testProvider = <ThrowOnError extends boolean = false>(options: Opti
 export const listRepositories = <ThrowOnError extends boolean = false>(options?: Options<ListRepositoriesData, ThrowOnError>): RequestResult<ListRepositoriesResponses, ListRepositoriesErrors, ThrowOnError> => (options?.client ?? client).get<ListRepositoriesResponses, ListRepositoriesErrors, ThrowOnError>({ url: '/api/v1/repositories', ...options });
 
 export const getRepository = <ThrowOnError extends boolean = false>(options: Options<GetRepositoryData, ThrowOnError>): RequestResult<GetRepositoryResponses, GetRepositoryErrors, ThrowOnError> => (options.client ?? client).get<GetRepositoryResponses, GetRepositoryErrors, ThrowOnError>({ url: '/api/v1/repositories/{owner}/{name}', ...options });
+
+export const setRepositoryMcp = <ThrowOnError extends boolean = false>(options: Options<SetRepositoryMcpData, ThrowOnError>): RequestResult<SetRepositoryMcpResponses, SetRepositoryMcpErrors, ThrowOnError> => (options.client ?? client).put<SetRepositoryMcpResponses, SetRepositoryMcpErrors, ThrowOnError>({
+    url: '/api/v1/repositories/{owner}/{name}/mcp',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 export const setRepositoryMode = <ThrowOnError extends boolean = false>(options: Options<SetRepositoryModeData, ThrowOnError>): RequestResult<SetRepositoryModeResponses, SetRepositoryModeErrors, ThrowOnError> => (options.client ?? client).put<SetRepositoryModeResponses, SetRepositoryModeErrors, ThrowOnError>({
     url: '/api/v1/repositories/{owner}/{name}/mode',

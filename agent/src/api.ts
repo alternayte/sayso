@@ -15,17 +15,32 @@ export class RunnerClient {
     private readonly http: Fetch = fetch,
   ) {}
 
-  private async call(method: string, path: string, body?: string | Buffer, contentType = "application/json"): Promise<Response> {
-    const headers: Record<string, string> = { Authorization: `Bearer ${this.token}` };
+  private async call(
+    method: string,
+    path: string,
+    body?: string | Buffer,
+    contentType = "application/json",
+  ): Promise<Response> {
+    const headers: Record<string, string> = {
+      Authorization: `Bearer ${this.token}`,
+    };
     if (body !== undefined) headers["Content-Type"] = contentType;
     let last: unknown;
     for (let attempt = 0; attempt < 4; attempt++) {
       try {
-        const res = await this.http(`${this.apiURL}/api/runner/v1${path}`, { method, headers, body });
+        const res = await this.http(`${this.apiURL}/api/runner/v1${path}`, {
+          method,
+          headers,
+          body,
+        });
         if (res.status >= 500) {
           last = new Error(`${method} ${path}: status ${res.status}`);
         } else {
-          if (!res.ok) throw new RunnerError(res.status, `${method} ${path}: status ${res.status}: ${await res.text()}`);
+          if (!res.ok)
+            throw new RunnerError(
+              res.status,
+              `${method} ${path}: status ${res.status}: ${await res.text()}`,
+            );
           return res;
         }
       } catch (e) {
@@ -45,12 +60,23 @@ export class RunnerClient {
     await this.call("POST", "/events", JSON.stringify({ events }));
   }
 
-  async artifact(name: string, data: Uint8Array | string, contentType = "application/octet-stream"): Promise<void> {
-    await this.call("PUT", `/artifacts/${name}`, typeof data === "string" ? data : Buffer.from(data), contentType);
+  async artifact(
+    name: string,
+    data: Uint8Array | string,
+    contentType = "application/octet-stream",
+  ): Promise<void> {
+    await this.call(
+      "PUT",
+      `/artifacts/${name}`,
+      typeof data === "string" ? data : Buffer.from(data),
+      contentType,
+    );
   }
 
   async heartbeat(): Promise<HeartbeatBody> {
-    return (await (await this.call("POST", "/heartbeat")).json()) as HeartbeatBody;
+    return (await (
+      await this.call("POST", "/heartbeat")
+    ).json()) as HeartbeatBody;
   }
 
   async complete(c: Complete): Promise<void> {
@@ -67,7 +93,9 @@ export class RunnerError extends Error {
   }
 }
 
-export type NewEvent = Omit<Event, "seq" | "at" | "payload"> & { payload?: unknown };
+export type NewEvent = Omit<Event, "seq" | "at" | "payload"> & {
+  payload?: unknown;
+};
 
 /**
  * EventStream numbers events and sends them in batches of at most 50, or
@@ -87,12 +115,19 @@ export class EventStream {
 
   emit(e: NewEvent): void {
     const { payload, ...rest } = e;
-    const ev: Event = { ...rest, seq: ++this.seq, at: this.now().toISOString() };
-    if (ev.preview && ev.preview.length > 500) ev.preview = ev.preview.slice(0, 500);
-    if (payload !== undefined) ev.payload = gzipSync(JSON.stringify(payload)).toString("base64");
+    const ev: Event = {
+      ...rest,
+      seq: ++this.seq,
+      at: this.now().toISOString(),
+    };
+    if (ev.preview && ev.preview.length > 500)
+      ev.preview = ev.preview.slice(0, 500);
+    if (payload !== undefined)
+      ev.payload = gzipSync(JSON.stringify(payload)).toString("base64");
     this.queue.push(ev);
     if (this.queue.length >= batchSize) this.flushSoon();
-    else if (!this.timer) this.timer = setTimeout(() => this.flushSoon(), batchIntervalMs);
+    else if (!this.timer)
+      this.timer = setTimeout(() => this.flushSoon(), batchIntervalMs);
   }
 
   private flushSoon(): void {
@@ -100,9 +135,11 @@ export class EventStream {
     this.timer = undefined;
     while (this.queue.length > 0) {
       const batch = this.queue.splice(0, batchSize);
-      this.sending = this.sending.then(() => this.send(batch)).catch((err: unknown) => {
-        this.failure = err;
-      });
+      this.sending = this.sending
+        .then(() => this.send(batch))
+        .catch((err: unknown) => {
+          this.failure = err;
+        });
     }
   }
 

@@ -9,6 +9,7 @@ setup:
     go mod download
     go install github.com/sqlc-dev/sqlc/cmd/sqlc@v1.31.1
     cd ui && bun install --frozen-lockfile
+    cd agent && npm ci --no-audit --no-fund
     cd tests/ui && bun install --frozen-lockfile && bunx playwright install chromium
 
 # Build the UI into ui/dist, which the binary embeds
@@ -23,6 +24,7 @@ build: ui-build
 fmt-check:
     test -z "$(gofmt -l cmd internal ui)" || { gofmt -l cmd internal ui; exit 1; }
     cd ui && bunx prettier --check "src/**/*.{ts,tsx,css}" "*.ts" >/dev/null
+    cd ui && bunx prettier --check --ignore-path /dev/null "../agent/src/*.ts" >/dev/null
 
 # Lint Go code, repository checks and placeholder words
 lint: forbid
@@ -30,6 +32,7 @@ lint: forbid
     golangci-lint run --build-tags contract,e2e,k8s,smoke ./...
     for c in checks/*.sh; do "$c"; done
     cd ui && bunx tsc --noEmit && bunx eslint .
+    cd agent && npx tsc --noEmit
 
 # Fail on placeholder words and private words
 forbid:
@@ -39,21 +42,25 @@ forbid:
 test: ui-build
     go test -race -count=1 ./...
     cd ui && bunx vitest run
+    cd agent && npx vitest run
 
 # Contract tests against the fakes (layer C)
 contract:
     ./scripts/layer-test.sh contract
 
-# Generate sqlc code, the OpenAPI document and the TypeScript client
+# Generate sqlc code, the OpenAPI documents, the TypeScript clients and the result schema
 gen:
     sqlc generate
     go run ./cmd/sayso openapi > ui/openapi.json
+    go run ./cmd/sayso openapi --doc runner > schemas/runner.openapi.json
+    go run ./cmd/sayso openapi --doc result > schemas/result.schema.json
+    cd agent && npx openapi-ts >/dev/null
     cd ui && bunx openapi-ts >/dev/null && bunx vite build >/dev/null && touch dist/.keep
 
 # Fail when generated code differs from the sources
 gen-check: gen
-    git diff --exit-code -- '*.gen.go' ui/openapi.json ui/src/client ui/src/routeTree.gen.ts
-    test -z "$(git ls-files --others --exclude-standard -- '*.gen.go' ui/openapi.json ui/src/client ui/src/routeTree.gen.ts)" || { echo "gen-check: generated files are not added to git"; exit 1; }
+    git diff --exit-code -- '*.gen.go' ui/openapi.json ui/src/client ui/src/routeTree.gen.ts schemas agent/src/protocol
+    test -z "$(git ls-files --others --exclude-standard -- '*.gen.go' ui/openapi.json ui/src/client ui/src/routeTree.gen.ts schemas agent/src/protocol)" || { echo "gen-check: generated files are not added to git"; exit 1; }
 
 # End-to-end tests against Compose with the fakes (layer E)
 e2e: images
@@ -62,6 +69,7 @@ e2e: images
     reports="$(just _reports)"; mkdir -p "$reports"
     root="$PWD"; envfile="$(mktemp)"
     trap '"$root/tests/e2e/stack.sh" down "$envfile"; rm -f "$envfile"' EXIT
+    ./scripts/layer-test.sh e2e -timeout 30m
     "$root/tests/e2e/stack.sh" up "$envfile"
     cd tests/ui && E2E_ENV_FILE="$envfile" E2E_REPORT="$PWD/../../$reports/ui.json" bunx playwright test
 

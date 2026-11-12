@@ -252,6 +252,7 @@ export type RepositoryBody = {
     enabled_at: string | null;
     full_name: string;
     id: string;
+    mcp_servers: Array<string>;
     mode: 'off' | 'shadow' | 'comment' | 'gate';
     private: boolean;
     profiles: ProfilesBody;
@@ -262,6 +263,44 @@ export type Result = {
     ms: number;
     name: string;
     ok: boolean;
+};
+
+export type ServerBody = {
+    allow_tools: Array<string>;
+    allow_write: boolean;
+    headers: {
+        [key: string]: string;
+    };
+    name: string;
+    secret: Field;
+    secret_header: string;
+    tools: Array<ToolInfo>;
+    url: string;
+};
+
+export type ServerInput = {
+    /**
+     * Name patterns of write tools to allow; needs allow_write
+     */
+    allow_tools?: Array<string>;
+    allow_write?: boolean;
+    headers?: {
+        [key: string]: string;
+    };
+    name: string;
+    secret?: Input;
+    /**
+     * Header that carries the secret value
+     */
+    secret_header?: string;
+    /**
+     * Streamable HTTP URL
+     */
+    url: string;
+};
+
+export type SetRepositoryMcpRequest = {
+    servers: Array<string>;
 };
 
 export type SetRepositoryModeRequest = {
@@ -313,6 +352,14 @@ export type TestProviderRequest = {
      * Model to test. Default: the first model of the provider.
      */
     model?: string;
+};
+
+export type ToolInfo = {
+    allowed: boolean;
+    description: string;
+    destructive?: boolean;
+    name: string;
+    read_only: boolean;
 };
 
 export type UserBody = {
@@ -560,6 +607,137 @@ export type GetGithubResponses = {
 };
 
 export type GetGithubResponse = GetGithubResponses[keyof GetGithubResponses];
+
+export type ListMcpServersData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/mcp-servers';
+};
+
+export type ListMcpServersErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type ListMcpServersError = ListMcpServersErrors[keyof ListMcpServersErrors];
+
+export type ListMcpServersResponses = {
+    /**
+     * OK
+     */
+    200: Array<ServerBody>;
+};
+
+export type ListMcpServersResponse = ListMcpServersResponses[keyof ListMcpServersResponses];
+
+export type CreateMcpServerData = {
+    body: ServerInput;
+    path?: never;
+    query?: never;
+    url: '/api/v1/mcp-servers';
+};
+
+export type CreateMcpServerErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type CreateMcpServerError = CreateMcpServerErrors[keyof CreateMcpServerErrors];
+
+export type CreateMcpServerResponses = {
+    /**
+     * Created
+     */
+    201: ServerBody;
+};
+
+export type CreateMcpServerResponse = CreateMcpServerResponses[keyof CreateMcpServerResponses];
+
+export type DeleteMcpServerData = {
+    body?: never;
+    path: {
+        name: string;
+    };
+    query?: never;
+    url: '/api/v1/mcp-servers/{name}';
+};
+
+export type DeleteMcpServerErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type DeleteMcpServerError = DeleteMcpServerErrors[keyof DeleteMcpServerErrors];
+
+export type DeleteMcpServerResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type DeleteMcpServerResponse = DeleteMcpServerResponses[keyof DeleteMcpServerResponses];
+
+export type UpdateMcpServerData = {
+    body: ServerInput;
+    path: {
+        name: string;
+    };
+    query?: never;
+    url: '/api/v1/mcp-servers/{name}';
+};
+
+export type UpdateMcpServerErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type UpdateMcpServerError = UpdateMcpServerErrors[keyof UpdateMcpServerErrors];
+
+export type UpdateMcpServerResponses = {
+    /**
+     * OK
+     */
+    200: ServerBody;
+};
+
+export type UpdateMcpServerResponse = UpdateMcpServerResponses[keyof UpdateMcpServerResponses];
+
+export type TestMcpServerData = {
+    body?: never;
+    path: {
+        name: string;
+    };
+    query?: never;
+    url: '/api/v1/mcp-servers/{name}/test';
+};
+
+export type TestMcpServerErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type TestMcpServerError = TestMcpServerErrors[keyof TestMcpServerErrors];
+
+export type TestMcpServerResponses = {
+    /**
+     * OK
+     */
+    200: Array<ToolInfo>;
+};
+
+export type TestMcpServerResponse = TestMcpServerResponses[keyof TestMcpServerResponses];
 
 export type GetMeData = {
     body?: never;
@@ -900,6 +1078,34 @@ export type GetRepositoryResponses = {
 };
 
 export type GetRepositoryResponse = GetRepositoryResponses[keyof GetRepositoryResponses];
+
+export type SetRepositoryMcpData = {
+    body: SetRepositoryMcpRequest;
+    path: {
+        owner: string;
+        name: string;
+    };
+    query?: never;
+    url: '/api/v1/repositories/{owner}/{name}/mcp';
+};
+
+export type SetRepositoryMcpErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type SetRepositoryMcpError = SetRepositoryMcpErrors[keyof SetRepositoryMcpErrors];
+
+export type SetRepositoryMcpResponses = {
+    /**
+     * OK
+     */
+    200: RepositoryBody;
+};
+
+export type SetRepositoryMcpResponse = SetRepositoryMcpResponses[keyof SetRepositoryMcpResponses];
 
 export type SetRepositoryModeData = {
     body: SetRepositoryModeRequest;

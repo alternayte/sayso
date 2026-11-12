@@ -810,6 +810,12 @@
           "id": {
             "type": "string"
           },
+          "mcp_servers": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "mode": {
             "enum": [
               "off",
@@ -833,7 +839,8 @@
           "private",
           "mode",
           "enabled_at",
-          "profiles"
+          "profiles",
+          "mcp_servers"
         ],
         "type": "object"
       },
@@ -859,6 +866,110 @@
           "ok",
           "detail",
           "ms"
+        ],
+        "type": "object"
+      },
+      "ServerBody": {
+        "additionalProperties": false,
+        "properties": {
+          "allow_tools": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "allow_write": {
+            "type": "boolean"
+          },
+          "headers": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "name": {
+            "type": "string"
+          },
+          "secret": {
+            "$ref": "#/components/schemas/Field"
+          },
+          "secret_header": {
+            "type": "string"
+          },
+          "tools": {
+            "items": {
+              "$ref": "#/components/schemas/ToolInfo"
+            },
+            "type": "array"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "url",
+          "headers",
+          "secret_header",
+          "secret",
+          "allow_tools",
+          "allow_write",
+          "tools"
+        ],
+        "type": "object"
+      },
+      "ServerInput": {
+        "additionalProperties": false,
+        "properties": {
+          "allow_tools": {
+            "description": "Name patterns of write tools to allow; needs allow_write",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "allow_write": {
+            "type": "boolean"
+          },
+          "headers": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "name": {
+            "type": "string"
+          },
+          "secret": {
+            "$ref": "#/components/schemas/Input"
+          },
+          "secret_header": {
+            "description": "Header that carries the secret value",
+            "type": "string"
+          },
+          "url": {
+            "description": "Streamable HTTP URL",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "url"
+        ],
+        "type": "object"
+      },
+      "Set-repository-mcpRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "servers": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "servers"
         ],
         "type": "object"
       },
@@ -1049,6 +1160,33 @@
             "type": "string"
           }
         },
+        "type": "object"
+      },
+      "ToolInfo": {
+        "additionalProperties": false,
+        "properties": {
+          "allowed": {
+            "type": "boolean"
+          },
+          "description": {
+            "type": "string"
+          },
+          "destructive": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          },
+          "read_only": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "description",
+          "read_only",
+          "allowed"
+        ],
         "type": "object"
       },
       "UserBody": {
@@ -1427,6 +1565,201 @@
         },
         "tags": [
           "github"
+        ]
+      }
+    },
+    "/api/v1/mcp-servers": {
+      "get": {
+        "operationId": "list-mcp-servers",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ServerBody"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "tags": [
+          "mcp"
+        ]
+      },
+      "post": {
+        "operationId": "create-mcp-server",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ServerInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServerBody"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "tags": [
+          "mcp"
+        ]
+      }
+    },
+    "/api/v1/mcp-servers/{name}": {
+      "delete": {
+        "operationId": "delete-mcp-server",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "tags": [
+          "mcp"
+        ]
+      },
+      "put": {
+        "operationId": "update-mcp-server",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ServerInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServerBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "tags": [
+          "mcp"
+        ]
+      }
+    },
+    "/api/v1/mcp-servers/{name}/test": {
+      "post": {
+        "operationId": "test-mcp-server",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ToolInfo"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "tags": [
+          "mcp"
         ]
       }
     },
@@ -1906,6 +2239,64 @@
             }
           }
         ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RepositoryBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "tags": [
+          "repositories"
+        ]
+      }
+    },
+    "/api/v1/repositories/{owner}/{name}/mcp": {
+      "put": {
+        "operationId": "set-repository-mcp",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "owner",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Set-repository-mcpRequest"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "content": {

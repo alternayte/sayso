@@ -3,8 +3,8 @@
 import { type InfiniteData, infiniteQueryOptions, queryOptions, type UseMutationOptions } from '@tanstack/react-query';
 
 import { client } from '../client.gen';
-import { createAppManifest, createProvider, createSetupSession, deleteGrant, deleteProfile, deleteProvider, deleteTeamRole, getAccess, getDiagnostics, getGithub, getMe, getRepository, getSettingHistory, getSetupState, listAudit, listAuditActions, listProfiles, listProviderModels, listProviderPresets, listProviders, listRepositories, listSettings, type Options, putGrant, putProfile, putSetting, putTeamRole, setRepositoryMode, setRepositoryProfiles, testProvider, updateProvider } from '../sdk.gen';
-import type { CreateAppManifestData, CreateAppManifestError, CreateAppManifestResponse, CreateProviderData, CreateProviderError, CreateProviderResponse, CreateSetupSessionData, CreateSetupSessionError, CreateSetupSessionResponse, DeleteGrantData, DeleteGrantError, DeleteGrantResponse, DeleteProfileData, DeleteProfileError, DeleteProfileResponse, DeleteProviderData, DeleteProviderError, DeleteProviderResponse, DeleteTeamRoleData, DeleteTeamRoleError, DeleteTeamRoleResponse, GetAccessData, GetAccessError, GetAccessResponse, GetDiagnosticsData, GetDiagnosticsError, GetDiagnosticsResponse, GetGithubData, GetGithubError, GetGithubResponse, GetMeData, GetMeError, GetMeResponse, GetRepositoryData, GetRepositoryError, GetRepositoryResponse, GetSettingHistoryData, GetSettingHistoryError, GetSettingHistoryResponse, GetSetupStateData, GetSetupStateError, GetSetupStateResponse, ListAuditActionsData, ListAuditActionsError, ListAuditActionsResponse, ListAuditData, ListAuditError, ListAuditResponse, ListProfilesData, ListProfilesError, ListProfilesResponse, ListProviderModelsData, ListProviderModelsError, ListProviderModelsResponse, ListProviderPresetsData, ListProviderPresetsError, ListProviderPresetsResponse, ListProvidersData, ListProvidersError, ListProvidersResponse, ListRepositoriesData, ListRepositoriesError, ListRepositoriesResponse, ListSettingsData, ListSettingsError, ListSettingsResponse, PutGrantData, PutGrantError, PutGrantResponse, PutProfileData, PutProfileError, PutProfileResponse, PutSettingData, PutSettingError, PutSettingResponse, PutTeamRoleData, PutTeamRoleError, PutTeamRoleResponse, SetRepositoryModeData, SetRepositoryModeError, SetRepositoryModeResponse, SetRepositoryProfilesData, SetRepositoryProfilesError, SetRepositoryProfilesResponse, TestProviderData, TestProviderError, TestProviderResponse, UpdateProviderData, UpdateProviderError, UpdateProviderResponse } from '../types.gen';
+import { createAppManifest, createMcpServer, createProvider, createSetupSession, deleteGrant, deleteMcpServer, deleteProfile, deleteProvider, deleteTeamRole, getAccess, getDiagnostics, getGithub, getMe, getRepository, getSettingHistory, getSetupState, listAudit, listAuditActions, listMcpServers, listProfiles, listProviderModels, listProviderPresets, listProviders, listRepositories, listSettings, type Options, putGrant, putProfile, putSetting, putTeamRole, setRepositoryMcp, setRepositoryMode, setRepositoryProfiles, testMcpServer, testProvider, updateMcpServer, updateProvider } from '../sdk.gen';
+import type { CreateAppManifestData, CreateAppManifestError, CreateAppManifestResponse, CreateMcpServerData, CreateMcpServerError, CreateMcpServerResponse, CreateProviderData, CreateProviderError, CreateProviderResponse, CreateSetupSessionData, CreateSetupSessionError, CreateSetupSessionResponse, DeleteGrantData, DeleteGrantError, DeleteGrantResponse, DeleteMcpServerData, DeleteMcpServerError, DeleteMcpServerResponse, DeleteProfileData, DeleteProfileError, DeleteProfileResponse, DeleteProviderData, DeleteProviderError, DeleteProviderResponse, DeleteTeamRoleData, DeleteTeamRoleError, DeleteTeamRoleResponse, GetAccessData, GetAccessError, GetAccessResponse, GetDiagnosticsData, GetDiagnosticsError, GetDiagnosticsResponse, GetGithubData, GetGithubError, GetGithubResponse, GetMeData, GetMeError, GetMeResponse, GetRepositoryData, GetRepositoryError, GetRepositoryResponse, GetSettingHistoryData, GetSettingHistoryError, GetSettingHistoryResponse, GetSetupStateData, GetSetupStateError, GetSetupStateResponse, ListAuditActionsData, ListAuditActionsError, ListAuditActionsResponse, ListAuditData, ListAuditError, ListAuditResponse, ListMcpServersData, ListMcpServersError, ListMcpServersResponse, ListProfilesData, ListProfilesError, ListProfilesResponse, ListProviderModelsData, ListProviderModelsError, ListProviderModelsResponse, ListProviderPresetsData, ListProviderPresetsError, ListProviderPresetsResponse, ListProvidersData, ListProvidersError, ListProvidersResponse, ListRepositoriesData, ListRepositoriesError, ListRepositoriesResponse, ListSettingsData, ListSettingsError, ListSettingsResponse, PutGrantData, PutGrantError, PutGrantResponse, PutProfileData, PutProfileError, PutProfileResponse, PutSettingData, PutSettingError, PutSettingResponse, PutTeamRoleData, PutTeamRoleError, PutTeamRoleResponse, SetRepositoryMcpData, SetRepositoryMcpError, SetRepositoryMcpResponse, SetRepositoryModeData, SetRepositoryModeError, SetRepositoryModeResponse, SetRepositoryProfilesData, SetRepositoryProfilesError, SetRepositoryProfilesResponse, TestMcpServerData, TestMcpServerError, TestMcpServerResponse, TestProviderData, TestProviderError, TestProviderResponse, UpdateMcpServerData, UpdateMcpServerError, UpdateMcpServerResponse, UpdateProviderData, UpdateProviderError, UpdateProviderResponse } from '../types.gen';
 
 export type QueryKey<TOptions extends Options> = [
     Pick<TOptions, 'baseUrl' | 'body' | 'headers' | 'path' | 'query'> & {
@@ -226,6 +226,77 @@ export const getGithubOptions = (options?: Options<GetGithubData>) => queryOptio
     queryKey: getGithubQueryKey(options)
 });
 
+export const listMcpServersQueryKey = (options?: Options<ListMcpServersData>) => createQueryKey('listMcpServers', options);
+
+export const listMcpServersOptions = (options?: Options<ListMcpServersData>) => queryOptions<ListMcpServersResponse, ListMcpServersError, ListMcpServersResponse, ReturnType<typeof listMcpServersQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await listMcpServers({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: listMcpServersQueryKey(options)
+});
+
+export const createMcpServerMutation = (options?: Partial<Options<CreateMcpServerData>>): UseMutationOptions<CreateMcpServerResponse, CreateMcpServerError, Options<CreateMcpServerData>> => {
+    const mutationOptions: UseMutationOptions<CreateMcpServerResponse, CreateMcpServerError, Options<CreateMcpServerData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await createMcpServer({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const deleteMcpServerMutation = (options?: Partial<Options<DeleteMcpServerData>>): UseMutationOptions<DeleteMcpServerResponse, DeleteMcpServerError, Options<DeleteMcpServerData>> => {
+    const mutationOptions: UseMutationOptions<DeleteMcpServerResponse, DeleteMcpServerError, Options<DeleteMcpServerData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await deleteMcpServer({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const updateMcpServerMutation = (options?: Partial<Options<UpdateMcpServerData>>): UseMutationOptions<UpdateMcpServerResponse, UpdateMcpServerError, Options<UpdateMcpServerData>> => {
+    const mutationOptions: UseMutationOptions<UpdateMcpServerResponse, UpdateMcpServerError, Options<UpdateMcpServerData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await updateMcpServer({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const testMcpServerMutation = (options?: Partial<Options<TestMcpServerData>>): UseMutationOptions<TestMcpServerResponse, TestMcpServerError, Options<TestMcpServerData>> => {
+    const mutationOptions: UseMutationOptions<TestMcpServerResponse, TestMcpServerError, Options<TestMcpServerData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await testMcpServer({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
 export const getMeQueryKey = (options?: Options<GetMeData>) => createQueryKey('getMe', options);
 
 export const getMeOptions = (options?: Options<GetMeData>) => queryOptions<GetMeResponse, GetMeError, GetMeResponse, ReturnType<typeof getMeQueryKey>>({
@@ -414,6 +485,20 @@ export const getRepositoryOptions = (options: Options<GetRepositoryData>) => que
     },
     queryKey: getRepositoryQueryKey(options)
 });
+
+export const setRepositoryMcpMutation = (options?: Partial<Options<SetRepositoryMcpData>>): UseMutationOptions<SetRepositoryMcpResponse, SetRepositoryMcpError, Options<SetRepositoryMcpData>> => {
+    const mutationOptions: UseMutationOptions<SetRepositoryMcpResponse, SetRepositoryMcpError, Options<SetRepositoryMcpData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await setRepositoryMcp({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
 
 export const setRepositoryModeMutation = (options?: Partial<Options<SetRepositoryModeData>>): UseMutationOptions<SetRepositoryModeResponse, SetRepositoryModeError, Options<SetRepositoryModeData>> => {
     const mutationOptions: UseMutationOptions<SetRepositoryModeResponse, SetRepositoryModeError, Options<SetRepositoryModeData>> = {
