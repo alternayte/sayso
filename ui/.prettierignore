@@ -1,0 +1,4 @@
+src/client
+src/routeTree.gen.ts
+dist
+openapi.json

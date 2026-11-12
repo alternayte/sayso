@@ -4,8 +4,12 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"net/http"
+	"net/http/httptest"
 	"os/exec"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -19,7 +23,25 @@ import (
 type server struct {
 	cmd  *exec.Cmd
 	base string
-	logs *bytes.Buffer
+	logs *syncBuffer
+}
+
+// syncBuffer is a buffer that the process writes and the test reads at once.
+type syncBuffer struct {
+	mu  sync.Mutex
+	buf bytes.Buffer
+}
+
+func (b *syncBuffer) Write(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.Write(p)
+}
+
+func (b *syncBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.String()
 }
 
 func startServe(t *testing.T, dbURL, temporalAddr, role string, extraEnv ...string) *server {
@@ -34,7 +56,7 @@ func startServe(t *testing.T, dbURL, temporalAddr, role string, extraEnv ...stri
 		"SAYSO_LISTEN=127.0.0.1:" + fmt.Sprint(port),
 		"SAYSO_BASE_URL=http://127.0.0.1:" + fmt.Sprint(port),
 	}, extraEnv...)
-	logs := &bytes.Buffer{}
+	logs := &syncBuffer{}
 	cmd.Stdout = logs
 	cmd.Stderr = logs
 	if err := cmd.Start(); err != nil {
@@ -111,4 +133,48 @@ func TestSCN_CORE_005_HealthReadyMetrics(t *testing.T) {
 	tp.Stop(t)
 	s.waitStatus(t, "/readyz", http.StatusServiceUnavailable, 30*time.Second)
 	s.waitStatus(t, "/healthz", http.StatusOK, time.Second)
+}
+
+func TestSCN_CORE_009_LogsRedactedAndTraces(t *testing.T) {
+	spans := make(chan string, 16)
+	collector := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		b, _ := io.ReadAll(r.Body)
+		spans <- r.URL.Path + " " + string(b)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer collector.Close()
+
+	dbURL := testenv.Postgres(t)
+	tp := testenv.TemporalDev(t)
+	const relay = "relay-token-0123456789"
+	s := startServe(t, dbURL, tp.Address, "all",
+		"OTEL_EXPORTER_OTLP_ENDPOINT="+collector.URL,
+		"OTEL_BSP_SCHEDULE_DELAY=100",
+		"SAYSO_RELAY_TOKEN="+relay,
+		"SAYSO_TEMPORAL_UI_URL=http://user:"+relay+"@temporal-ui:8080",
+	)
+	s.waitStatus(t, "/readyz", http.StatusOK, 60*time.Second)
+
+	req, _ := http.NewRequest(http.MethodGet, s.base+"/api/v1/me", nil)
+	req.Header.Set("Authorization", "Bearer "+relay)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+
+	select {
+	case got := <-spans:
+		if !strings.HasPrefix(got, "/v1/traces") || !strings.Contains(got, "/api/v1/me") {
+			t.Fatalf("collector got %q", got[:min(len(got), 200)])
+		}
+	case <-time.After(15 * time.Second):
+		t.Fatal("the collector received no span")
+	}
+	if strings.Contains(s.logs.String(), relay) {
+		t.Fatalf("logs contain a secret value:\n%s", s.logs.String())
+	}
+	if !strings.Contains(s.logs.String(), `"level":"INFO"`) {
+		t.Fatalf("logs are not JSON:\n%s", s.logs.String())
+	}
 }

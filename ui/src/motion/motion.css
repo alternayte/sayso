@@ -1,0 +1,65 @@
+/* Motion v2 (base). Reusable classes with no product names, so other apps can copy this folder.
+   Feedback starts on pointerdown. Only transform, opacity and filter animate. */
+:root {
+  --press: 70ms;
+  /* Springs as precomputed linear() curves. snappy settles in about 220ms with at most 4%
+     overshoot; soft settles in about 320ms with none. */
+  --spring-snappy: var(--ease-out);
+  --spring-soft: var(--ease-out);
+  --spring-snappy-ms: 220ms;
+  --spring-soft-ms: 320ms;
+}
+
+@supports (transition-timing-function: linear(0, 1)) {
+  :root {
+    --spring-snappy: linear(0, 0.22 6%, 0.6 14%, 0.88 22%, 1.02 30%, 1.04 36%, 1.03 44%, 1.005 56%, 0.998 70%, 1);
+    --spring-soft: linear(0, 0.12 6%, 0.36 14%, 0.6 24%, 0.78 34%, 0.9 46%, 0.96 58%, 0.99 74%, 1);
+  }
+}
+
+/* Press: scale to 0.97 on pointerdown, return with the snappy spring. Keyboard activation sets
+   data-pressed too. Rows and nav items shift background instead of scale. */
+.press {
+  transition:
+    transform var(--spring-snappy-ms) var(--spring-snappy),
+    background-color var(--fast) var(--ease-out);
+}
+.press[data-pressed] {
+  transform: scale(0.97);
+  transition-duration: var(--press);
+  transition-timing-function: var(--ease-out);
+}
+.press-row[data-pressed] {
+  background-color: var(--raised);
+  transition-duration: var(--press);
+}
+
+/* Shake: an optimistic action that failed rolls back and shakes 4px twice in 240ms. */
+.shake {
+  animation: motion-shake 240ms var(--ease-in-out) 1;
+}
+@keyframes motion-shake {
+  0%,
+  100% {
+    transform: none;
+  }
+  20%,
+  60% {
+    transform: translateX(-4px);
+  }
+  40%,
+  80% {
+    transform: translateX(4px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .press,
+  .press[data-pressed] {
+    transform: none;
+    transition: background-color var(--fast) var(--ease-out);
+  }
+  .shake {
+    animation: none;
+  }
+}

@@ -24,7 +24,7 @@ func main() {
 
 func root() *cobra.Command {
 	cmd := &cobra.Command{Use: "sayso", Short: "Self-hosted pull request reviewer", SilenceUsage: true, SilenceErrors: true}
-	cmd.AddCommand(serveCmd(), migrateCmd(), secretsCmd(), adminCmd(), versionCmd())
+	cmd.AddCommand(serveCmd(), migrateCmd(), secretsCmd(), adminCmd(), doctorCmd(), openapiCmd(), versionCmd())
 	return cmd
 }
 

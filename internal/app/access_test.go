@@ -29,6 +29,7 @@ var required = map[string]string{
 	"get-setting-history":  "admin",
 	"list-audit":           "admin",
 	"list-audit-actions":   "admin",
+	"get-diagnostics":      "admin",
 }
 
 var rank = map[string]int{"anonymous": 0, "viewer": 1, "maintainer": 2, "admin": 3}

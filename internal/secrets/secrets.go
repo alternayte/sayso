@@ -311,3 +311,23 @@ func (s *Store) PutValue(ctx context.Context, name, value string) ([16]byte, err
 	}
 	return s.ID(ctx, name)
 }
+
+// CheckAll decrypts every stored secret and returns how many there are. It
+// fails when the configured key cannot open one of them.
+func (s *Store) CheckAll(ctx context.Context) (int, error) {
+	rows, err := New(s.pool).All(ctx)
+	if err != nil {
+		return 0, err
+	}
+	n := 0
+	for _, r := range rows {
+		if r.Kind != "stored" {
+			continue
+		}
+		if _, err := s.value(r); err != nil {
+			return n, fmt.Errorf("secret %s: %w", r.Name, err)
+		}
+		n++
+	}
+	return n, nil
+}

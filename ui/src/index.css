@@ -1,0 +1,750 @@
+@import "tailwindcss";
+@import "@fontsource/geist-sans/400.css";
+@import "@fontsource/geist-sans/500.css";
+@import "@fontsource/geist-sans/600.css";
+@import "@fontsource/geist-mono/400.css";
+@import "@fontsource/geist-mono/500.css";
+@import "@fontsource/geist-mono/600.css";
+@import "./motion/motion.css";
+
+/* ui/DESIGN.md is the binding design. Dark only: near-black surfaces, one electric cyan accent
+   with a controlled glow, Geist Sans for sentences and Geist Mono for identity. The fonts are
+   bundled, so the page loads nothing from another origin. Motion v2 lives in src/motion/. */
+:root {
+  --canvas: #0b0d0e;
+  --sidebar: #090b0c;
+  --panel: #0f1315;
+  --raised: #131a1d;
+  --hairline: #1a2427;
+  --hairline-strong: #24343a;
+  --ink: #e8fbfe;
+  --body: #b9cdd2;
+  --mute: #6f878d;
+  --accent: #00e5ff;
+  --accent-ink: #00191d;
+  --accent-soft: rgba(0, 229, 255, 0.1);
+  --accent-text: #5ff0ff;
+  --success: #3dffa8;
+  --success-soft: rgba(61, 255, 168, 0.1);
+  --warning: #ffd84d;
+  --warning-soft: rgba(255, 216, 77, 0.1);
+  --danger: #ff5d73;
+  --danger-soft: rgba(255, 93, 115, 0.1);
+
+  --glow: 0 0 0 1px rgba(0, 229, 255, 0.55), 0 0 22px rgba(0, 229, 255, 0.35);
+  --glow-focus: 0 0 0 1px #00e5ff, 0 0 16px rgba(0, 229, 255, 0.45);
+
+  --radius: 4px;
+  --radius-control: 2px;
+  --radius-pill: 999px;
+
+  --fast: 120ms;
+  --base: 180ms;
+  --slow: 260ms;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-sidebar: var(--sidebar);
+  --color-panel: var(--panel);
+  --color-raised: var(--raised);
+  --color-hairline: var(--hairline);
+  --color-hairline-strong: var(--hairline-strong);
+  --color-ink: var(--ink);
+  --color-body: var(--body);
+  --color-mute: var(--mute);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-text: var(--accent-text);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --shadow-glow: var(--glow);
+  --shadow-glow-focus: var(--glow-focus);
+  --radius-card: var(--radius);
+  --radius-control: var(--radius-control);
+}
+
+@theme {
+  --font-sans: "Geist Sans", Geist, system-ui, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, monospace;
+}
+
+@layer base {
+  html,
+  body {
+    background: var(--canvas);
+    color: var(--body);
+  }
+  body {
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  *,
+  ::before,
+  ::after {
+    border-color: var(--hairline);
+  }
+  ::selection {
+    background: var(--accent-soft);
+    color: var(--ink);
+  }
+  :focus-visible {
+    outline: none;
+    box-shadow: var(--glow-focus);
+  }
+  a,
+  button,
+  summary {
+    transition:
+      color var(--fast) var(--ease-out),
+      background-color var(--fast) var(--ease-out),
+      border-color var(--fast) var(--ease-out),
+      box-shadow var(--fast) var(--ease-out);
+  }
+  dialog::backdrop {
+    background: rgb(0 0 0 / 65%);
+  }
+  [popover] {
+    margin: 0;
+  }
+  code,
+  kbd,
+  samp {
+    font-family: var(--font-mono);
+  }
+}
+
+@layer components {
+  /* Type. */
+  .t-title {
+    font: 600 22px/1.2 var(--font-mono);
+    letter-spacing: -0.01em;
+    color: var(--ink);
+  }
+  .t-section {
+    font: 500 14px/1.4 var(--font-mono);
+    color: var(--ink);
+  }
+  .t-label {
+    font: 500 12px/1.3 var(--font-mono);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--body);
+  }
+  .t-hint {
+    font: 400 12px/1.5 var(--font-sans);
+    color: var(--mute);
+  }
+  .t-value {
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+  }
+  .t-crumb {
+    font: 400 12px/1.4 var(--font-mono);
+    color: var(--mute);
+  }
+  .link {
+    color: var(--accent-text);
+    text-decoration: underline;
+    text-decoration-color: color-mix(in srgb, var(--accent-text) 40%, transparent);
+    text-underline-offset: 3px;
+  }
+  .link:hover {
+    text-decoration-color: var(--accent-text);
+  }
+
+  /* Card. */
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius);
+  }
+  .card-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--hairline);
+  }
+
+  /* Buttons. Hover and press change colour in fast; press scales to 0.98. */
+  .btn {
+    position: relative;
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    height: 36px;
+    padding: 0 14px;
+    border: 1px solid var(--hairline-strong);
+    border-radius: var(--radius-control);
+    background: var(--raised);
+    color: var(--ink);
+    font: 500 13px/1 var(--font-sans);
+    white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+    transition:
+      color var(--fast) var(--ease-out),
+      background-color var(--fast) var(--ease-out),
+      border-color var(--fast) var(--ease-out),
+      box-shadow var(--fast) var(--ease-out),
+      opacity var(--fast) var(--ease-out),
+      transform var(--fast) var(--ease-out);
+  }
+  .btn:hover {
+    background: var(--hairline);
+    border-color: color-mix(in srgb, var(--mute) 55%, var(--hairline-strong));
+  }
+  .btn:active:not(:disabled) {
+    transform: scale(0.98);
+  }
+  .btn:disabled,
+  .btn[aria-disabled="true"] {
+    cursor: not-allowed;
+    opacity: 0.45;
+  }
+  .btn:disabled:hover {
+    background: var(--raised);
+    border-color: var(--hairline-strong);
+  }
+  /* Busy and just-done buttons stay at full strength, even when the form disables them. */
+  .btn[aria-busy="true"],
+  .btn[data-done] {
+    opacity: 1;
+  }
+  .btn[aria-busy="true"] {
+    cursor: progress;
+  }
+  .btn-sm {
+    height: 28px;
+    padding: 0 10px;
+    gap: 6px;
+    font-size: 12px;
+  }
+  .btn-primary {
+    background: var(--accent);
+    border-color: transparent;
+    color: var(--accent-ink);
+    box-shadow: var(--glow);
+  }
+  .btn-primary:hover {
+    background: var(--accent-text);
+    border-color: transparent;
+  }
+  .btn-primary:disabled,
+  .btn-primary:disabled:hover {
+    background: var(--accent);
+    border-color: transparent;
+    box-shadow: none;
+  }
+  .btn-primary[aria-busy="true"],
+  .btn-primary[aria-busy="true"]:hover {
+    box-shadow: var(--glow);
+  }
+  .btn-primary:focus-visible {
+    box-shadow: var(--glow-focus);
+  }
+  .btn-ghost {
+    background: transparent;
+    border-color: transparent;
+    color: var(--mute);
+  }
+  .btn-ghost:hover {
+    background: var(--raised);
+    border-color: transparent;
+    color: var(--ink);
+  }
+  .btn-ghost:disabled:hover {
+    background: transparent;
+    border-color: transparent;
+  }
+  /* A segmented control for a short ordinal choice. */
+  .segmented {
+    display: inline-flex;
+    gap: 2px;
+    padding: 2px;
+    border: 1px solid var(--hairline-strong);
+    border-radius: var(--radius-control, 0.5rem);
+    background: var(--canvas);
+    align-self: flex-start;
+  }
+  .segment {
+    padding: 0.3rem 0.75rem;
+    border-radius: calc(var(--radius-control, 0.5rem) - 2px);
+    font-size: 0.8125rem;
+    color: var(--mute);
+    transition:
+      background var(--fast) var(--ease-out),
+      color var(--fast) var(--ease-out);
+  }
+  .segment:hover {
+    color: var(--ink);
+  }
+  .segment:focus-visible {
+    outline: none;
+    box-shadow: var(--glow-focus);
+  }
+  .segment-on {
+    background: var(--raised);
+    color: var(--ink);
+    box-shadow: inset 0 0 0 1px var(--hairline-strong);
+  }
+  .btn-danger {
+    color: var(--danger);
+  }
+  .btn-danger:hover {
+    background: var(--danger-soft);
+    border-color: color-mix(in srgb, var(--danger) 40%, transparent);
+  }
+  /* The label keeps the button width while the spinner or the check sits on top of it. */
+  .btn-label {
+    display: inline-flex;
+    align-items: center;
+    gap: inherit;
+    transition: opacity var(--fast) var(--ease-out);
+  }
+  .btn-overlay {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    animation: fade-in var(--fast) var(--ease-out);
+  }
+
+  /* Form controls. Focus: the accent border and the focus glow fade in over fast. */
+  .control {
+    width: 100%;
+    min-height: 36px;
+    padding: 8px 10px;
+    border: 1px solid var(--hairline-strong);
+    border-radius: var(--radius-control);
+    background: var(--canvas);
+    color: var(--ink);
+    font: 400 13px/1.4 var(--font-sans);
+    outline: none;
+    transition:
+      border-color var(--fast) var(--ease-out),
+      box-shadow var(--fast) var(--ease-out),
+      background-color var(--fast) var(--ease-out);
+  }
+  .control::placeholder {
+    color: color-mix(in srgb, var(--mute) 75%, transparent);
+  }
+  .control:hover:not(:disabled):not(:focus) {
+    border-color: color-mix(in srgb, var(--mute) 45%, var(--hairline-strong));
+  }
+  .control:focus,
+  .control:focus-visible {
+    border-color: var(--accent);
+    box-shadow: var(--glow-focus);
+  }
+  .control:disabled {
+    cursor: not-allowed;
+    background: var(--panel);
+    color: var(--mute);
+  }
+  .control[aria-invalid="true"] {
+    border-color: var(--danger);
+  }
+  .control-mono {
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+  }
+  select.control {
+    padding-right: 28px;
+  }
+  textarea.control {
+    min-height: 80px;
+    resize: vertical;
+  }
+
+  /* Switch. A checked switch is ink, not cyan: cyan marks only the four things DESIGN.md names. */
+  .switch {
+    position: relative;
+    flex-shrink: 0;
+    width: 34px;
+    height: 20px;
+    border: 1px solid var(--hairline-strong);
+    border-radius: var(--radius-pill);
+    background: var(--raised);
+  }
+  .switch[data-state="checked"] {
+    background: var(--ink);
+    border-color: var(--ink);
+  }
+  .switch:disabled {
+    cursor: not-allowed;
+    opacity: 0.45;
+  }
+  .switch-thumb {
+    display: block;
+    width: 14px;
+    height: 14px;
+    border-radius: var(--radius-pill);
+    background: var(--mute);
+    transform: translateX(2px);
+    transition:
+      transform var(--fast) var(--ease-out),
+      background-color var(--fast) var(--ease-out);
+  }
+  .switch-thumb[data-state="checked"] {
+    background: var(--canvas);
+    transform: translateX(15px);
+  }
+
+  /* Badge: a pill, a dot for a status, on the -soft background of its colour. */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 8px;
+    border-radius: var(--radius-pill);
+    font: 500 11px/1.45 var(--font-mono);
+    white-space: nowrap;
+    background: var(--raised);
+    color: var(--body);
+  }
+  .badge-dot::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+  .badge-accent {
+    background: var(--accent-soft);
+    color: var(--accent-text);
+  }
+  .badge-success {
+    background: var(--success-soft);
+    color: var(--success);
+  }
+  .badge-warning {
+    background: var(--warning-soft);
+    color: var(--warning);
+  }
+  .badge-danger {
+    background: var(--danger-soft);
+    color: var(--danger);
+  }
+
+  /* Notes. */
+  .note {
+    display: flex;
+    gap: 10px;
+    padding: 10px 12px;
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius-control);
+    background: var(--raised);
+    color: var(--body);
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  .note-success {
+    border-color: color-mix(in srgb, var(--success) 22%, transparent);
+    background: var(--success-soft);
+  }
+  .note-warning {
+    border-color: color-mix(in srgb, var(--warning) 22%, transparent);
+    background: var(--warning-soft);
+  }
+  .note-danger {
+    border-color: color-mix(in srgb, var(--danger) 28%, transparent);
+    background: var(--danger-soft);
+  }
+
+  /* Help: a quiet icon button beside a label, and the popover it opens. */
+  .help-trigger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: var(--radius-control);
+    color: var(--mute);
+    outline: none;
+    transition:
+      color var(--fast) var(--ease-out),
+      background-color var(--fast) var(--ease-out),
+      box-shadow var(--fast) var(--ease-out);
+  }
+  .help-trigger:hover,
+  .help-trigger[data-state="open"] {
+    color: var(--ink);
+    background: var(--raised);
+  }
+  .help-trigger:focus-visible {
+    box-shadow: var(--glow-focus);
+  }
+  .popover {
+    position: fixed;
+    inset: auto;
+    margin: 0;
+    max-height: calc(100vh - 32px);
+    overflow: auto;
+    padding: 12px 14px;
+    color: var(--body);
+    border: 1px solid var(--hairline-strong);
+    border-radius: var(--radius);
+    background: var(--panel);
+    animation: fade-in var(--fast) var(--ease-out);
+  }
+
+  /* Tables scroll inside their card. */
+  .table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    text-align: left;
+  }
+  .table th {
+    padding: 10px 16px;
+    font: 500 11px/1.3 var(--font-mono);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--mute);
+    white-space: nowrap;
+  }
+  .table td {
+    padding: 10px 16px;
+    border-top: 1px solid var(--hairline);
+    vertical-align: top;
+  }
+  .table tbody tr {
+    transition: background-color var(--fast) var(--ease-out);
+  }
+  .table tbody tr:hover {
+    background: color-mix(in srgb, var(--raised) 70%, transparent);
+  }
+
+  /* Navigation in the sidebar. */
+  .nav-link {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 8px;
+    border-radius: var(--radius);
+    color: var(--mute);
+    white-space: nowrap;
+    text-align: left;
+  }
+  .nav-link:hover {
+    background: color-mix(in srgb, var(--raised) 60%, transparent);
+    color: var(--body);
+  }
+  .nav-link[data-status="active"],
+  .nav-link[aria-current="step"],
+  .nav-link[aria-current="page"] {
+    background: var(--raised);
+    color: var(--ink);
+  }
+
+  /* Setup step markers: done, current and upcoming. */
+  .step-marker {
+    position: relative;
+    display: inline-grid;
+    place-items: center;
+    flex-shrink: 0;
+    width: 18px;
+    height: 18px;
+    border: 1px solid var(--hairline-strong);
+    border-radius: 50%;
+    color: var(--mute);
+    font: 500 11px/1 var(--font-mono);
+  }
+  .step-marker[data-state="done"] {
+    background: var(--accent-soft);
+    border-color: transparent;
+    color: var(--accent-text);
+  }
+  .step-marker[data-state="current"] {
+    background: var(--accent);
+    border-color: transparent;
+    color: var(--accent-ink);
+    box-shadow: var(--glow);
+  }
+  /* The glow pulses once when a step becomes current. */
+  .step-marker[data-state="current"]::after {
+    content: "";
+    position: absolute;
+    inset: -1px;
+    border-radius: 50%;
+    box-shadow: var(--glow);
+    opacity: 0;
+    pointer-events: none;
+    animation: glow-pulse 900ms var(--ease-out) 1;
+  }
+
+  /* Brand mark. */
+  .brand-mark {
+    display: inline-grid;
+    place-items: center;
+    width: 18px;
+    height: 18px;
+    border-radius: var(--radius);
+    background: var(--accent);
+    box-shadow: var(--glow);
+    color: var(--accent-ink);
+  }
+
+  /* Skeletons in the shape of the content, with a slow shimmer. */
+  .skeleton {
+    display: block;
+    border-radius: var(--radius-control);
+    background: var(--raised);
+    animation: shimmer 1.6s var(--ease-in-out) infinite;
+  }
+
+  /* Lists and cards enter with a 4px rise and a fade in base, staggered 30ms, at most 6 items. */
+  .stagger > * {
+    animation: enter var(--base) var(--ease-out) both;
+  }
+  .stagger > :nth-child(2) {
+    animation-delay: 30ms;
+  }
+  .stagger > :nth-child(3) {
+    animation-delay: 60ms;
+  }
+  .stagger > :nth-child(4) {
+    animation-delay: 90ms;
+  }
+  .stagger > :nth-child(5) {
+    animation-delay: 120ms;
+  }
+  .stagger > :nth-child(6) {
+    animation-delay: 150ms;
+  }
+  .stagger > :nth-child(n + 7) {
+    animation: none;
+  }
+  .enter {
+    animation: enter var(--base) var(--ease-out) both;
+  }
+  .fade-in {
+    animation: fade-in var(--base) var(--ease-out) both;
+  }
+
+  dialog.dialog[open] {
+    animation: enter var(--base) var(--ease-out);
+  }
+}
+
+@keyframes enter {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes shimmer {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+@keyframes glow-pulse {
+  0% {
+    opacity: 0;
+    transform: scale(1);
+  }
+  35% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.7);
+  }
+}
+@keyframes glow-pulse-still {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  35% {
+    opacity: 1;
+  }
+}
+
+/* Route change: the main area cross-fades in base. The sidebar does not move. */
+.vt-main {
+  view-transition-name: main;
+}
+.vt-sidebar {
+  view-transition-name: sidebar;
+}
+::view-transition-group(sidebar),
+::view-transition-old(sidebar),
+::view-transition-new(sidebar) {
+  animation: none;
+}
+::view-transition-old(root),
+::view-transition-new(root),
+::view-transition-old(main),
+::view-transition-new(main) {
+  animation-duration: var(--base);
+  animation-timing-function: var(--ease-out);
+}
+::view-transition-group(main) {
+  animation-duration: var(--base);
+}
+
+/* Reduced motion removes movement, scale and shimmer. Colour changes and fades stay. */
+@media (prefers-reduced-motion: reduce) {
+  .btn:active:not(:disabled) {
+    transform: none;
+  }
+  .stagger > *,
+  .enter,
+  dialog.dialog[open] {
+    animation-name: fade-in;
+  }
+  .skeleton {
+    animation: none;
+  }
+  .step-marker[data-state="current"]::after {
+    animation-name: glow-pulse-still;
+  }
+  .switch-thumb {
+    transition: background-color var(--fast) var(--ease-out);
+  }
+  .animate-spin {
+    animation-duration: 1.5s;
+  }
+  ::view-transition-group(main) {
+    animation: none;
+  }
+}
+
+/* The async button hides its label under the spinner or the check without a jump. */
+.btn-label[data-hidden] {
+  opacity: 0;
+}

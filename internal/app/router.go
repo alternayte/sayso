@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/hmac"
 	"crypto/sha256"
+	"encoding/json"
 	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -20,9 +21,10 @@ import (
 
 // Features are the services that the HTTP handler exposes.
 type Features struct {
-	Settings *settings.Store
-	Secrets  *secrets.Store
-	Auth     *auth.Service
+	Settings     *settings.Store
+	Secrets      *secrets.Store
+	Auth         *auth.Service
+	GitHubClient func(ctx context.Context) (*github.Client, error)
 }
 
 // NewFeatures builds the feature services on the shared resources.
@@ -54,7 +56,7 @@ func NewFeatures(ctx context.Context, d *Deps) (*Features, error) {
 		BaseURL: d.Config.BaseURL, SetupToken: d.Config.SetupToken, BootstrapAdmins: d.Config.BootstrapAdmins,
 		SigningKey: derive(d.Config.SecretKey, "setup cookie"),
 	}, sec, gh, d.Log)
-	return &Features{Settings: st, Secrets: sec, Auth: a}, nil
+	return &Features{Settings: st, Secrets: sec, Auth: a, GitHubClient: gh}, nil
 }
 
 func derive(key []byte, purpose string) []byte {
@@ -76,20 +78,35 @@ func NewHandler(d *Deps, f *Features) http.Handler {
 
 	api := NewAPI(r)
 	api.UseMiddleware(auth.Enforce(api, func(ctx context.Context) (bool, error) { return github.Exists(ctx, d.Pool) }))
+	registerOperations(api, d, f)
+	r.Handle("/*", uiHandler(d))
+	return r
+}
+
+func registerOperations(api huma.API, d *Deps, f *Features) {
 	v1 := huma.NewGroup(api, "/api/v1")
 	f.Auth.Register(v1)
 	f.Settings.Register(v1)
 	audit.Register(v1, d.Pool, auth.Op(auth.Admin))
-	return r
+	registerDiagnostics(v1, d, f)
+}
+
+// OpenAPI returns the OpenAPI document of the API as JSON.
+func OpenAPI() ([]byte, error) {
+	api := NewAPI(chi.NewRouter())
+	registerOperations(api, &Deps{}, &Features{})
+	return json.MarshalIndent(api.OpenAPI(), "", "  ")
 }
 
 // NewAPI creates the Huma API on a router. `sayso openapi` uses it to
 // export the document.
 func NewAPI(r chi.Router) huma.API {
+	huma.DefaultArrayNullable = false
 	cfg := huma.DefaultConfig("Sayso API", "1.0.0")
 	cfg.OpenAPIPath = "/api/v1/openapi"
 	cfg.DocsPath = ""
 	cfg.SchemasPath = "/api/v1/schemas"
+	cfg.CreateHooks = nil
 	return humachi.New(r, cfg)
 }
 

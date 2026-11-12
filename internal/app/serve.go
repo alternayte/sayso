@@ -34,39 +34,20 @@ func Serve(ctx context.Context, cfg *Config, log *slog.Logger, red *Redactor) er
 	if cfg.Role == RoleRelay {
 		return fmt.Errorf("role relay is not available in this build")
 	}
-	pool, err := pgxpool.New(ctx, cfg.DatabaseURL)
-	if err != nil {
-		return fmt.Errorf("database: %w", err)
-	}
-	defer pool.Close()
-	if err := waitDatabase(ctx, pool, log); err != nil {
-		return err
-	}
-	n, err := Migrate(ctx, pool)
+	d, f, closeAll, err := Open(ctx, cfg, log, red)
 	if err != nil {
 		return err
 	}
-	log.Info("migrations applied", "count", n)
-
-	tc, err := client.NewLazyClient(client.Options{
-		HostPort:  cfg.TemporalAddress,
-		Namespace: cfg.TemporalNamespace,
-		Logger:    log.With("component", "temporal"),
-	})
-	if err != nil {
-		return fmt.Errorf("temporal client: %w", err)
+	defer closeAll()
+	if err := RegisterNamespace(ctx, d, f.Settings); err != nil {
+		log.Warn("temporal namespace not registered", "error", err)
 	}
-	defer tc.Close()
-
-	reg := prometheus.NewRegistry()
-	reg.MustRegister(collectors.NewGoCollector(), collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}))
-	d := &Deps{Config: cfg, Log: log, Redactor: red, Pool: pool, Temporal: tc, Metrics: reg}
-
-	f, err := NewFeatures(ctx, d)
+	h := traced(NewHandler(d, f))
+	flush, err := StartTelemetry(ctx)
 	if err != nil {
-		return err
+		return fmt.Errorf("telemetry: %w", err)
 	}
-	h := NewHandler(d, f)
+	defer func() { _ = flush(context.Background()) }()
 
 	ln, err := net.Listen("tcp", cfg.Listen)
 	if err != nil {
@@ -132,4 +113,45 @@ func (d *Deps) readyz(w http.ResponseWriter, r *http.Request) {
 		code = http.StatusServiceUnavailable
 	}
 	writeJSON(w, code, st)
+}
+
+// Open connects to the database and Temporal, applies migrations and builds
+// the features. The returned function closes the connections.
+func Open(ctx context.Context, cfg *Config, log *slog.Logger, red *Redactor) (*Deps, *Features, func(), error) {
+	pool, err := pgxpool.New(ctx, cfg.DatabaseURL)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("database: %w", err)
+	}
+	if err := waitDatabase(ctx, pool, log); err != nil {
+		pool.Close()
+		return nil, nil, nil, err
+	}
+	n, err := Migrate(ctx, pool)
+	if err != nil {
+		pool.Close()
+		return nil, nil, nil, err
+	}
+	log.Info("migrations applied", "count", n)
+
+	tc, err := client.NewLazyClient(client.Options{
+		HostPort:  cfg.TemporalAddress,
+		Namespace: cfg.TemporalNamespace,
+		Logger:    log.With("component", "temporal"),
+	})
+	if err != nil {
+		pool.Close()
+		return nil, nil, nil, fmt.Errorf("temporal client: %w", err)
+	}
+
+	reg := prometheus.NewRegistry()
+	reg.MustRegister(collectors.NewGoCollector(), collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}))
+	d := &Deps{Config: cfg, Log: log, Redactor: red, Pool: pool, Temporal: tc, Metrics: reg}
+
+	f, err := NewFeatures(ctx, d)
+	if err != nil {
+		tc.Close()
+		pool.Close()
+		return nil, nil, nil, err
+	}
+	return d, f, func() { tc.Close(); pool.Close() }, nil
 }

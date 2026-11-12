@@ -19,6 +19,8 @@ One Go binary serves the api, worker and relay roles, and a separate agent image
 - Tracked files and commit messages contain no employer names, internal hostnames, people or real data. Test data uses only the synthetic acme fixtures.
 - Workflows run on Temporal. PostgreSQL is the only application datastore, and workflow payloads hold IDs only.
 - The UI tooling uses Bun. The agent runtime uses Node 22.
+- Take UI components from shadcn into `ui/src/components/ui` and restyle them with the classes in `ui/DESIGN.md`. Write a component from scratch only when shadcn has none.
+- The page CSP allows a style element only with the nonce of that page. Never add 'unsafe-inline'.
 - The agent process never holds a model key, a GitHub write token or an MCP credential. It reaches models and MCP servers only through the API proxies with a run token.
 - Sayso never submits APPROVE or REQUEST_CHANGES, never merges, and never pushes to a branch it did not create.
 - Licence is MIT. Add no GPL, AGPL, SSPL or BSL dependency.
