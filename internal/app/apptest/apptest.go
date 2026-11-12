@@ -233,6 +233,11 @@ func JSON(t *testing.T, c *http.Client, method, url string, in, out any) int {
 		t.Fatal(err)
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		b, _ := io.ReadAll(resp.Body)
+		t.Logf("%s %s: %d %s", method, url, resp.StatusCode, b)
+		return resp.StatusCode
+	}
 	if out != nil && resp.StatusCode < 300 {
 		if err := json.NewDecoder(resp.Body).Decode(out); err != nil {
 			t.Fatal(err)

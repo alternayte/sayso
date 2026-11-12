@@ -18,6 +18,13 @@ export type AppBody = {
     slug: string;
 };
 
+export type CheckResult = {
+    detail: string;
+    ms: number;
+    name: string;
+    ok: boolean;
+};
+
 export type CreateSetupSessionRequest = {
     token: string;
 };
@@ -89,6 +96,15 @@ export type ErrorModel = {
     type?: string;
 };
 
+export type Field = {
+    env_name?: string;
+    kind?: 'stored' | 'env_ref';
+    last4?: string;
+    set: boolean;
+    status?: 'stored' | 'set' | 'not set';
+    updated_at?: string;
+};
+
 export type GitHubBody = {
     app: AppBody;
     deliveries: Array<DeliveryBody>;
@@ -117,6 +133,17 @@ export type IngressBody = {
     webhook_url: string;
 };
 
+export type Input = {
+    /**
+     * Name of an environment variable of the API process.
+     */
+    env?: string;
+    /**
+     * New value. The API never returns it.
+     */
+    value?: string;
+};
+
 export type InstallationBody = {
     account_login: string;
     id: number;
@@ -138,8 +165,78 @@ export type MeBody = {
     role: string;
 };
 
+export type Preset = {
+    api_type: string;
+    auth_header?: string;
+    auth_style: string;
+    base_url: string;
+    headers?: {
+        [key: string]: string;
+    };
+    hint?: string;
+    id: string;
+    label: string;
+};
+
+export type ProfileBody = {
+    default: boolean;
+    name: string;
+    round_budget_usd: number;
+    targets: Array<Target>;
+};
+
+export type ProfilesBody = {
+    challenge: string;
+    fix: string;
+    reply: string;
+    review: string;
+};
+
+export type ProviderBody = {
+    api_type: string;
+    auth_header: string;
+    auth_style: string;
+    base_url: string;
+    compat: {
+        [key: string]: unknown;
+    };
+    headers: {
+        [key: string]: string;
+    };
+    key: Field;
+    max_concurrency: number;
+    models: Array<string>;
+    name: string;
+    smoke?: Smoke;
+    tokens_per_minute: number;
+    used_by: Array<string>;
+};
+
+export type ProviderInput = {
+    api_type: 'openai-completions' | 'openai-responses' | 'anthropic-messages' | 'google-generative-ai';
+    auth_header?: string;
+    auth_style: 'bearer' | 'x_api_key' | 'api_key' | 'header';
+    base_url: string;
+    compat?: {
+        [key: string]: unknown;
+    };
+    headers?: {
+        [key: string]: string;
+    };
+    key?: Input;
+    max_concurrency?: number;
+    models?: Array<string>;
+    name: string;
+    tokens_per_minute?: number;
+};
+
 export type PutGrantRequest = {
     role: 'admin' | 'maintainer' | 'viewer';
+};
+
+export type PutProfileRequest = {
+    round_budget_usd?: number;
+    targets: Array<Target>;
 };
 
 export type PutSettingRequest = {
@@ -157,6 +254,7 @@ export type RepositoryBody = {
     id: string;
     mode: 'off' | 'shadow' | 'comment' | 'gate';
     private: boolean;
+    profiles: ProfilesBody;
 };
 
 export type Result = {
@@ -186,9 +284,35 @@ export type SetupStateBody = {
     signed_in: boolean;
 };
 
+export type Smoke = {
+    at: string;
+    checks: Array<CheckResult>;
+    model: string;
+    response_model: string;
+};
+
+export type Target = {
+    context_window?: number;
+    max_tokens?: number;
+    model: string;
+    price_cache_read: number;
+    price_in: number;
+    price_out: number;
+    provider: string;
+    reasoning?: '' | 'off' | 'low' | 'medium' | 'high';
+    temperature?: number;
+};
+
 export type TeamRoleBody = {
     role: 'admin' | 'maintainer' | 'viewer';
     team_slug: string;
+};
+
+export type TestProviderRequest = {
+    /**
+     * Model to test. Default: the first model of the provider.
+     */
+    model?: string;
 };
 
 export type UserBody = {
@@ -462,6 +586,268 @@ export type GetMeResponses = {
 
 export type GetMeResponse = GetMeResponses[keyof GetMeResponses];
 
+export type ListProfilesData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/profiles';
+};
+
+export type ListProfilesErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type ListProfilesError = ListProfilesErrors[keyof ListProfilesErrors];
+
+export type ListProfilesResponses = {
+    /**
+     * OK
+     */
+    200: Array<ProfileBody>;
+};
+
+export type ListProfilesResponse = ListProfilesResponses[keyof ListProfilesResponses];
+
+export type DeleteProfileData = {
+    body?: never;
+    path: {
+        name: string;
+    };
+    query?: never;
+    url: '/api/v1/profiles/{name}';
+};
+
+export type DeleteProfileErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type DeleteProfileError = DeleteProfileErrors[keyof DeleteProfileErrors];
+
+export type DeleteProfileResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type DeleteProfileResponse = DeleteProfileResponses[keyof DeleteProfileResponses];
+
+export type PutProfileData = {
+    body: PutProfileRequest;
+    path: {
+        name: string;
+    };
+    query?: never;
+    url: '/api/v1/profiles/{name}';
+};
+
+export type PutProfileErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type PutProfileError = PutProfileErrors[keyof PutProfileErrors];
+
+export type PutProfileResponses = {
+    /**
+     * OK
+     */
+    200: ProfileBody;
+};
+
+export type PutProfileResponse = PutProfileResponses[keyof PutProfileResponses];
+
+export type ListProvidersData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/providers';
+};
+
+export type ListProvidersErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type ListProvidersError = ListProvidersErrors[keyof ListProvidersErrors];
+
+export type ListProvidersResponses = {
+    /**
+     * OK
+     */
+    200: Array<ProviderBody>;
+};
+
+export type ListProvidersResponse = ListProvidersResponses[keyof ListProvidersResponses];
+
+export type CreateProviderData = {
+    body: ProviderInput;
+    path?: never;
+    query?: never;
+    url: '/api/v1/providers';
+};
+
+export type CreateProviderErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type CreateProviderError = CreateProviderErrors[keyof CreateProviderErrors];
+
+export type CreateProviderResponses = {
+    /**
+     * Created
+     */
+    201: ProviderBody;
+};
+
+export type CreateProviderResponse = CreateProviderResponses[keyof CreateProviderResponses];
+
+export type ListProviderPresetsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/providers/presets';
+};
+
+export type ListProviderPresetsErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type ListProviderPresetsError = ListProviderPresetsErrors[keyof ListProviderPresetsErrors];
+
+export type ListProviderPresetsResponses = {
+    /**
+     * OK
+     */
+    200: Array<Preset>;
+};
+
+export type ListProviderPresetsResponse = ListProviderPresetsResponses[keyof ListProviderPresetsResponses];
+
+export type DeleteProviderData = {
+    body?: never;
+    path: {
+        name: string;
+    };
+    query?: never;
+    url: '/api/v1/providers/{name}';
+};
+
+export type DeleteProviderErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type DeleteProviderError = DeleteProviderErrors[keyof DeleteProviderErrors];
+
+export type DeleteProviderResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type DeleteProviderResponse = DeleteProviderResponses[keyof DeleteProviderResponses];
+
+export type UpdateProviderData = {
+    body: ProviderInput;
+    path: {
+        name: string;
+    };
+    query?: never;
+    url: '/api/v1/providers/{name}';
+};
+
+export type UpdateProviderErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type UpdateProviderError = UpdateProviderErrors[keyof UpdateProviderErrors];
+
+export type UpdateProviderResponses = {
+    /**
+     * OK
+     */
+    200: ProviderBody;
+};
+
+export type UpdateProviderResponse = UpdateProviderResponses[keyof UpdateProviderResponses];
+
+export type ListProviderModelsData = {
+    body?: never;
+    path: {
+        name: string;
+    };
+    query?: never;
+    url: '/api/v1/providers/{name}/models';
+};
+
+export type ListProviderModelsErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type ListProviderModelsError = ListProviderModelsErrors[keyof ListProviderModelsErrors];
+
+export type ListProviderModelsResponses = {
+    /**
+     * OK
+     */
+    200: Array<string>;
+};
+
+export type ListProviderModelsResponse = ListProviderModelsResponses[keyof ListProviderModelsResponses];
+
+export type TestProviderData = {
+    body: TestProviderRequest;
+    path: {
+        name: string;
+    };
+    query?: never;
+    url: '/api/v1/providers/{name}/test';
+};
+
+export type TestProviderErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type TestProviderError = TestProviderErrors[keyof TestProviderErrors];
+
+export type TestProviderResponses = {
+    /**
+     * OK
+     */
+    200: Smoke;
+};
+
+export type TestProviderResponse = TestProviderResponses[keyof TestProviderResponses];
+
 export type ListRepositoriesData = {
     body?: never;
     path?: never;
@@ -542,6 +928,34 @@ export type SetRepositoryModeResponses = {
 };
 
 export type SetRepositoryModeResponse = SetRepositoryModeResponses[keyof SetRepositoryModeResponses];
+
+export type SetRepositoryProfilesData = {
+    body: ProfilesBody;
+    path: {
+        owner: string;
+        name: string;
+    };
+    query?: never;
+    url: '/api/v1/repositories/{owner}/{name}/profiles';
+};
+
+export type SetRepositoryProfilesErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type SetRepositoryProfilesError = SetRepositoryProfilesErrors[keyof SetRepositoryProfilesErrors];
+
+export type SetRepositoryProfilesResponses = {
+    /**
+     * OK
+     */
+    200: RepositoryBody;
+};
+
+export type SetRepositoryProfilesResponse = SetRepositoryProfilesResponses[keyof SetRepositoryProfilesResponses];
 
 export type ListSettingsData = {
     body?: never;

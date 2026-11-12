@@ -21,8 +21,31 @@ import (
 	"github.com/alternayte/sayso/internal/settings"
 )
 
-// Checks returns the diagnostics of the features that exist in this build.
-func Checks(d *Deps, f *Features) []doctor.Check {
+// Checks returns the diagnostics of the features that exist in this build,
+// with one check per provider. Details and errors are redacted.
+func Checks(ctx context.Context, d *Deps, f *Features) []doctor.Check {
+	cs := staticChecks(d, f)
+	if names, err := f.Models.Names(ctx); err != nil {
+		cs = append(cs, doctor.Check{Name: "providers", Run: func(context.Context) (string, error) { return "", err }})
+	} else {
+		for _, n := range names {
+			cs = append(cs, doctor.Check{Name: "provider " + n, Run: func(ctx context.Context) (string, error) { return f.Models.Check(ctx, n) }})
+		}
+	}
+	for i := range cs {
+		run := cs[i].Run
+		cs[i].Run = func(ctx context.Context) (string, error) {
+			detail, err := run(ctx)
+			if err != nil {
+				return "", errors.New(d.Redactor.Redact(err.Error()))
+			}
+			return d.Redactor.Redact(detail), nil
+		}
+	}
+	return cs
+}
+
+func staticChecks(d *Deps, f *Features) []doctor.Check {
 	return []doctor.Check{
 		{Name: "database", Run: func(ctx context.Context) (string, error) {
 			var v int
@@ -149,7 +172,7 @@ func registerDiagnostics(api huma.API, d *Deps, f *Features) {
 	huma.Register(api, huma.Operation{
 		OperationID: "get-diagnostics", Method: http.MethodGet, Path: "/diagnostics", Tags: []string{"diagnostics"}, Metadata: auth.Op(auth.Admin),
 	}, func(ctx context.Context, _ *struct{}) (*struct{ Body DiagnosticsBody }, error) {
-		rs := doctor.Run(ctx, Checks(d, f))
+		rs := doctor.Run(ctx, Checks(ctx, d, f))
 		return &struct{ Body DiagnosticsBody }{DiagnosticsBody{OK: doctor.AllOK(rs), Checks: rs}}, nil
 	})
 }

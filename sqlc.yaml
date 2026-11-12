@@ -16,6 +16,8 @@ sql:
         rename:
           user: UserRow
         overrides:
+          - db_type: pg_catalog.numeric
+            go_type: float64
           - db_type: uuid
             go_type: github.com/google/uuid.UUID
           - db_type: uuid
@@ -48,6 +50,8 @@ sql:
         rename:
           user: UserRow
         overrides:
+          - db_type: pg_catalog.numeric
+            go_type: float64
           - db_type: uuid
             go_type: github.com/google/uuid.UUID
           - db_type: uuid
@@ -80,6 +84,8 @@ sql:
         rename:
           user: UserRow
         overrides:
+          - db_type: pg_catalog.numeric
+            go_type: float64
           - db_type: uuid
             go_type: github.com/google/uuid.UUID
           - db_type: uuid
@@ -112,6 +118,8 @@ sql:
         rename:
           user: UserRow
         overrides:
+          - db_type: pg_catalog.numeric
+            go_type: float64
           - db_type: uuid
             go_type: github.com/google/uuid.UUID
           - db_type: uuid
@@ -144,6 +152,8 @@ sql:
         rename:
           user: UserRow
         overrides:
+          - db_type: pg_catalog.numeric
+            go_type: float64
           - db_type: uuid
             go_type: github.com/google/uuid.UUID
           - db_type: uuid
@@ -176,6 +186,76 @@ sql:
         rename:
           user: UserRow
         overrides:
+          - db_type: pg_catalog.numeric
+            go_type: float64
+          - db_type: uuid
+            go_type: github.com/google/uuid.UUID
+          - db_type: uuid
+            nullable: true
+            go_type:
+              import: github.com/google/uuid
+              type: UUID
+              pointer: true
+          - db_type: timestamptz
+            go_type: time.Time
+          - db_type: timestamptz
+            nullable: true
+            go_type:
+              import: time
+              type: Time
+              pointer: true
+  - engine: postgresql
+    schema: internal/app/migrations
+    queries: internal/runner/queries.sql
+    gen:
+      go:
+        package: runner
+        out: internal/runner
+        sql_package: pgx/v5
+        output_db_file_name: db.gen.go
+        output_models_file_name: models.gen.go
+        output_files_suffix: .gen
+        omit_unused_structs: true
+        emit_pointers_for_null_types: true
+        rename:
+          user: UserRow
+        overrides:
+          - db_type: pg_catalog.numeric
+            go_type: float64
+          - db_type: uuid
+            go_type: github.com/google/uuid.UUID
+          - db_type: uuid
+            nullable: true
+            go_type:
+              import: github.com/google/uuid
+              type: UUID
+              pointer: true
+          - db_type: timestamptz
+            go_type: time.Time
+          - db_type: timestamptz
+            nullable: true
+            go_type:
+              import: time
+              type: Time
+              pointer: true
+  - engine: postgresql
+    schema: internal/app/migrations
+    queries: internal/models/queries.sql
+    gen:
+      go:
+        package: models
+        out: internal/models
+        sql_package: pgx/v5
+        output_db_file_name: db.gen.go
+        output_models_file_name: models.gen.go
+        output_files_suffix: .gen
+        omit_unused_structs: true
+        emit_pointers_for_null_types: true
+        rename:
+          user: UserRow
+        overrides:
+          - db_type: pg_catalog.numeric
+            go_type: float64
           - db_type: uuid
             go_type: github.com/google/uuid.UUID
           - db_type: uuid

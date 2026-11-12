@@ -3,8 +3,8 @@
 import { type InfiniteData, infiniteQueryOptions, queryOptions, type UseMutationOptions } from '@tanstack/react-query';
 
 import { client } from '../client.gen';
-import { createAppManifest, createSetupSession, deleteGrant, deleteTeamRole, getAccess, getDiagnostics, getGithub, getMe, getRepository, getSettingHistory, getSetupState, listAudit, listAuditActions, listRepositories, listSettings, type Options, putGrant, putSetting, putTeamRole, setRepositoryMode } from '../sdk.gen';
-import type { CreateAppManifestData, CreateAppManifestError, CreateAppManifestResponse, CreateSetupSessionData, CreateSetupSessionError, CreateSetupSessionResponse, DeleteGrantData, DeleteGrantError, DeleteGrantResponse, DeleteTeamRoleData, DeleteTeamRoleError, DeleteTeamRoleResponse, GetAccessData, GetAccessError, GetAccessResponse, GetDiagnosticsData, GetDiagnosticsError, GetDiagnosticsResponse, GetGithubData, GetGithubError, GetGithubResponse, GetMeData, GetMeError, GetMeResponse, GetRepositoryData, GetRepositoryError, GetRepositoryResponse, GetSettingHistoryData, GetSettingHistoryError, GetSettingHistoryResponse, GetSetupStateData, GetSetupStateError, GetSetupStateResponse, ListAuditActionsData, ListAuditActionsError, ListAuditActionsResponse, ListAuditData, ListAuditError, ListAuditResponse, ListRepositoriesData, ListRepositoriesError, ListRepositoriesResponse, ListSettingsData, ListSettingsError, ListSettingsResponse, PutGrantData, PutGrantError, PutGrantResponse, PutSettingData, PutSettingError, PutSettingResponse, PutTeamRoleData, PutTeamRoleError, PutTeamRoleResponse, SetRepositoryModeData, SetRepositoryModeError, SetRepositoryModeResponse } from '../types.gen';
+import { createAppManifest, createProvider, createSetupSession, deleteGrant, deleteProfile, deleteProvider, deleteTeamRole, getAccess, getDiagnostics, getGithub, getMe, getRepository, getSettingHistory, getSetupState, listAudit, listAuditActions, listProfiles, listProviderModels, listProviderPresets, listProviders, listRepositories, listSettings, type Options, putGrant, putProfile, putSetting, putTeamRole, setRepositoryMode, setRepositoryProfiles, testProvider, updateProvider } from '../sdk.gen';
+import type { CreateAppManifestData, CreateAppManifestError, CreateAppManifestResponse, CreateProviderData, CreateProviderError, CreateProviderResponse, CreateSetupSessionData, CreateSetupSessionError, CreateSetupSessionResponse, DeleteGrantData, DeleteGrantError, DeleteGrantResponse, DeleteProfileData, DeleteProfileError, DeleteProfileResponse, DeleteProviderData, DeleteProviderError, DeleteProviderResponse, DeleteTeamRoleData, DeleteTeamRoleError, DeleteTeamRoleResponse, GetAccessData, GetAccessError, GetAccessResponse, GetDiagnosticsData, GetDiagnosticsError, GetDiagnosticsResponse, GetGithubData, GetGithubError, GetGithubResponse, GetMeData, GetMeError, GetMeResponse, GetRepositoryData, GetRepositoryError, GetRepositoryResponse, GetSettingHistoryData, GetSettingHistoryError, GetSettingHistoryResponse, GetSetupStateData, GetSetupStateError, GetSetupStateResponse, ListAuditActionsData, ListAuditActionsError, ListAuditActionsResponse, ListAuditData, ListAuditError, ListAuditResponse, ListProfilesData, ListProfilesError, ListProfilesResponse, ListProviderModelsData, ListProviderModelsError, ListProviderModelsResponse, ListProviderPresetsData, ListProviderPresetsError, ListProviderPresetsResponse, ListProvidersData, ListProvidersError, ListProvidersResponse, ListRepositoriesData, ListRepositoriesError, ListRepositoriesResponse, ListSettingsData, ListSettingsError, ListSettingsResponse, PutGrantData, PutGrantError, PutGrantResponse, PutProfileData, PutProfileError, PutProfileResponse, PutSettingData, PutSettingError, PutSettingResponse, PutTeamRoleData, PutTeamRoleError, PutTeamRoleResponse, SetRepositoryModeData, SetRepositoryModeError, SetRepositoryModeResponse, SetRepositoryProfilesData, SetRepositoryProfilesError, SetRepositoryProfilesResponse, TestProviderData, TestProviderError, TestProviderResponse, UpdateProviderData, UpdateProviderError, UpdateProviderResponse } from '../types.gen';
 
 export type QueryKey<TOptions extends Options> = [
     Pick<TOptions, 'baseUrl' | 'body' | 'headers' | 'path' | 'query'> & {
@@ -241,6 +241,150 @@ export const getMeOptions = (options?: Options<GetMeData>) => queryOptions<GetMe
     queryKey: getMeQueryKey(options)
 });
 
+export const listProfilesQueryKey = (options?: Options<ListProfilesData>) => createQueryKey('listProfiles', options);
+
+export const listProfilesOptions = (options?: Options<ListProfilesData>) => queryOptions<ListProfilesResponse, ListProfilesError, ListProfilesResponse, ReturnType<typeof listProfilesQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await listProfiles({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: listProfilesQueryKey(options)
+});
+
+export const deleteProfileMutation = (options?: Partial<Options<DeleteProfileData>>): UseMutationOptions<DeleteProfileResponse, DeleteProfileError, Options<DeleteProfileData>> => {
+    const mutationOptions: UseMutationOptions<DeleteProfileResponse, DeleteProfileError, Options<DeleteProfileData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await deleteProfile({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const putProfileMutation = (options?: Partial<Options<PutProfileData>>): UseMutationOptions<PutProfileResponse, PutProfileError, Options<PutProfileData>> => {
+    const mutationOptions: UseMutationOptions<PutProfileResponse, PutProfileError, Options<PutProfileData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await putProfile({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const listProvidersQueryKey = (options?: Options<ListProvidersData>) => createQueryKey('listProviders', options);
+
+export const listProvidersOptions = (options?: Options<ListProvidersData>) => queryOptions<ListProvidersResponse, ListProvidersError, ListProvidersResponse, ReturnType<typeof listProvidersQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await listProviders({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: listProvidersQueryKey(options)
+});
+
+export const createProviderMutation = (options?: Partial<Options<CreateProviderData>>): UseMutationOptions<CreateProviderResponse, CreateProviderError, Options<CreateProviderData>> => {
+    const mutationOptions: UseMutationOptions<CreateProviderResponse, CreateProviderError, Options<CreateProviderData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await createProvider({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const listProviderPresetsQueryKey = (options?: Options<ListProviderPresetsData>) => createQueryKey('listProviderPresets', options);
+
+export const listProviderPresetsOptions = (options?: Options<ListProviderPresetsData>) => queryOptions<ListProviderPresetsResponse, ListProviderPresetsError, ListProviderPresetsResponse, ReturnType<typeof listProviderPresetsQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await listProviderPresets({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: listProviderPresetsQueryKey(options)
+});
+
+export const deleteProviderMutation = (options?: Partial<Options<DeleteProviderData>>): UseMutationOptions<DeleteProviderResponse, DeleteProviderError, Options<DeleteProviderData>> => {
+    const mutationOptions: UseMutationOptions<DeleteProviderResponse, DeleteProviderError, Options<DeleteProviderData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await deleteProvider({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const updateProviderMutation = (options?: Partial<Options<UpdateProviderData>>): UseMutationOptions<UpdateProviderResponse, UpdateProviderError, Options<UpdateProviderData>> => {
+    const mutationOptions: UseMutationOptions<UpdateProviderResponse, UpdateProviderError, Options<UpdateProviderData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await updateProvider({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const listProviderModelsQueryKey = (options: Options<ListProviderModelsData>) => createQueryKey('listProviderModels', options);
+
+export const listProviderModelsOptions = (options: Options<ListProviderModelsData>) => queryOptions<ListProviderModelsResponse, ListProviderModelsError, ListProviderModelsResponse, ReturnType<typeof listProviderModelsQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await listProviderModels({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: listProviderModelsQueryKey(options)
+});
+
+export const testProviderMutation = (options?: Partial<Options<TestProviderData>>): UseMutationOptions<TestProviderResponse, TestProviderError, Options<TestProviderData>> => {
+    const mutationOptions: UseMutationOptions<TestProviderResponse, TestProviderError, Options<TestProviderData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await testProvider({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
 export const listRepositoriesQueryKey = (options?: Options<ListRepositoriesData>) => createQueryKey('listRepositories', options);
 
 export const listRepositoriesOptions = (options?: Options<ListRepositoriesData>) => queryOptions<ListRepositoriesResponse, ListRepositoriesError, ListRepositoriesResponse, ReturnType<typeof listRepositoriesQueryKey>>({
@@ -275,6 +419,20 @@ export const setRepositoryModeMutation = (options?: Partial<Options<SetRepositor
     const mutationOptions: UseMutationOptions<SetRepositoryModeResponse, SetRepositoryModeError, Options<SetRepositoryModeData>> = {
         mutationFn: async (fnOptions) => {
             const { data } = await setRepositoryMode({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const setRepositoryProfilesMutation = (options?: Partial<Options<SetRepositoryProfilesData>>): UseMutationOptions<SetRepositoryProfilesResponse, SetRepositoryProfilesError, Options<SetRepositoryProfilesData>> => {
+    const mutationOptions: UseMutationOptions<SetRepositoryProfilesResponse, SetRepositoryProfilesError, Options<SetRepositoryProfilesData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await setRepositoryProfiles({
                 ...options,
                 ...fnOptions,
                 throwOnError: true

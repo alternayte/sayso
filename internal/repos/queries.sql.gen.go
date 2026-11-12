@@ -242,6 +242,55 @@ func (q *Queries) SetMode(ctx context.Context, arg SetModeParams) (Repository, e
 	return i, err
 }
 
+const setProfiles = `-- name: SetProfiles :one
+UPDATE repositories SET profile_review = $1, profile_challenge = $2, profile_reply = $3, profile_fix = $4
+WHERE id = $5
+RETURNING id, github_id, installation_id, full_name, default_branch, private, mode, profile_review, profile_challenge, profile_reply, profile_fix, skael_set, agent_image, mcp_servers, feeds, max_concurrent_rounds, execution, challenge_min_severity, enabled_at, removed_at, created_at
+`
+
+type SetProfilesParams struct {
+	Review    string
+	Challenge string
+	Reply     string
+	Fix       string
+	ID        uuid.UUID
+}
+
+func (q *Queries) SetProfiles(ctx context.Context, arg SetProfilesParams) (Repository, error) {
+	row := q.db.QueryRow(ctx, setProfiles,
+		arg.Review,
+		arg.Challenge,
+		arg.Reply,
+		arg.Fix,
+		arg.ID,
+	)
+	var i Repository
+	err := row.Scan(
+		&i.ID,
+		&i.GithubID,
+		&i.InstallationID,
+		&i.FullName,
+		&i.DefaultBranch,
+		&i.Private,
+		&i.Mode,
+		&i.ProfileReview,
+		&i.ProfileChallenge,
+		&i.ProfileReply,
+		&i.ProfileFix,
+		&i.SkaelSet,
+		&i.AgentImage,
+		&i.McpServers,
+		&i.Feeds,
+		&i.MaxConcurrentRounds,
+		&i.Execution,
+		&i.ChallengeMinSeverity,
+		&i.EnabledAt,
+		&i.RemovedAt,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const upsertRepository = `-- name: UpsertRepository :one
 INSERT INTO repositories (id, github_id, installation_id, full_name, private)
 VALUES ($1, $2, $3, $4, $5)

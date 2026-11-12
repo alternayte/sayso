@@ -32,3 +32,8 @@ UPDATE repositories
 SET mode = @mode, enabled_at = CASE WHEN @mode <> 'off' AND enabled_at IS NULL THEN now() ELSE enabled_at END
 WHERE id = @id
 RETURNING *;
+
+-- name: SetProfiles :one
+UPDATE repositories SET profile_review = @review, profile_challenge = @challenge, profile_reply = @reply, profile_fix = @fix
+WHERE id = @id
+RETURNING *;

@@ -63,3 +63,29 @@
     animation: none;
   }
 }
+
+/* Secret reveal: the eye icon swaps with a rotate and fade in 120ms. The value goes from blur to
+   clear in 160ms. Hiding is instant. */
+.icon-swap {
+  animation: motion-icon-swap var(--fast) var(--ease-out) 1;
+}
+@keyframes motion-icon-swap {
+  from {
+    opacity: 0;
+    transform: rotate(-90deg);
+  }
+}
+.reveal {
+  animation: motion-reveal 160ms var(--ease-out) 1;
+}
+@keyframes motion-reveal {
+  from {
+    filter: blur(4px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .icon-swap,
+  .reveal {
+    animation: none;
+  }
+}

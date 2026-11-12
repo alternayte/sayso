@@ -59,6 +59,31 @@
         ],
         "type": "object"
       },
+      "CheckResult": {
+        "additionalProperties": false,
+        "properties": {
+          "detail": {
+            "type": "string"
+          },
+          "ms": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "ok": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "ok",
+          "detail",
+          "ms"
+        ],
+        "type": "object"
+      },
       "Create-setup-sessionRequest": {
         "additionalProperties": false,
         "properties": {
@@ -236,6 +261,43 @@
         },
         "type": "object"
       },
+      "Field": {
+        "additionalProperties": false,
+        "properties": {
+          "env_name": {
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "stored",
+              "env_ref"
+            ],
+            "type": "string"
+          },
+          "last4": {
+            "type": "string"
+          },
+          "set": {
+            "type": "boolean"
+          },
+          "status": {
+            "enum": [
+              "stored",
+              "set",
+              "not set"
+            ],
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "set"
+        ],
+        "type": "object"
+      },
       "GitHubBody": {
         "additionalProperties": false,
         "properties": {
@@ -345,6 +407,20 @@
         ],
         "type": "object"
       },
+      "Input": {
+        "additionalProperties": false,
+        "properties": {
+          "env": {
+            "description": "Name of an environment variable of the API process.",
+            "type": "string"
+          },
+          "value": {
+            "description": "New value. The API never returns it.",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "InstallationBody": {
         "additionalProperties": false,
         "properties": {
@@ -420,6 +496,237 @@
         ],
         "type": "object"
       },
+      "Preset": {
+        "additionalProperties": false,
+        "properties": {
+          "api_type": {
+            "type": "string"
+          },
+          "auth_header": {
+            "type": "string"
+          },
+          "auth_style": {
+            "type": "string"
+          },
+          "base_url": {
+            "type": "string"
+          },
+          "headers": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "hint": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "api_type",
+          "base_url",
+          "auth_style"
+        ],
+        "type": "object"
+      },
+      "ProfileBody": {
+        "additionalProperties": false,
+        "properties": {
+          "default": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          },
+          "round_budget_usd": {
+            "format": "double",
+            "type": "number"
+          },
+          "targets": {
+            "items": {
+              "$ref": "#/components/schemas/Target"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "targets",
+          "round_budget_usd",
+          "default"
+        ],
+        "type": "object"
+      },
+      "ProfilesBody": {
+        "additionalProperties": false,
+        "properties": {
+          "challenge": {
+            "type": "string"
+          },
+          "fix": {
+            "type": "string"
+          },
+          "reply": {
+            "type": "string"
+          },
+          "review": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "review",
+          "challenge",
+          "reply",
+          "fix"
+        ],
+        "type": "object"
+      },
+      "ProviderBody": {
+        "additionalProperties": false,
+        "properties": {
+          "api_type": {
+            "type": "string"
+          },
+          "auth_header": {
+            "type": "string"
+          },
+          "auth_style": {
+            "type": "string"
+          },
+          "base_url": {
+            "type": "string"
+          },
+          "compat": {
+            "additionalProperties": {},
+            "type": "object"
+          },
+          "headers": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "key": {
+            "$ref": "#/components/schemas/Field"
+          },
+          "max_concurrency": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "models": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "name": {
+            "type": "string"
+          },
+          "smoke": {
+            "$ref": "#/components/schemas/Smoke"
+          },
+          "tokens_per_minute": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "used_by": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "api_type",
+          "base_url",
+          "auth_style",
+          "auth_header",
+          "key",
+          "headers",
+          "compat",
+          "models",
+          "max_concurrency",
+          "tokens_per_minute",
+          "used_by"
+        ],
+        "type": "object"
+      },
+      "ProviderInput": {
+        "additionalProperties": false,
+        "properties": {
+          "api_type": {
+            "enum": [
+              "openai-completions",
+              "openai-responses",
+              "anthropic-messages",
+              "google-generative-ai"
+            ],
+            "type": "string"
+          },
+          "auth_header": {
+            "type": "string"
+          },
+          "auth_style": {
+            "enum": [
+              "bearer",
+              "x_api_key",
+              "api_key",
+              "header"
+            ],
+            "type": "string"
+          },
+          "base_url": {
+            "type": "string"
+          },
+          "compat": {
+            "additionalProperties": {},
+            "type": "object"
+          },
+          "headers": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "key": {
+            "$ref": "#/components/schemas/Input"
+          },
+          "max_concurrency": {
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "models": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "name": {
+            "type": "string"
+          },
+          "tokens_per_minute": {
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "name",
+          "api_type",
+          "base_url",
+          "auth_style"
+        ],
+        "type": "object"
+      },
       "Put-grantRequest": {
         "additionalProperties": false,
         "properties": {
@@ -434,6 +741,26 @@
         },
         "required": [
           "role"
+        ],
+        "type": "object"
+      },
+      "Put-profileRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "round_budget_usd": {
+            "format": "double",
+            "minimum": 0,
+            "type": "number"
+          },
+          "targets": {
+            "items": {
+              "$ref": "#/components/schemas/Target"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "targets"
         ],
         "type": "object"
       },
@@ -494,6 +821,9 @@
           },
           "private": {
             "type": "boolean"
+          },
+          "profiles": {
+            "$ref": "#/components/schemas/ProfilesBody"
           }
         },
         "required": [
@@ -502,7 +832,8 @@
           "default_branch",
           "private",
           "mode",
-          "enabled_at"
+          "enabled_at",
+          "profiles"
         ],
         "type": "object"
       },
@@ -603,6 +934,92 @@
         ],
         "type": "object"
       },
+      "Smoke": {
+        "additionalProperties": false,
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "checks": {
+            "items": {
+              "$ref": "#/components/schemas/CheckResult"
+            },
+            "type": "array"
+          },
+          "model": {
+            "type": "string"
+          },
+          "response_model": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "model",
+          "response_model",
+          "checks",
+          "at"
+        ],
+        "type": "object"
+      },
+      "Target": {
+        "additionalProperties": false,
+        "properties": {
+          "context_window": {
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "max_tokens": {
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "model": {
+            "type": "string"
+          },
+          "price_cache_read": {
+            "format": "double",
+            "minimum": 0,
+            "type": "number"
+          },
+          "price_in": {
+            "format": "double",
+            "minimum": 0,
+            "type": "number"
+          },
+          "price_out": {
+            "format": "double",
+            "minimum": 0,
+            "type": "number"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "reasoning": {
+            "enum": [
+              "",
+              "off",
+              "low",
+              "medium",
+              "high"
+            ],
+            "type": "string"
+          },
+          "temperature": {
+            "format": "double",
+            "type": "number"
+          }
+        },
+        "required": [
+          "provider",
+          "model",
+          "price_in",
+          "price_out",
+          "price_cache_read"
+        ],
+        "type": "object"
+      },
       "TeamRoleBody": {
         "additionalProperties": false,
         "properties": {
@@ -622,6 +1039,16 @@
           "team_slug",
           "role"
         ],
+        "type": "object"
+      },
+      "Test-providerRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "model": {
+            "description": "Model to test. Default: the first model of the provider.",
+            "type": "string"
+          }
+        },
         "type": "object"
       },
       "UserBody": {
@@ -1033,6 +1460,398 @@
         ]
       }
     },
+    "/api/v1/profiles": {
+      "get": {
+        "operationId": "list-profiles",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProfileBody"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "tags": [
+          "models"
+        ]
+      }
+    },
+    "/api/v1/profiles/{name}": {
+      "delete": {
+        "operationId": "delete-profile",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "tags": [
+          "models"
+        ]
+      },
+      "put": {
+        "operationId": "put-profile",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Put-profileRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "tags": [
+          "models"
+        ]
+      }
+    },
+    "/api/v1/providers": {
+      "get": {
+        "operationId": "list-providers",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProviderBody"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "tags": [
+          "models"
+        ]
+      },
+      "post": {
+        "operationId": "create-provider",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProviderInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProviderBody"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "tags": [
+          "models"
+        ]
+      }
+    },
+    "/api/v1/providers/presets": {
+      "get": {
+        "operationId": "list-provider-presets",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Preset"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "tags": [
+          "models"
+        ]
+      }
+    },
+    "/api/v1/providers/{name}": {
+      "delete": {
+        "operationId": "delete-provider",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "tags": [
+          "models"
+        ]
+      },
+      "put": {
+        "operationId": "update-provider",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProviderInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProviderBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "tags": [
+          "models"
+        ]
+      }
+    },
+    "/api/v1/providers/{name}/models": {
+      "get": {
+        "operationId": "list-provider-models",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "tags": [
+          "models"
+        ]
+      }
+    },
+    "/api/v1/providers/{name}/test": {
+      "post": {
+        "operationId": "test-provider",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Test-providerRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Smoke"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "tags": [
+          "models"
+        ]
+      }
+    },
     "/api/v1/repositories": {
       "get": {
         "operationId": "list-repositories",
@@ -1140,6 +1959,64 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/Set-repository-modeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RepositoryBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "tags": [
+          "repositories"
+        ]
+      }
+    },
+    "/api/v1/repositories/{owner}/{name}/profiles": {
+      "put": {
+        "operationId": "set-repository-profiles",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "owner",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfilesBody"
               }
             }
           },

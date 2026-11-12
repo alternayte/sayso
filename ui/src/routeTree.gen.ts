@@ -19,6 +19,7 @@ import { Route as AppRepositoriesIndexRouteImport } from './routes/_app/reposito
 import { Route as AppSettingsAccessRouteImport } from './routes/_app/settings/access'
 import { Route as AppSettingsGeneralRouteImport } from './routes/_app/settings/general'
 import { Route as AppSettingsGithubRouteImport } from './routes/_app/settings/github'
+import { Route as AppSettingsModelsRouteImport } from './routes/_app/settings/models'
 import { Route as AppRepositoriesOwnerNameRouteImport } from './routes/_app/repositories/$owner.$name'
 
 const AppRoute = AppRouteImport.update({
@@ -70,6 +71,11 @@ const AppSettingsGithubRoute = AppSettingsGithubRouteImport.update({
   path: '/settings/github',
   getParentRoute: () => AppRoute,
 } as any)
+const AppSettingsModelsRoute = AppSettingsModelsRouteImport.update({
+  id: '/settings/models',
+  path: '/settings/models',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppRepositoriesOwnerNameRoute =
   AppRepositoriesOwnerNameRouteImport.update({
     id: '/repositories/$owner/$name',
@@ -86,6 +92,7 @@ export interface FileRoutesByFullPath {
   '/settings/access': typeof AppSettingsAccessRoute
   '/settings/general': typeof AppSettingsGeneralRoute
   '/settings/github': typeof AppSettingsGithubRoute
+  '/settings/models': typeof AppSettingsModelsRoute
   '/repositories/': typeof AppRepositoriesIndexRoute
   '/repositories/$owner/$name': typeof AppRepositoriesOwnerNameRoute
 }
@@ -98,6 +105,7 @@ export interface FileRoutesByTo {
   '/settings/access': typeof AppSettingsAccessRoute
   '/settings/general': typeof AppSettingsGeneralRoute
   '/settings/github': typeof AppSettingsGithubRoute
+  '/settings/models': typeof AppSettingsModelsRoute
   '/repositories': typeof AppRepositoriesIndexRoute
   '/repositories/$owner/$name': typeof AppRepositoriesOwnerNameRoute
 }
@@ -112,6 +120,7 @@ export interface FileRoutesById {
   '/_app/settings/access': typeof AppSettingsAccessRoute
   '/_app/settings/general': typeof AppSettingsGeneralRoute
   '/_app/settings/github': typeof AppSettingsGithubRoute
+  '/_app/settings/models': typeof AppSettingsModelsRoute
   '/_app/repositories/': typeof AppRepositoriesIndexRoute
   '/_app/repositories/$owner/$name': typeof AppRepositoriesOwnerNameRoute
 }
@@ -126,6 +135,7 @@ export interface FileRouteTypes {
     | '/settings/access'
     | '/settings/general'
     | '/settings/github'
+    | '/settings/models'
     | '/repositories/'
     | '/repositories/$owner/$name'
   fileRoutesByTo: FileRoutesByTo
@@ -138,6 +148,7 @@ export interface FileRouteTypes {
     | '/settings/access'
     | '/settings/general'
     | '/settings/github'
+    | '/settings/models'
     | '/repositories'
     | '/repositories/$owner/$name'
   id:
@@ -151,6 +162,7 @@ export interface FileRouteTypes {
     | '/_app/settings/access'
     | '/_app/settings/general'
     | '/_app/settings/github'
+    | '/_app/settings/models'
     | '/_app/repositories/'
     | '/_app/repositories/$owner/$name'
   fileRoutesById: FileRoutesById
@@ -233,6 +245,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSettingsGithubRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/settings/models': {
+      id: '/_app/settings/models'
+      path: '/settings/models'
+      fullPath: '/settings/models'
+      preLoaderRoute: typeof AppSettingsModelsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/repositories/$owner/$name': {
       id: '/_app/repositories/$owner/$name'
       path: '/repositories/$owner/$name'
@@ -250,6 +269,7 @@ interface AppRouteChildren {
   AppSettingsAccessRoute: typeof AppSettingsAccessRoute
   AppSettingsGeneralRoute: typeof AppSettingsGeneralRoute
   AppSettingsGithubRoute: typeof AppSettingsGithubRoute
+  AppSettingsModelsRoute: typeof AppSettingsModelsRoute
   AppRepositoriesIndexRoute: typeof AppRepositoriesIndexRoute
   AppRepositoriesOwnerNameRoute: typeof AppRepositoriesOwnerNameRoute
 }
@@ -261,6 +281,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppSettingsAccessRoute: AppSettingsAccessRoute,
   AppSettingsGeneralRoute: AppSettingsGeneralRoute,
   AppSettingsGithubRoute: AppSettingsGithubRoute,
+  AppSettingsModelsRoute: AppSettingsModelsRoute,
   AppRepositoriesIndexRoute: AppRepositoriesIndexRoute,
   AppRepositoriesOwnerNameRoute: AppRepositoriesOwnerNameRoute,
 }

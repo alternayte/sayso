@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { CreateAppManifestData, CreateAppManifestErrors, CreateAppManifestResponses, CreateSetupSessionData, CreateSetupSessionErrors, CreateSetupSessionResponses, DeleteGrantData, DeleteGrantErrors, DeleteGrantResponses, DeleteTeamRoleData, DeleteTeamRoleErrors, DeleteTeamRoleResponses, GetAccessData, GetAccessErrors, GetAccessResponses, GetDiagnosticsData, GetDiagnosticsErrors, GetDiagnosticsResponses, GetGithubData, GetGithubErrors, GetGithubResponses, GetMeData, GetMeErrors, GetMeResponses, GetRepositoryData, GetRepositoryErrors, GetRepositoryResponses, GetSettingHistoryData, GetSettingHistoryErrors, GetSettingHistoryResponses, GetSetupStateData, GetSetupStateErrors, GetSetupStateResponses, ListAuditActionsData, ListAuditActionsErrors, ListAuditActionsResponses, ListAuditData, ListAuditErrors, ListAuditResponses, ListRepositoriesData, ListRepositoriesErrors, ListRepositoriesResponses, ListSettingsData, ListSettingsErrors, ListSettingsResponses, PutGrantData, PutGrantErrors, PutGrantResponses, PutSettingData, PutSettingErrors, PutSettingResponses, PutTeamRoleData, PutTeamRoleErrors, PutTeamRoleResponses, SetRepositoryModeData, SetRepositoryModeErrors, SetRepositoryModeResponses } from './types.gen';
+import type { CreateAppManifestData, CreateAppManifestErrors, CreateAppManifestResponses, CreateProviderData, CreateProviderErrors, CreateProviderResponses, CreateSetupSessionData, CreateSetupSessionErrors, CreateSetupSessionResponses, DeleteGrantData, DeleteGrantErrors, DeleteGrantResponses, DeleteProfileData, DeleteProfileErrors, DeleteProfileResponses, DeleteProviderData, DeleteProviderErrors, DeleteProviderResponses, DeleteTeamRoleData, DeleteTeamRoleErrors, DeleteTeamRoleResponses, GetAccessData, GetAccessErrors, GetAccessResponses, GetDiagnosticsData, GetDiagnosticsErrors, GetDiagnosticsResponses, GetGithubData, GetGithubErrors, GetGithubResponses, GetMeData, GetMeErrors, GetMeResponses, GetRepositoryData, GetRepositoryErrors, GetRepositoryResponses, GetSettingHistoryData, GetSettingHistoryErrors, GetSettingHistoryResponses, GetSetupStateData, GetSetupStateErrors, GetSetupStateResponses, ListAuditActionsData, ListAuditActionsErrors, ListAuditActionsResponses, ListAuditData, ListAuditErrors, ListAuditResponses, ListProfilesData, ListProfilesErrors, ListProfilesResponses, ListProviderModelsData, ListProviderModelsErrors, ListProviderModelsResponses, ListProviderPresetsData, ListProviderPresetsErrors, ListProviderPresetsResponses, ListProvidersData, ListProvidersErrors, ListProvidersResponses, ListRepositoriesData, ListRepositoriesErrors, ListRepositoriesResponses, ListSettingsData, ListSettingsErrors, ListSettingsResponses, PutGrantData, PutGrantErrors, PutGrantResponses, PutProfileData, PutProfileErrors, PutProfileResponses, PutSettingData, PutSettingErrors, PutSettingResponses, PutTeamRoleData, PutTeamRoleErrors, PutTeamRoleResponses, SetRepositoryModeData, SetRepositoryModeErrors, SetRepositoryModeResponses, SetRepositoryProfilesData, SetRepositoryProfilesErrors, SetRepositoryProfilesResponses, TestProviderData, TestProviderErrors, TestProviderResponses, UpdateProviderData, UpdateProviderErrors, UpdateProviderResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -52,12 +52,69 @@ export const getGithub = <ThrowOnError extends boolean = false>(options?: Option
 
 export const getMe = <ThrowOnError extends boolean = false>(options?: Options<GetMeData, ThrowOnError>): RequestResult<GetMeResponses, GetMeErrors, ThrowOnError> => (options?.client ?? client).get<GetMeResponses, GetMeErrors, ThrowOnError>({ url: '/api/v1/me', ...options });
 
+export const listProfiles = <ThrowOnError extends boolean = false>(options?: Options<ListProfilesData, ThrowOnError>): RequestResult<ListProfilesResponses, ListProfilesErrors, ThrowOnError> => (options?.client ?? client).get<ListProfilesResponses, ListProfilesErrors, ThrowOnError>({ url: '/api/v1/profiles', ...options });
+
+export const deleteProfile = <ThrowOnError extends boolean = false>(options: Options<DeleteProfileData, ThrowOnError>): RequestResult<DeleteProfileResponses, DeleteProfileErrors, ThrowOnError> => (options.client ?? client).delete<DeleteProfileResponses, DeleteProfileErrors, ThrowOnError>({ url: '/api/v1/profiles/{name}', ...options });
+
+export const putProfile = <ThrowOnError extends boolean = false>(options: Options<PutProfileData, ThrowOnError>): RequestResult<PutProfileResponses, PutProfileErrors, ThrowOnError> => (options.client ?? client).put<PutProfileResponses, PutProfileErrors, ThrowOnError>({
+    url: '/api/v1/profiles/{name}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+export const listProviders = <ThrowOnError extends boolean = false>(options?: Options<ListProvidersData, ThrowOnError>): RequestResult<ListProvidersResponses, ListProvidersErrors, ThrowOnError> => (options?.client ?? client).get<ListProvidersResponses, ListProvidersErrors, ThrowOnError>({ url: '/api/v1/providers', ...options });
+
+export const createProvider = <ThrowOnError extends boolean = false>(options: Options<CreateProviderData, ThrowOnError>): RequestResult<CreateProviderResponses, CreateProviderErrors, ThrowOnError> => (options.client ?? client).post<CreateProviderResponses, CreateProviderErrors, ThrowOnError>({
+    url: '/api/v1/providers',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+export const listProviderPresets = <ThrowOnError extends boolean = false>(options?: Options<ListProviderPresetsData, ThrowOnError>): RequestResult<ListProviderPresetsResponses, ListProviderPresetsErrors, ThrowOnError> => (options?.client ?? client).get<ListProviderPresetsResponses, ListProviderPresetsErrors, ThrowOnError>({ url: '/api/v1/providers/presets', ...options });
+
+export const deleteProvider = <ThrowOnError extends boolean = false>(options: Options<DeleteProviderData, ThrowOnError>): RequestResult<DeleteProviderResponses, DeleteProviderErrors, ThrowOnError> => (options.client ?? client).delete<DeleteProviderResponses, DeleteProviderErrors, ThrowOnError>({ url: '/api/v1/providers/{name}', ...options });
+
+export const updateProvider = <ThrowOnError extends boolean = false>(options: Options<UpdateProviderData, ThrowOnError>): RequestResult<UpdateProviderResponses, UpdateProviderErrors, ThrowOnError> => (options.client ?? client).put<UpdateProviderResponses, UpdateProviderErrors, ThrowOnError>({
+    url: '/api/v1/providers/{name}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+export const listProviderModels = <ThrowOnError extends boolean = false>(options: Options<ListProviderModelsData, ThrowOnError>): RequestResult<ListProviderModelsResponses, ListProviderModelsErrors, ThrowOnError> => (options.client ?? client).get<ListProviderModelsResponses, ListProviderModelsErrors, ThrowOnError>({ url: '/api/v1/providers/{name}/models', ...options });
+
+export const testProvider = <ThrowOnError extends boolean = false>(options: Options<TestProviderData, ThrowOnError>): RequestResult<TestProviderResponses, TestProviderErrors, ThrowOnError> => (options.client ?? client).post<TestProviderResponses, TestProviderErrors, ThrowOnError>({
+    url: '/api/v1/providers/{name}/test',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
 export const listRepositories = <ThrowOnError extends boolean = false>(options?: Options<ListRepositoriesData, ThrowOnError>): RequestResult<ListRepositoriesResponses, ListRepositoriesErrors, ThrowOnError> => (options?.client ?? client).get<ListRepositoriesResponses, ListRepositoriesErrors, ThrowOnError>({ url: '/api/v1/repositories', ...options });
 
 export const getRepository = <ThrowOnError extends boolean = false>(options: Options<GetRepositoryData, ThrowOnError>): RequestResult<GetRepositoryResponses, GetRepositoryErrors, ThrowOnError> => (options.client ?? client).get<GetRepositoryResponses, GetRepositoryErrors, ThrowOnError>({ url: '/api/v1/repositories/{owner}/{name}', ...options });
 
 export const setRepositoryMode = <ThrowOnError extends boolean = false>(options: Options<SetRepositoryModeData, ThrowOnError>): RequestResult<SetRepositoryModeResponses, SetRepositoryModeErrors, ThrowOnError> => (options.client ?? client).put<SetRepositoryModeResponses, SetRepositoryModeErrors, ThrowOnError>({
     url: '/api/v1/repositories/{owner}/{name}/mode',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+export const setRepositoryProfiles = <ThrowOnError extends boolean = false>(options: Options<SetRepositoryProfilesData, ThrowOnError>): RequestResult<SetRepositoryProfilesResponses, SetRepositoryProfilesErrors, ThrowOnError> => (options.client ?? client).put<SetRepositoryProfilesResponses, SetRepositoryProfilesErrors, ThrowOnError>({
+    url: '/api/v1/repositories/{owner}/{name}/profiles',
     ...options,
     headers: {
         'Content-Type': 'application/json',

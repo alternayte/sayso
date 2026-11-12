@@ -22,7 +22,7 @@ func doctorCmd() *cobra.Command {
 			return err
 		}
 		defer closeAll()
-		rs := doctor.Run(c.Context(), app.Checks(d, f))
+		rs := doctor.Run(c.Context(), app.Checks(c.Context(), d, f))
 		out := c.OutOrStdout()
 		if asJSON {
 			if err := json.NewEncoder(out).Encode(rs); err != nil {
