@@ -18,7 +18,7 @@ test("SCN-GH-009 a maintainer sets the mode of a repository", async ({ page }) =
   await expect(page.getByRole("status").filter({ hasText: "Saved" })).toBeVisible();
 
   expect(sql(`SELECT mode FROM repositories WHERE full_name = 'acme/payments'`)).toBe("shadow");
-  expect(sql(`SELECT actor_login || ' ' || details->>'new' FROM audit_log WHERE action = 'repository.mode' AND target = 'acme/payments'`)).toBe("dev-alice shadow");
+  expect(sql(`SELECT actor_login || ' ' || (details->>'new') FROM audit_log WHERE action = 'repository.mode' AND target = 'acme/payments'`)).toBe("dev-alice shadow");
 
   // A viewer sees the mode and cannot change it.
   const viewer = await (await page.context().browser()!.newContext()).newPage();
