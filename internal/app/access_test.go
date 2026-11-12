@@ -30,6 +30,11 @@ var required = map[string]string{
 	"list-audit":           "admin",
 	"list-audit-actions":   "admin",
 	"get-diagnostics":      "admin",
+	"create-app-manifest":  "setup",
+	"list-repositories":    "viewer",
+	"get-repository":       "viewer",
+	"set-repository-mode":  "maintainer",
+	"get-github":           "admin",
 }
 
 var rank = map[string]int{"anonymous": 0, "viewer": 1, "maintainer": 2, "admin": 3}
@@ -73,6 +78,13 @@ func TestSCN_AUTH_005_RouteRights(t *testing.T) {
 					body = json.RawMessage(`{}`)
 				}
 				code := apptest.JSON(t, c, strings.ToUpper(method), url, body, nil)
+				if min == "setup" {
+					// Setup operations end when the App exists (SI-14).
+					if code != http.StatusNotFound {
+						t.Errorf("%s %s as %s: %d, want 404 after setup", method, path, who, code)
+					}
+					continue
+				}
 				denied := code == http.StatusUnauthorized || code == http.StatusForbidden
 				allowed := min == "public" || rank[who] >= rank[min]
 				if allowed && denied && op.OperationID != "create-setup-session" {
