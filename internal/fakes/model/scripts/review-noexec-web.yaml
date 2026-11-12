@@ -1,0 +1,50 @@
+marker: '[script:review-noexec-web]'
+stages:
+  review:
+  - tools:
+    - name: record_finding
+      args:
+        severity: major
+        category: correctness
+        title: formatPrice rounds half cents
+        body: toFixed rounds half cents up.
+        path: src/price.js
+        start_line: 2
+        end_line: 4
+        evidence:
+          kind: test
+          detail: node --test fails
+          test_path: .sayso-tests/price.test.js
+  - tools:
+    - name: record_finding
+      args:
+        severity: major
+        category: correctness
+        title: formatPrice rounds half cents
+        body: toFixed rounds half cents up.
+        path: src/price.js
+        start_line: 2
+        end_line: 4
+        evidence:
+          kind: trace
+          detail: cents / 100 then toFixed(2)
+  - tools:
+    - name: set_assessment
+      args:
+        tldr: The change touches price formatting.
+        risk: low
+        risk_reasons:
+        - display only
+        where_to_look:
+        - path_or_area: src/price.js
+          why: rounding
+        impact: []
+  - text: Review done.
+  challenge:
+  - tools:
+    - name: challenge_result
+      args:
+        candidate_id: c1
+        outcome: confirmed
+        reason: Real.
+  - text: Done.

@@ -1,0 +1,42 @@
+marker: '[script:review-basic]'
+stages:
+  review:
+  - tools:
+    - name: read
+      args:
+        path: ledger/ledger.go
+  - tools:
+    - name: record_finding
+      args:
+        severity: major
+        category: correctness
+        title: Post has no upper bound for amount
+        body: Post has no upper bound for amount. The caller in api/handler.go passes the amount on.
+        path: ledger/ledger.go
+        start_line: 15
+        end_line: 18
+        evidence:
+          kind: trace
+          detail: Post adds amount to balance with no upper bound.
+  - tools:
+    - name: set_assessment
+      args:
+        tldr: The change touches the ledger. Charges flow through Post.
+        risk: medium
+        risk_reasons:
+        - money path
+        where_to_look:
+        - path_or_area: ledger/ledger.go
+          why: balance update
+        impact:
+        - area: api/handler.go
+          why: Charge calls Post
+  - text: Review done.
+  challenge:
+  - tools:
+    - name: challenge_result
+      args:
+        candidate_id: c1
+        outcome: confirmed
+        reason: Post has no bound.
+  - text: Done.

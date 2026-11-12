@@ -13,6 +13,7 @@ COPY go.mod go.sum ./
 RUN go mod download
 COPY cmd ./cmd
 COPY internal ./internal
+COPY skills ./skills
 COPY ui/embed.go ./ui/embed.go
 COPY --from=ui /src/ui/dist ./ui/dist
 RUN CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.version=${VERSION}" -o /out/sayso ./cmd/sayso

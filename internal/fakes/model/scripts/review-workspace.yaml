@@ -1,0 +1,17 @@
+marker: '[script:review-workspace]'
+stages:
+  review:
+  - tools:
+    - name: bash
+      args:
+        command: echo HEAD=$(git rev-parse HEAD) BASE=$(git -C ../base rev-parse HEAD); git -C ../repo config --list | tr '\n' ' '
+  - tools:
+    - name: set_assessment
+      args:
+        tldr: The change touches the ledger.
+        risk: low
+        risk_reasons:
+        - small change
+        where_to_look: []
+        impact: []
+  - text: Review done.

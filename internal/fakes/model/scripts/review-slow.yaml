@@ -1,0 +1,5 @@
+marker: '[script:review-slow]'
+stages:
+  review:
+  - delay_ms: 120000
+    text: Still thinking.

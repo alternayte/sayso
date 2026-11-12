@@ -9,8 +9,10 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
+	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/http/cookiejar"
 	"net/http/httptest"
@@ -58,6 +60,10 @@ type Options struct {
 	Temporal bool
 	// Env adds process variables, for example SAYSO_INGRESS.
 	Env map[string]string
+	// ContainerHost makes the API and the fake GitHub listen on all
+	// addresses and gives agent containers this host name for them, for
+	// example host.docker.internal.
+	ContainerHost string
 }
 
 // Env is one running API with its fakes.
@@ -82,15 +88,29 @@ func New(t *testing.T, o Options) *Env {
 	ctx := context.Background()
 	pool := testenv.DB(t)
 	fake := fakegh.New()
-	ghSrv := httptest.NewServer(fake.Handler())
-	t.Cleanup(ghSrv.Close)
-
+	t.Cleanup(func() { _ = fake.Close() })
+	ghSrv := httptest.NewUnstartedServer(fake.Handler())
 	srv := httptest.NewUnstartedServer(nil)
-	base := "http://" + srv.Listener.Addr().String()
+	if o.ContainerHost != "" {
+		for _, s := range []*httptest.Server{ghSrv, srv} {
+			ln, err := net.Listen("tcp", "0.0.0.0:0")
+			if err != nil {
+				t.Fatal(err)
+			}
+			_ = s.Listener.Close()
+			s.Listener = ln
+		}
+	}
+	ghSrv.Start()
+	t.Cleanup(ghSrv.Close)
+	base := "http://127.0.0.1:" + port(srv.Listener)
 	vars := map[string]string{
 		"SAYSO_DATABASE_URL": "postgres://in-process", "SAYSO_SECRET_KEY": testenv.SecretKey(),
 		"SAYSO_BASE_URL": base, "SAYSO_SETUP_TOKEN": o.SetupToken,
 		"SAYSO_BOOTSTRAP_ADMINS": strings.Join(o.BootstrapAdmins, ","),
+	}
+	if o.ContainerHost != "" {
+		vars["SAYSO_RUNNER_API_URL"] = "http://" + o.ContainerHost + ":" + port(srv.Listener)
 	}
 	for k, v := range o.Env {
 		vars[k] = v
@@ -138,6 +158,15 @@ func New(t *testing.T, o Options) *Env {
 	srv.Start()
 	t.Cleanup(srv.Close)
 	return &Env{Deps: d, F: f, GitHub: fake, GHServer: ghSrv, Server: srv, Base: base, Clock: clock, Temporal: tc}
+}
+
+func port(l net.Listener) string {
+	return fmt.Sprint(l.Addr().(*net.TCPAddr).Port)
+}
+
+// ContainerURL is the URL of a local server as an agent container sees it.
+func (e *Env) ContainerURL(host string, s *httptest.Server) string {
+	return "http://" + host + ":" + port(s.Listener)
 }
 
 // quietTemporal drops the Temporal SDK log lines.

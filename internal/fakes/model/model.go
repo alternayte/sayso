@@ -26,6 +26,10 @@ const (
 // without tool calls.
 const NoToolsPrefix = "no-tools-"
 
+// FailModelPrefix makes every request for a model with this prefix fail
+// with 429.
+const FailModelPrefix = "fail-429-"
+
 // Request is one recorded call.
 type Request struct {
 	Method string
@@ -44,7 +48,8 @@ type Fake struct {
 	// Delay is waited before each answer, for concurrency tests.
 	Delay time.Duration
 	// Models lists the IDs that GET /models returns.
-	Models []string
+	Models  []string
+	scripts []*Script
 }
 
 // New returns a fake with three listed models.
@@ -135,30 +140,68 @@ func (f *Fake) models(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"object": "list", "data": data})
 }
 
-// reply is the answer the fake chose for one request.
-type reply struct {
-	Text     string
-	ToolName string
-	ToolArgs string
-	In, Out  int
+// call is one tool call of an answer.
+type call struct {
+	Name string
+	Args string
 }
 
-// decide picks the answer: a tool call when tools are present and no tool
-// result came back yet, else text. A prompt that asks for JSON gets JSON.
-func decide(model string, tools []string, toolResult string, prompt string, bodyLen int, noTools bool) reply {
-	r := reply{In: bodyLen/4 + 1}
-	switch {
-	case len(tools) > 0 && toolResult == "" && !noTools && !strings.HasPrefix(model, NoToolsPrefix):
-		r.ToolName, r.ToolArgs = tools[0], `{"city":"Oslo"}`
-	case toolResult != "":
-		r.Text = "The tool returned: " + toolResult
-	case strings.Contains(strings.ToLower(prompt), "json"):
-		r.Text = `{"answer":"ok"}`
-	default:
-		r.Text = "Hello from the fake model."
+// reply is the answer the fake chose for one request.
+type reply struct {
+	Text    string
+	Calls   []call
+	In, Out int
+	Delay   time.Duration
+}
+
+// parsed is what the fake reads from a request of any API type.
+type parsed struct {
+	Model      string
+	System     string
+	Prompt     string // every message text
+	Tools      []string
+	ToolResult string // the last tool result
+	Turns      int    // assistant turns so far
+	WantJSON   bool
+	BodyLen    int
+}
+
+// decide picks the answer. A script whose marker is in the system prompt
+// answers by stage and turn. Otherwise: a tool call when tools are present
+// and no tool result came back yet, else text; JSON when the prompt asks.
+func (f *Fake) decide(p parsed, noTools bool) (reply, bool) {
+	r := reply{In: p.BodyLen/4 + 1}
+	if strings.HasPrefix(p.Model, FailModelPrefix) {
+		return r, false
 	}
-	r.Out = (len(r.Text)+len(r.ToolArgs))/4 + 1
-	return r
+	if sc := f.script(p.System + "\n" + p.Prompt); sc != nil {
+		st := sc.step(p.System, p.Turns)
+		r.Text, r.Delay = st.Text, time.Duration(st.DelayMS)*time.Millisecond
+		for _, c := range st.Tools {
+			b, _ := json.Marshal(c.Args)
+			r.Calls = append(r.Calls, call{Name: c.Name, Args: string(b)})
+		}
+		if len(r.Calls) == 0 && r.Text == "" {
+			r.Text = "Done."
+		}
+	} else {
+		switch {
+		case len(p.Tools) > 0 && p.ToolResult == "" && !noTools && !strings.HasPrefix(p.Model, NoToolsPrefix):
+			r.Calls = []call{{Name: p.Tools[0], Args: `{"city":"Oslo"}`}}
+		case p.ToolResult != "":
+			r.Text = "The tool returned: " + p.ToolResult
+		case p.WantJSON || strings.Contains(strings.ToLower(p.Prompt), "json"):
+			r.Text = `{"answer":"ok"}`
+		default:
+			r.Text = "Hello from the fake model."
+		}
+	}
+	n := len(r.Text)
+	for _, c := range r.Calls {
+		n += len(c.Args)
+	}
+	r.Out = n/4 + 1
+	return r, true
 }
 
 func writeJSON(w http.ResponseWriter, code int, v any) {

@@ -238,12 +238,12 @@ func TestSCN_RUN_002_ProcessRunnerEnvironmentAndCancel(t *testing.T) {
 	if b, _ := os.ReadFile("/proc/" + pid + "/status"); len(b) > 0 {
 		t.Fatal("the agent process still runs")
 	}
-	if out, _ := exec("pgrep", "-g", pid); strings.TrimSpace(out) != "" {
+	if out, _ := run("pgrep", "-g", pid); strings.TrimSpace(out) != "" {
 		t.Fatalf("processes of the group still run: %s", out)
 	}
 }
 
-func exec(name string, args ...string) (string, error) {
+func run(name string, args ...string) (string, error) {
 	out, err := osexec.Command(name, args...).Output()
 	return string(out), err
 }

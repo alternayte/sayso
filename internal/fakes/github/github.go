@@ -59,6 +59,7 @@ type Fake struct {
 	deliveries    []*Delivery
 	nextDelivery  int64
 	httpc         *http.Client
+	gitRoot       string
 
 	// Repositories, pull requests and rate limits (repos.go).
 	repos     map[string]*Repo

@@ -329,3 +329,32 @@ type Complete struct {
 	Error      string  `json:"error,omitempty"`
 	Result     *Result `json:"result,omitempty"`
 }
+
+// normalize turns nil lists into empty lists, so the runtime gets the
+// arrays that the schema promises.
+func (s *Spec) normalize() {
+	if s.Stages == nil {
+		s.Stages = []string{}
+	}
+	if s.Ledger == nil {
+		s.Ledger = []LedgerEntry{}
+	}
+	if s.Models == nil {
+		s.Models = []SpecModel{}
+	}
+	if s.MCP == nil {
+		s.MCP = []SpecMCP{}
+	}
+	if s.Extensions == nil {
+		s.Extensions = []SpecExtension{}
+	}
+	if s.Profiles == nil {
+		s.Profiles = map[string]string{}
+	}
+	if s.PullRequest.Labels == nil {
+		s.PullRequest.Labels = []string{}
+	}
+	if s.PullRequest.ChangedFiles == nil {
+		s.PullRequest.ChangedFiles = []string{}
+	}
+}

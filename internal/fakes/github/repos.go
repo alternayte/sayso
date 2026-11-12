@@ -1,11 +1,10 @@
 package github
 
 import (
-	"crypto/sha1"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -19,8 +18,8 @@ type Repo struct {
 	Private       bool
 	DefaultBranch string
 	Pulls         map[int]*Pull
-	parents       map[string]string // commit -> parent
 	nextPR        int
+	dir           string
 }
 
 // Pull is one pull request.
@@ -36,6 +35,8 @@ type Pull struct {
 	BaseSHA string
 	BaseRef string
 	Labels  []string
+	Title   string
+	Body    string
 }
 
 // Comment is a pull request review comment.
@@ -58,12 +59,44 @@ type CheckRun struct {
 	Title      string
 }
 
-// Seed repositories of SDD §22.
+// seedRepos creates the git repositories of SDD §22 from the fixtures.
 func (f *Fake) seedRepos() {
+	dir, err := os.MkdirTemp("", "sayso-fake-git-")
+	if err != nil {
+		panic(err)
+	}
+	f.gitRoot = dir
 	for i, name := range []string{"payments", "web", "shared-go"} {
 		full := f.Org + "/" + name
-		f.repos[full] = &Repo{ID: int64(5001 + i), FullName: full, Private: true, DefaultBranch: "main", Pulls: map[int]*Pull{}, parents: map[string]string{}, nextPR: 1}
+		r := &Repo{ID: int64(5001 + i), FullName: full, Private: true, DefaultBranch: "main", Pulls: map[int]*Pull{}, nextPR: 1}
+		if err := f.initRepo(r, name); err != nil {
+			panic("fake GitHub needs git: " + err.Error())
+		}
+		f.repos[full] = r
 	}
+}
+
+// Close removes the git repositories.
+func (f *Fake) Close() error { return os.RemoveAll(f.gitRoot) }
+
+// MainSHA returns the head of main of a repository.
+func (f *Fake) MainSHA(repo string) string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	sha, _ := f.git(f.repos[repo].dir, "rev-parse", "main")
+	return sha
+}
+
+// CommitMain adds a commit to main, for changes of the base branch.
+func (f *Fake) CommitMain(repo string, files map[string]string) string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	r := f.repos[repo]
+	sha, err := f.commit(r, "main", "main", files, "Change main")
+	if err != nil {
+		panic(err)
+	}
+	return sha
 }
 
 // Repo returns a repository by full name.
@@ -71,11 +104,6 @@ func (f *Fake) Repo(full string) *Repo {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return f.repos[full]
-}
-
-func sha(parts ...string) string {
-	s := sha1.Sum([]byte(strings.Join(parts, "/")))
-	return hex.EncodeToString(s[:])
 }
 
 func (f *Fake) repoJSON(r *Repo) map[string]any {
@@ -117,23 +145,42 @@ type PullOptions struct {
 	Author string
 	Draft  bool
 	Head   string
+	Title  string
+	Body   string
+	// Files of the head commit; an empty content deletes a file.
+	Files map[string]string
 }
 
-// OpenPull creates a pull request without sending an event.
+// OpenPull creates a branch with one commit and a pull request for it,
+// without sending an event.
 func (f *Fake) OpenPull(repo string, o PullOptions) *Pull {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	r := f.repos[repo]
 	n := r.nextPR
 	r.nextPR++
-	base := sha(repo, "main")
-	head := sha(repo, "pr", strconv.Itoa(n), "1")
-	r.parents[head] = base
 	ref := o.Head
 	if ref == "" {
 		ref = fmt.Sprintf("feature-%d", n)
 	}
-	p := &Pull{Number: n, NodeID: fmt.Sprintf("PR_%d_%d", r.ID, n), Author: o.Author, Draft: o.Draft, State: "open", HeadSHA: head, HeadRef: ref, BaseSHA: base, BaseRef: "main"}
+	files := o.Files
+	if files == nil {
+		files = map[string]string{fmt.Sprintf("CHANGES-%d.md", n): fmt.Sprintf("Change %d\n", n)}
+	}
+	title := o.Title
+	if title == "" {
+		title = fmt.Sprintf("Change %d", n)
+	}
+	base, err := f.git(r.dir, "rev-parse", "main")
+	if err != nil {
+		panic(err)
+	}
+	head, err := f.commit(r, ref, base, files, title)
+	if err != nil {
+		panic(err)
+	}
+	p := &Pull{Number: n, NodeID: fmt.Sprintf("PR_%d_%d", r.ID, n), Author: o.Author, Draft: o.Draft, State: "open", HeadSHA: head, HeadRef: ref, BaseSHA: base, BaseRef: "main",
+		Title: title, Body: o.Body}
 	r.Pulls[n] = p
 	return p
 }
@@ -151,18 +198,29 @@ func (f *Fake) PullEvent(repo string, number int, action string, extra map[strin
 	return f.Send("pull_request", payload)
 }
 
-// Push moves the head of a pull request to a new commit and sends
-// synchronize. A forced push replaces history.
+// Push adds a commit to the head of a pull request and sends synchronize.
+// A forced push replaces history: the new commit starts at the base.
 func (f *Fake) Push(repo string, number int, forced bool) (string, int) {
+	return f.PushFiles(repo, number, forced, nil)
+}
+
+// PushFiles pushes a commit with files to a pull request and sends synchronize.
+func (f *Fake) PushFiles(repo string, number int, forced bool, files map[string]string) (string, int) {
 	f.mu.Lock()
 	r := f.repos[repo]
 	p := r.Pulls[number]
 	before := p.HeadSHA
-	after := sha(before, "next", strconv.Itoa(len(r.parents)))
+	from := before
 	if forced {
-		r.parents[after] = p.BaseSHA
-	} else {
-		r.parents[after] = before
+		from = p.BaseSHA
+	}
+	if files == nil {
+		files = map[string]string{fmt.Sprintf("CHANGES-%d.md", number): fmt.Sprintf("Change %d at %s\n", number, before[:7])}
+	}
+	after, err := f.commit(r, p.HeadRef, from, files, "Update")
+	if err != nil {
+		f.mu.Unlock()
+		panic(err)
 	}
 	p.HeadSHA = after
 	f.mu.Unlock()
@@ -213,7 +271,7 @@ func (f *Fake) pullJSON(r *Repo, p *Pull) map[string]any {
 	}
 	state := p.State
 	return map[string]any{
-		"number": p.Number, "node_id": p.NodeID, "draft": p.Draft, "state": state, "merged": p.Merged,
+		"number": p.Number, "node_id": p.NodeID, "draft": p.Draft, "state": state, "merged": p.Merged, "title": p.Title, "body": p.Body,
 		"user":   map[string]any{"login": p.Author},
 		"head":   map[string]any{"sha": p.HeadSHA, "ref": p.HeadRef, "repo": map[string]any{"id": r.ID, "full_name": r.FullName}},
 		"base":   map[string]any{"sha": p.BaseSHA, "ref": p.BaseRef, "repo": map[string]any{"id": r.ID, "full_name": r.FullName}},
@@ -270,6 +328,9 @@ func (f *Fake) instCall(w http.ResponseWriter, r *http.Request) bool {
 func (f *Fake) repoRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /repos/{owner}/{repo}/pulls", f.listPulls)
 	mux.HandleFunc("GET /repos/{owner}/{repo}/compare/{basehead}", f.compare)
+	mux.HandleFunc("GET /{owner}/{repo}/info/refs", f.gitHTTP)
+	mux.HandleFunc("POST /{owner}/{repo}/git-upload-pack", f.gitHTTP)
+	mux.HandleFunc("POST /{owner}/{repo}/git-receive-pack", f.gitHTTP)
 	mux.HandleFunc("GET /repos/{owner}/{repo}/pulls/comments/{id}", f.getComment)
 	mux.HandleFunc("PATCH /repos/{owner}/{repo}/check-runs/{id}", f.patchCheckRun)
 }
@@ -312,14 +373,15 @@ func (f *Fake) compare(w http.ResponseWriter, r *http.Request) {
 	repo := f.repoOf(r)
 	status := "diverged"
 	if repo != nil && ok {
-		for c := head; c != ""; c = repo.parents[c] {
-			if c == base {
-				status = "ahead"
-				if c == head {
-					status = "identical"
-				}
-				break
-			}
+		switch anc, known := f.isAncestor(repo, base, head); {
+		case !known:
+			f.mu.Unlock()
+			writeJSON(w, http.StatusNotFound, map[string]string{"message": "Not Found"})
+			return
+		case base == head:
+			status = "identical"
+		case anc:
+			status = "ahead"
 		}
 	}
 	f.mu.Unlock()

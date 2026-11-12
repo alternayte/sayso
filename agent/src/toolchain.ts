@@ -45,6 +45,9 @@ export function sh(cmd: string, args: string[], cwd: string, deadline: number, e
   });
 }
 
+/** imageMise is where the agent image keeps the preinstalled tools. */
+export const imageMise = "/opt/mise";
+
 /** toolVersions maps the version files of a repository to mise tools (§8.10). */
 export function toolVersions(dir: string): Record<string, string> {
   const tools: Record<string, string> = {};
@@ -108,16 +111,23 @@ export async function prepareEnvironment(
   };
 
   if (overlay.toolchain !== "none") {
+    // The runner passes no MISE_* variables, so the runtime points mise at the
+    // preinstalled tools of the agent image.
+    if (existsSync(imageMise)) env.MISE_DATA_DIR = imageMise;
+    const defaults = join(imageMise, "default-config", "config.toml");
+    const cfgDir = join(homedir(), ".config", "mise");
+    mkdirSync(cfgDir, { recursive: true });
+    const cfg = join(cfgDir, "config.toml");
     const hasMise = existsSync(join(dir, "mise.toml")) || existsSync(join(dir, ".mise.toml")) || existsSync(join(dir, ".tool-versions"));
-    if (!hasMise) {
-      const tools = toolVersions(dir);
-      if (Object.keys(tools).length > 0) {
-        // The global mise configuration selects the versions, so no repository file changes.
-        const cfgDir = join(homedir(), ".config", "mise");
-        mkdirSync(cfgDir, { recursive: true });
-        writeFileSync(join(cfgDir, "config.toml"), "[tools]\n" + Object.entries(tools).map(([t, v]) => `${t} = "${v}"`).join("\n") + "\n");
-      }
-    }
+    const tools: Record<string, string> = {};
+    for (const m of (existsSync(defaults) ? readFileSync(defaults, "utf8") : "").matchAll(/^(\w+)\s*=\s*"([^"]+)"/gm)) tools[m[1]!] = m[2]!;
+    // The global mise configuration selects the versions, so no repository file changes.
+    if (!hasMise) Object.assign(tools, toolVersions(dir));
+    writeFileSync(cfg, "[tools]\n" + Object.entries(tools).map(([t, v]) => `${t} = "${v}"`).join("\n") + "\n");
+    env.MISE_GLOBAL_CONFIG_FILE = cfg;
+    env.MISE_YES = "1";
+    // A fuzzy version such as 24 resolves to the preinstalled version first.
+    env.MISE_PREFER_OFFLINE = "1";
     if (hasMise) await step("mise trust", "mise", ["trust", "--yes", dir]);
     if (await step("mise install", "mise", ["install", "--yes"])) {
       const r = await sh("mise", ["env", "--json"], dir, deadline, env);

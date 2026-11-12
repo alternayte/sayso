@@ -174,6 +174,7 @@ func (a *API) register(api huma.API) {
 					return nil, huma.Error503ServiceUnavailable(a.RedactRun(err.Error()))
 				}
 			}
+			spec.normalize()
 			return &struct{ Body Spec }{spec}, nil
 		})
 

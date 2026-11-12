@@ -1,0 +1,21 @@
+marker: '[script:review-mcp]'
+stages:
+  review:
+  - tools:
+    - name: mcp__catalog__catalog_search
+      args:
+        query: ledger
+  - tools:
+    - name: set_assessment
+      args:
+        tldr: The change touches the ledger. Charges flow through Post.
+        risk: medium
+        risk_reasons:
+        - money path
+        where_to_look:
+        - path_or_area: ledger/ledger.go
+          why: balance update
+        impact:
+        - area: api/handler.go
+          why: Charge calls Post
+  - text: Review done.

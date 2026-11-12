@@ -91,7 +91,10 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	p.mu.Lock()
 	h := p.handlers[key]
 	if h == nil {
-		h = mcp.NewStreamableHTTPHandler(func(*http.Request) *mcp.Server { return p.server(run.ID, srv) }, &mcp.StreamableHTTPOptions{Logger: p.svc.log})
+		// Every request carries a run token, so the loopback Host check against
+		// DNS rebinding does not add protection; agent containers use other host names.
+		h = mcp.NewStreamableHTTPHandler(func(*http.Request) *mcp.Server { return p.server(run.ID, srv) },
+			&mcp.StreamableHTTPOptions{Logger: p.svc.log, DisableLocalhostProtection: true})
 		p.handlers[key] = h
 	}
 	p.mu.Unlock()

@@ -230,7 +230,8 @@ async function stages(spec: Spec, ws: Workspace, token: string, events: EventStr
   } finally {
     await mcp.close();
   }
-  return { exit_status: collector.limitReached ? "limit_reached" : "completed", result };
+  if (collector.limitReached) events.emit({ stage: "review", type: "note", name: "limit_reached", status: "limit_reached", preview: `The run reported the most findings it may (${spec.limits.max_findings}).` });
+  return { exit_status: "completed", result };
 }
 
 /** uploadArtifacts stores the pi session files and the proof tests (§8.7, §15.1). */

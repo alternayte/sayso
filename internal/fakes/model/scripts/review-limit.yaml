@@ -1,0 +1,378 @@
+marker: '[script:review-limit]'
+stages:
+  review:
+  - tools:
+    - name: record_finding
+      args:
+        severity: minor
+        category: correctness
+        title: Finding number 1
+        body: Finding number 1. The caller in api/handler.go passes the amount on.
+        path: ledger/ledger.go
+        start_line: 15
+        end_line: 18
+        evidence:
+          kind: trace
+          detail: Post adds amount to balance with no upper bound.
+    - name: record_finding
+      args:
+        severity: minor
+        category: correctness
+        title: Finding number 2
+        body: Finding number 2. The caller in api/handler.go passes the amount on.
+        path: ledger/ledger.go
+        start_line: 15
+        end_line: 18
+        evidence:
+          kind: trace
+          detail: Post adds amount to balance with no upper bound.
+    - name: record_finding
+      args:
+        severity: minor
+        category: correctness
+        title: Finding number 3
+        body: Finding number 3. The caller in api/handler.go passes the amount on.
+        path: ledger/ledger.go
+        start_line: 15
+        end_line: 18
+        evidence:
+          kind: trace
+          detail: Post adds amount to balance with no upper bound.
+    - name: record_finding
+      args:
+        severity: minor
+        category: correctness
+        title: Finding number 4
+        body: Finding number 4. The caller in api/handler.go passes the amount on.
+        path: ledger/ledger.go
+        start_line: 15
+        end_line: 18
+        evidence:
+          kind: trace
+          detail: Post adds amount to balance with no upper bound.
+    - name: record_finding
+      args:
+        severity: minor
+        category: correctness
+        title: Finding number 5
+        body: Finding number 5. The caller in api/handler.go passes the amount on.
+        path: ledger/ledger.go
+        start_line: 15
+        end_line: 18
+        evidence:
+          kind: trace
+          detail: Post adds amount to balance with no upper bound.
+    - name: record_finding
+      args:
+        severity: minor
+        category: correctness
+        title: Finding number 6
+        body: Finding number 6. The caller in api/handler.go passes the amount on.
+        path: ledger/ledger.go
+        start_line: 15
+        end_line: 18
+        evidence:
+          kind: trace
+          detail: Post adds amount to balance with no upper bound.
+    - name: record_finding
+      args:
+        severity: minor
+        category: correctness
+        title: Finding number 7
+        body: Finding number 7. The caller in api/handler.go passes the amount on.
+        path: ledger/ledger.go
+        start_line: 15
+        end_line: 18
+        evidence:
+          kind: trace
+          detail: Post adds amount to balance with no upper bound.
+    - name: record_finding
+      args:
+        severity: minor
+        category: correctness
+        title: Finding number 8
+        body: Finding number 8. The caller in api/handler.go passes the amount on.
+        path: ledger/ledger.go
+        start_line: 15
+        end_line: 18
+        evidence:
+          kind: trace
+          detail: Post adds amount to balance with no upper bound.
+    - name: record_finding
+      args:
+        severity: minor
+        category: correctness
+        title: Finding number 9
+        body: Finding number 9. The caller in api/handler.go passes the amount on.
+        path: ledger/ledger.go
+        start_line: 15
+        end_line: 18
+        evidence:
+          kind: trace
+          detail: Post adds amount to balance with no upper bound.
+    - name: record_finding
+      args:
+        severity: minor
+        category: correctness
+        title: Finding number 10
+        body: Finding number 10. The caller in api/handler.go passes the amount on.
+        path: ledger/ledger.go
+        start_line: 15
+        end_line: 18
+        evidence:
+          kind: trace
+          detail: Post adds amount to balance with no upper bound.
+    - name: record_finding
+      args:
+        severity: minor
+        category: correctness
+        title: Finding number 11
+        body: Finding number 11. The caller in api/handler.go passes the amount on.
+        path: ledger/ledger.go
+        start_line: 15
+        end_line: 18
+        evidence:
+          kind: trace
+          detail: Post adds amount to balance with no upper bound.
+    - name: record_finding
+      args:
+        severity: minor
+        category: correctness
+        title: Finding number 12
+        body: Finding number 12. The caller in api/handler.go passes the amount on.
+        path: ledger/ledger.go
+        start_line: 15
+        end_line: 18
+        evidence:
+          kind: trace
+          detail: Post adds amount to balance with no upper bound.
+    - name: record_finding
+      args:
+        severity: minor
+        category: correctness
+        title: Finding number 13
+        body: Finding number 13. The caller in api/handler.go passes the amount on.
+        path: ledger/ledger.go
+        start_line: 15
+        end_line: 18
+        evidence:
+          kind: trace
+          detail: Post adds amount to balance with no upper bound.
+    - name: record_finding
+      args:
+        severity: minor
+        category: correctness
+        title: Finding number 14
+        body: Finding number 14. The caller in api/handler.go passes the amount on.
+        path: ledger/ledger.go
+        start_line: 15
+        end_line: 18
+        evidence:
+          kind: trace
+          detail: Post adds amount to balance with no upper bound.
+    - name: record_finding
+      args:
+        severity: minor
+        category: correctness
+        title: Finding number 15
+        body: Finding number 15. The caller in api/handler.go passes the amount on.
+        path: ledger/ledger.go
+        start_line: 15
+        end_line: 18
+        evidence:
+          kind: trace
+          detail: Post adds amount to balance with no upper bound.
+    - name: record_finding
+      args:
+        severity: minor
+        category: correctness
+        title: Finding number 16
+        body: Finding number 16. The caller in api/handler.go passes the amount on.
+        path: ledger/ledger.go
+        start_line: 15
+        end_line: 18
+        evidence:
+          kind: trace
+          detail: Post adds amount to balance with no upper bound.
+    - name: record_finding
+      args:
+        severity: minor
+        category: correctness
+        title: Finding number 17
+        body: Finding number 17. The caller in api/handler.go passes the amount on.
+        path: ledger/ledger.go
+        start_line: 15
+        end_line: 18
+        evidence:
+          kind: trace
+          detail: Post adds amount to balance with no upper bound.
+    - name: record_finding
+      args:
+        severity: minor
+        category: correctness
+        title: Finding number 18
+        body: Finding number 18. The caller in api/handler.go passes the amount on.
+        path: ledger/ledger.go
+        start_line: 15
+        end_line: 18
+        evidence:
+          kind: trace
+          detail: Post adds amount to balance with no upper bound.
+    - name: record_finding
+      args:
+        severity: minor
+        category: correctness
+        title: Finding number 19
+        body: Finding number 19. The caller in api/handler.go passes the amount on.
+        path: ledger/ledger.go
+        start_line: 15
+        end_line: 18
+        evidence:
+          kind: trace
+          detail: Post adds amount to balance with no upper bound.
+    - name: record_finding
+      args:
+        severity: minor
+        category: correctness
+        title: Finding number 20
+        body: Finding number 20. The caller in api/handler.go passes the amount on.
+        path: ledger/ledger.go
+        start_line: 15
+        end_line: 18
+        evidence:
+          kind: trace
+          detail: Post adds amount to balance with no upper bound.
+    - name: record_finding
+      args:
+        severity: minor
+        category: correctness
+        title: Finding number 21
+        body: Finding number 21. The caller in api/handler.go passes the amount on.
+        path: ledger/ledger.go
+        start_line: 15
+        end_line: 18
+        evidence:
+          kind: trace
+          detail: Post adds amount to balance with no upper bound.
+    - name: record_finding
+      args:
+        severity: minor
+        category: correctness
+        title: Finding number 22
+        body: Finding number 22. The caller in api/handler.go passes the amount on.
+        path: ledger/ledger.go
+        start_line: 15
+        end_line: 18
+        evidence:
+          kind: trace
+          detail: Post adds amount to balance with no upper bound.
+    - name: record_finding
+      args:
+        severity: minor
+        category: correctness
+        title: Finding number 23
+        body: Finding number 23. The caller in api/handler.go passes the amount on.
+        path: ledger/ledger.go
+        start_line: 15
+        end_line: 18
+        evidence:
+          kind: trace
+          detail: Post adds amount to balance with no upper bound.
+    - name: record_finding
+      args:
+        severity: minor
+        category: correctness
+        title: Finding number 24
+        body: Finding number 24. The caller in api/handler.go passes the amount on.
+        path: ledger/ledger.go
+        start_line: 15
+        end_line: 18
+        evidence:
+          kind: trace
+          detail: Post adds amount to balance with no upper bound.
+    - name: record_finding
+      args:
+        severity: minor
+        category: correctness
+        title: Finding number 25
+        body: Finding number 25. The caller in api/handler.go passes the amount on.
+        path: ledger/ledger.go
+        start_line: 15
+        end_line: 18
+        evidence:
+          kind: trace
+          detail: Post adds amount to balance with no upper bound.
+    - name: record_finding
+      args:
+        severity: minor
+        category: correctness
+        title: Finding number 26
+        body: Finding number 26. The caller in api/handler.go passes the amount on.
+        path: ledger/ledger.go
+        start_line: 15
+        end_line: 18
+        evidence:
+          kind: trace
+          detail: Post adds amount to balance with no upper bound.
+    - name: record_finding
+      args:
+        severity: minor
+        category: correctness
+        title: Finding number 27
+        body: Finding number 27. The caller in api/handler.go passes the amount on.
+        path: ledger/ledger.go
+        start_line: 15
+        end_line: 18
+        evidence:
+          kind: trace
+          detail: Post adds amount to balance with no upper bound.
+    - name: record_finding
+      args:
+        severity: minor
+        category: correctness
+        title: Finding number 28
+        body: Finding number 28. The caller in api/handler.go passes the amount on.
+        path: ledger/ledger.go
+        start_line: 15
+        end_line: 18
+        evidence:
+          kind: trace
+          detail: Post adds amount to balance with no upper bound.
+    - name: record_finding
+      args:
+        severity: minor
+        category: correctness
+        title: Finding number 29
+        body: Finding number 29. The caller in api/handler.go passes the amount on.
+        path: ledger/ledger.go
+        start_line: 15
+        end_line: 18
+        evidence:
+          kind: trace
+          detail: Post adds amount to balance with no upper bound.
+    - name: record_finding
+      args:
+        severity: minor
+        category: correctness
+        title: Finding number 30
+        body: Finding number 30. The caller in api/handler.go passes the amount on.
+        path: ledger/ledger.go
+        start_line: 15
+        end_line: 18
+        evidence:
+          kind: trace
+          detail: Post adds amount to balance with no upper bound.
+  - tools:
+    - name: set_assessment
+      args:
+        tldr: The change touches the ledger. Charges flow through Post.
+        risk: medium
+        risk_reasons:
+        - money path
+        where_to_look:
+        - path_or_area: ledger/ledger.go
+          why: balance update
+        impact:
+        - area: api/handler.go
+          why: Charge calls Post
+  - text: Review done.

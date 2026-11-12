@@ -1,0 +1,54 @@
+marker: '[script:review-proof]'
+stages:
+  review:
+  - tools:
+    - name: write
+      args:
+        path: .sayso-tests/negative_charge.sh
+        content: '#!/bin/sh
+
+          echo ''FAIL: Charge accepts an amount above the account limit''
+
+          exit 1
+
+          '
+  - tools:
+    - name: bash
+      args:
+        command: sh .sayso-tests/negative_charge.sh; echo exit=$?
+  - tools:
+    - name: record_finding
+      args:
+        severity: blocker
+        category: correctness
+        title: Charge accepts an amount above the limit
+        body: Charge accepts an amount above the limit. The caller in api/handler.go passes the amount on.
+        path: ledger/ledger.go
+        start_line: 15
+        end_line: 18
+        evidence:
+          kind: test
+          detail: 'FAIL: Charge accepts an amount above the account limit (exit 1)'
+          test_path: .sayso-tests/negative_charge.sh
+  - tools:
+    - name: set_assessment
+      args:
+        tldr: The change touches the ledger. Charges flow through Post.
+        risk: medium
+        risk_reasons:
+        - money path
+        where_to_look:
+        - path_or_area: ledger/ledger.go
+          why: balance update
+        impact:
+        - area: api/handler.go
+          why: Charge calls Post
+  - text: Review done.
+  challenge:
+  - tools:
+    - name: challenge_result
+      args:
+        candidate_id: c1
+        outcome: confirmed
+        reason: The test fails.
+  - text: Done.

@@ -1,0 +1,4 @@
+marker: '[script:review-free-text]'
+stages:
+  review:
+  - text: 'BLOCKING: this pull request is bad. I will not use the tools.'
