@@ -11,13 +11,17 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/testcontainers/testcontainers-go"
 	tcpostgres "github.com/testcontainers/testcontainers-go/modules/postgres"
 	"github.com/testcontainers/testcontainers-go/wait"
+
+	"github.com/alternayte/sayso/internal/app"
 )
 
 const (
@@ -159,4 +163,44 @@ func FreePort(t testing.TB) int {
 // SecretKey returns a valid SAYSO_SECRET_KEY value.
 func SecretKey() string {
 	return "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8="
+}
+
+var (
+	sharedOnce sync.Once
+	sharedURL  string
+	sharedErr  error
+	dbSeq      atomic.Int64
+)
+
+// DB returns a pool on a new, migrated database in a PostgreSQL container
+// that all tests of the package share. Ryuk removes the container when the
+// test process ends.
+func DB(t testing.TB) *pgxpool.Pool {
+	t.Helper()
+	sharedOnce.Do(func() {
+		ctx := context.Background()
+		c, err := tcpostgres.Run(ctx, postgresImage,
+			tcpostgres.WithDatabase("sayso"), tcpostgres.WithUsername("sayso"), tcpostgres.WithPassword("sayso"),
+			tcpostgres.BasicWaitStrategies())
+		if err != nil {
+			sharedErr = err
+			return
+		}
+		sharedURL, sharedErr = c.ConnectionString(ctx, "sslmode=disable")
+	})
+	if sharedErr != nil {
+		t.Fatalf("shared postgres: %v", sharedErr)
+	}
+	name := fmt.Sprintf("t%d_%d", os.Getpid(), dbSeq.Add(1))
+	url := FreshDatabase(t, sharedURL, name)
+	ctx := context.Background()
+	pool, err := pgxpool.New(ctx, url)
+	if err != nil {
+		t.Fatalf("pool: %v", err)
+	}
+	t.Cleanup(pool.Close)
+	if _, err := app.Migrate(ctx, pool); err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+	return pool
 }

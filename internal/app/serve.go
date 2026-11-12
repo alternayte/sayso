@@ -9,11 +9,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.temporal.io/sdk/client"
 )
 
@@ -64,17 +62,17 @@ func Serve(ctx context.Context, cfg *Config, log *slog.Logger, red *Redactor) er
 	reg.MustRegister(collectors.NewGoCollector(), collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}))
 	d := &Deps{Config: cfg, Log: log, Redactor: red, Pool: pool, Temporal: tc, Metrics: reg}
 
-	r := chi.NewRouter()
-	r.Use(httpMetrics(reg))
-	r.Get("/healthz", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
-	r.Get("/readyz", d.readyz)
-	r.Handle("/metrics", promhttp.HandlerFor(reg, promhttp.HandlerOpts{}))
+	f, err := NewFeatures(ctx, d)
+	if err != nil {
+		return err
+	}
+	h := NewHandler(d, f)
 
 	ln, err := net.Listen("tcp", cfg.Listen)
 	if err != nil {
 		return fmt.Errorf("listen %s: %w", cfg.Listen, err)
 	}
-	srv := &http.Server{Handler: r, ReadHeaderTimeout: 10 * time.Second}
+	srv := &http.Server{Handler: h, ReadHeaderTimeout: 10 * time.Second}
 	errc := make(chan error, 1)
 	go func() { errc <- srv.Serve(ln) }()
 	log.Info("listening", "addr", ln.Addr().String(), "role", string(cfg.Role))

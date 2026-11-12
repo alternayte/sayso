@@ -5,9 +5,10 @@ CREATE TABLE users (
     login         text NOT NULL,
     name          text NOT NULL DEFAULT '',
     role          text NOT NULL CHECK (role IN ('admin', 'maintainer', 'viewer')),
-    role_source   text NOT NULL CHECK (role_source IN ('grant', 'team')),
+    role_source   text NOT NULL CHECK (role_source IN ('grant', 'team', 'default')),
     status        text NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'removed')),
     last_login_at timestamptz,
+    roles_checked_at timestamptz,
     created_at    timestamptz NOT NULL DEFAULT now()
 );
 CREATE UNIQUE INDEX users_login_lower ON users (lower(login));
@@ -79,6 +80,7 @@ CREATE TABLE github_app (
     id                uuid PRIMARY KEY,
     app_id            bigint NOT NULL,
     slug              text NOT NULL,
+    org_login         text NOT NULL,
     client_id         text NOT NULL,
     client_secret_id  uuid NOT NULL REFERENCES secrets (id),
     private_key_id    uuid NOT NULL REFERENCES secrets (id),

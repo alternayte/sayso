@@ -171,3 +171,5 @@ func or(v, def string) string {
 func LoadFromProcess(need Need) (*Config, []string, error) {
 	return LoadConfig(os.Getenv, os.Environ(), need)
 }
+
+func getenv(name string) string { return os.Getenv(name) }
