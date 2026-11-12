@@ -271,16 +271,36 @@ function ProviderForm({ current, onDone }: { current?: ProviderBody; onDone: () 
         </label>
       ) : null}
       <SecretField label={t("providers.key")} field={current?.key} value={key} onChange={setKey} />
-      <label className="grid gap-1.5">
-        <span className="t-label">{t("providers.models")}</span>
-        <textarea className="control control-mono min-h-20" value={f.models} onChange={(e) => setF({ ...f, models: e.target.value })} />
-        <span className="t-hint">{t("providers.models.hint")}</span>
-      </label>
-      <label className="grid gap-1.5">
-        <span className="t-label">{t("providers.headers")}</span>
-        <textarea className="control control-mono min-h-16" value={f.headers} onChange={(e) => setF({ ...f, headers: e.target.value })} />
-        <span className="t-hint">{t("providers.headers.hint")}</span>
-      </label>
+      <div className="grid gap-1.5">
+        <label className="t-label" htmlFor="provider-models">
+          {t("providers.models")}
+        </label>
+        <textarea
+          id="provider-models"
+          aria-describedby="provider-models-hint"
+          className="control control-mono min-h-20"
+          value={f.models}
+          onChange={(e) => setF({ ...f, models: e.target.value })}
+        />
+        <span id="provider-models-hint" className="t-hint">
+          {t("providers.models.hint")}
+        </span>
+      </div>
+      <div className="grid gap-1.5">
+        <label className="t-label" htmlFor="provider-headers">
+          {t("providers.headers")}
+        </label>
+        <textarea
+          id="provider-headers"
+          aria-describedby="provider-headers-hint"
+          className="control control-mono min-h-16"
+          value={f.headers}
+          onChange={(e) => setF({ ...f, headers: e.target.value })}
+        />
+        <span id="provider-headers-hint" className="t-hint">
+          {t("providers.headers.hint")}
+        </span>
+      </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="grid gap-1.5">
           <span className="t-label">{t("providers.max_concurrency")}</span>
