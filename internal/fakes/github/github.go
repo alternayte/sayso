@@ -4,9 +4,11 @@
 package github
 
 import (
+	"bytes"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -41,12 +43,29 @@ type Fake struct {
 	teams     map[string]map[string]bool // team slug -> logins
 	codes     map[string]string          // OAuth code -> login
 	userToks  map[string]string          // user token -> login
-	instToks  map[string]bool
+	instToks  map[string]TokenGrant
 	requests  []Request
 	nextLogin string
 	ClientID  string
 	Secret    string
 	InstallID int64
+
+	// App and webhooks (app.go).
+	AppID         int64
+	AppSlug       string
+	HookURL       string
+	WebhookSecret string
+	manifests     map[string]manifest
+	deliveries    []*Delivery
+	nextDelivery  int64
+	httpc         *http.Client
+
+	// Repositories, pull requests and rate limits (repos.go).
+	repos     map[string]*Repo
+	comments  map[int64]*Comment
+	checkRuns map[int64]*CheckRun
+	nextID    int64
+	rate      rateState
 }
 
 // New returns the fake with the acme organization of SDD §22: octo-admin
@@ -60,11 +79,20 @@ func New() *Fake {
 		teams:     map[string]map[string]bool{"platform": {}},
 		codes:     map[string]string{},
 		userToks:  map[string]string{},
-		instToks:  map[string]bool{},
+		instToks:  map[string]TokenGrant{},
 		ClientID:  "Iv1.acmeclient",
 		Secret:    "acme-client-secret",
 		InstallID: 4242,
+		AppID:     77,
+		AppSlug:   "sayso-acme",
+		manifests: map[string]manifest{},
+		httpc:     &http.Client{Timeout: 30 * time.Second},
+		repos:     map[string]*Repo{},
+		comments:  map[int64]*Comment{},
+		checkRuns: map[int64]*CheckRun{},
+		nextID:    90000,
 	}
+	f.seedRepos()
 	for i, u := range []struct {
 		login, name string
 		member      bool
@@ -126,16 +154,24 @@ func (f *Fake) Handler() http.Handler {
 	mux.HandleFunc("POST /app/installations/{id}/access_tokens", f.installationToken)
 	mux.HandleFunc("GET /orgs/{org}/teams/{team}/memberships/{login}", f.teamMembership)
 	mux.HandleFunc("GET /orgs/{org}/teams", f.listTeams)
+	f.appRoutes(mux)
+	f.repoRoutes(mux)
 	return f.record(mux)
 }
 
 func (f *Fake) record(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_ = r.ParseForm()
+		raw, _ := io.ReadAll(io.LimitReader(r.Body, 32<<20))
+		r.Body = io.NopCloser(bytes.NewReader(raw))
+		body := string(raw)
+		if r.Header.Get("Content-Type") == "application/x-www-form-urlencoded" {
+			_ = r.ParseForm()
+			body = r.PostForm.Encode()
+		}
 		f.mu.Lock()
 		f.requests = append(f.requests, Request{
 			Method: r.Method, Path: r.URL.Path, Query: r.URL.RawQuery,
-			Auth: r.Header.Get("Authorization"), Body: r.PostForm.Encode(), At: time.Now(),
+			Auth: r.Header.Get("Authorization"), Body: body, At: time.Now(),
 		})
 		f.mu.Unlock()
 		next.ServeHTTP(w, r)
@@ -222,7 +258,8 @@ func (f *Fake) authorized(r *http.Request) bool {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	_, user := f.userToks[t]
-	return user || f.instToks[t]
+	_, inst := f.instToks[t]
+	return user || inst
 }
 
 func (f *Fake) orgMember(w http.ResponseWriter, r *http.Request) {
@@ -254,9 +291,17 @@ func (f *Fake) installationToken(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusNotFound, map[string]string{"message": "Not Found"})
 		return
 	}
+	var grant TokenGrant
+	if r.ContentLength != 0 {
+		if err := json.NewDecoder(r.Body).Decode(&grant); err != nil && err != io.EOF {
+			writeJSON(w, http.StatusUnprocessableEntity, map[string]string{"message": "bad body"})
+			return
+		}
+	}
 	tok := token("ghs_")
+	grant.At = time.Now()
 	f.mu.Lock()
-	f.instToks[tok] = true
+	f.instToks[tok] = grant
 	f.mu.Unlock()
 	writeJSON(w, http.StatusCreated, map[string]any{"token": tok, "expires_at": time.Now().Add(time.Hour).UTC().Format(time.RFC3339)})
 }

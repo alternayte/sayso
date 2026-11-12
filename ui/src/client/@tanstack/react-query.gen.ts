@@ -3,8 +3,8 @@
 import { type InfiniteData, infiniteQueryOptions, queryOptions, type UseMutationOptions } from '@tanstack/react-query';
 
 import { client } from '../client.gen';
-import { createSetupSession, deleteGrant, deleteTeamRole, getAccess, getDiagnostics, getMe, getSettingHistory, getSetupState, listAudit, listAuditActions, listSettings, type Options, putGrant, putSetting, putTeamRole } from '../sdk.gen';
-import type { CreateSetupSessionData, CreateSetupSessionError, CreateSetupSessionResponse, DeleteGrantData, DeleteGrantError, DeleteGrantResponse, DeleteTeamRoleData, DeleteTeamRoleError, DeleteTeamRoleResponse, GetAccessData, GetAccessError, GetAccessResponse, GetDiagnosticsData, GetDiagnosticsError, GetDiagnosticsResponse, GetMeData, GetMeError, GetMeResponse, GetSettingHistoryData, GetSettingHistoryError, GetSettingHistoryResponse, GetSetupStateData, GetSetupStateError, GetSetupStateResponse, ListAuditActionsData, ListAuditActionsError, ListAuditActionsResponse, ListAuditData, ListAuditError, ListAuditResponse, ListSettingsData, ListSettingsError, ListSettingsResponse, PutGrantData, PutGrantError, PutGrantResponse, PutSettingData, PutSettingError, PutSettingResponse, PutTeamRoleData, PutTeamRoleError, PutTeamRoleResponse } from '../types.gen';
+import { createAppManifest, createSetupSession, deleteGrant, deleteTeamRole, getAccess, getDiagnostics, getGithub, getMe, getRepository, getSettingHistory, getSetupState, listAudit, listAuditActions, listRepositories, listSettings, type Options, putGrant, putSetting, putTeamRole, setRepositoryMode } from '../sdk.gen';
+import type { CreateAppManifestData, CreateAppManifestError, CreateAppManifestResponse, CreateSetupSessionData, CreateSetupSessionError, CreateSetupSessionResponse, DeleteGrantData, DeleteGrantError, DeleteGrantResponse, DeleteTeamRoleData, DeleteTeamRoleError, DeleteTeamRoleResponse, GetAccessData, GetAccessError, GetAccessResponse, GetDiagnosticsData, GetDiagnosticsError, GetDiagnosticsResponse, GetGithubData, GetGithubError, GetGithubResponse, GetMeData, GetMeError, GetMeResponse, GetRepositoryData, GetRepositoryError, GetRepositoryResponse, GetSettingHistoryData, GetSettingHistoryError, GetSettingHistoryResponse, GetSetupStateData, GetSetupStateError, GetSetupStateResponse, ListAuditActionsData, ListAuditActionsError, ListAuditActionsResponse, ListAuditData, ListAuditError, ListAuditResponse, ListRepositoriesData, ListRepositoriesError, ListRepositoriesResponse, ListSettingsData, ListSettingsError, ListSettingsResponse, PutGrantData, PutGrantError, PutGrantResponse, PutSettingData, PutSettingError, PutSettingResponse, PutTeamRoleData, PutTeamRoleError, PutTeamRoleResponse, SetRepositoryModeData, SetRepositoryModeError, SetRepositoryModeResponse } from '../types.gen';
 
 export type QueryKey<TOptions extends Options> = [
     Pick<TOptions, 'baseUrl' | 'body' | 'headers' | 'path' | 'query'> & {
@@ -211,6 +211,21 @@ export const getDiagnosticsOptions = (options?: Options<GetDiagnosticsData>) => 
     queryKey: getDiagnosticsQueryKey(options)
 });
 
+export const getGithubQueryKey = (options?: Options<GetGithubData>) => createQueryKey('getGithub', options);
+
+export const getGithubOptions = (options?: Options<GetGithubData>) => queryOptions<GetGithubResponse, GetGithubError, GetGithubResponse, ReturnType<typeof getGithubQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await getGithub({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: getGithubQueryKey(options)
+});
+
 export const getMeQueryKey = (options?: Options<GetMeData>) => createQueryKey('getMe', options);
 
 export const getMeOptions = (options?: Options<GetMeData>) => queryOptions<GetMeResponse, GetMeError, GetMeResponse, ReturnType<typeof getMeQueryKey>>({
@@ -225,6 +240,50 @@ export const getMeOptions = (options?: Options<GetMeData>) => queryOptions<GetMe
     },
     queryKey: getMeQueryKey(options)
 });
+
+export const listRepositoriesQueryKey = (options?: Options<ListRepositoriesData>) => createQueryKey('listRepositories', options);
+
+export const listRepositoriesOptions = (options?: Options<ListRepositoriesData>) => queryOptions<ListRepositoriesResponse, ListRepositoriesError, ListRepositoriesResponse, ReturnType<typeof listRepositoriesQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await listRepositories({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: listRepositoriesQueryKey(options)
+});
+
+export const getRepositoryQueryKey = (options: Options<GetRepositoryData>) => createQueryKey('getRepository', options);
+
+export const getRepositoryOptions = (options: Options<GetRepositoryData>) => queryOptions<GetRepositoryResponse, GetRepositoryError, GetRepositoryResponse, ReturnType<typeof getRepositoryQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await getRepository({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: getRepositoryQueryKey(options)
+});
+
+export const setRepositoryModeMutation = (options?: Partial<Options<SetRepositoryModeData>>): UseMutationOptions<SetRepositoryModeResponse, SetRepositoryModeError, Options<SetRepositoryModeData>> => {
+    const mutationOptions: UseMutationOptions<SetRepositoryModeResponse, SetRepositoryModeError, Options<SetRepositoryModeData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await setRepositoryMode({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
 
 export const listSettingsQueryKey = (options?: Options<ListSettingsData>) => createQueryKey('listSettings', options);
 
@@ -269,6 +328,20 @@ export const getSettingHistoryOptions = (options: Options<GetSettingHistoryData>
     },
     queryKey: getSettingHistoryQueryKey(options)
 });
+
+export const createAppManifestMutation = (options?: Partial<Options<CreateAppManifestData>>): UseMutationOptions<CreateAppManifestResponse, CreateAppManifestError, Options<CreateAppManifestData>> => {
+    const mutationOptions: UseMutationOptions<CreateAppManifestResponse, CreateAppManifestError, Options<CreateAppManifestData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await createAppManifest({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
 
 export const createSetupSessionMutation = (options?: Partial<Options<CreateSetupSessionData>>): UseMutationOptions<CreateSetupSessionResponse, CreateSetupSessionError, Options<CreateSetupSessionData>> => {
     const mutationOptions: UseMutationOptions<CreateSetupSessionResponse, CreateSetupSessionError, Options<CreateSetupSessionData>> = {

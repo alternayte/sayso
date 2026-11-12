@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { CreateSetupSessionData, CreateSetupSessionErrors, CreateSetupSessionResponses, DeleteGrantData, DeleteGrantErrors, DeleteGrantResponses, DeleteTeamRoleData, DeleteTeamRoleErrors, DeleteTeamRoleResponses, GetAccessData, GetAccessErrors, GetAccessResponses, GetDiagnosticsData, GetDiagnosticsErrors, GetDiagnosticsResponses, GetMeData, GetMeErrors, GetMeResponses, GetSettingHistoryData, GetSettingHistoryErrors, GetSettingHistoryResponses, GetSetupStateData, GetSetupStateErrors, GetSetupStateResponses, ListAuditActionsData, ListAuditActionsErrors, ListAuditActionsResponses, ListAuditData, ListAuditErrors, ListAuditResponses, ListSettingsData, ListSettingsErrors, ListSettingsResponses, PutGrantData, PutGrantErrors, PutGrantResponses, PutSettingData, PutSettingErrors, PutSettingResponses, PutTeamRoleData, PutTeamRoleErrors, PutTeamRoleResponses } from './types.gen';
+import type { CreateAppManifestData, CreateAppManifestErrors, CreateAppManifestResponses, CreateSetupSessionData, CreateSetupSessionErrors, CreateSetupSessionResponses, DeleteGrantData, DeleteGrantErrors, DeleteGrantResponses, DeleteTeamRoleData, DeleteTeamRoleErrors, DeleteTeamRoleResponses, GetAccessData, GetAccessErrors, GetAccessResponses, GetDiagnosticsData, GetDiagnosticsErrors, GetDiagnosticsResponses, GetGithubData, GetGithubErrors, GetGithubResponses, GetMeData, GetMeErrors, GetMeResponses, GetRepositoryData, GetRepositoryErrors, GetRepositoryResponses, GetSettingHistoryData, GetSettingHistoryErrors, GetSettingHistoryResponses, GetSetupStateData, GetSetupStateErrors, GetSetupStateResponses, ListAuditActionsData, ListAuditActionsErrors, ListAuditActionsResponses, ListAuditData, ListAuditErrors, ListAuditResponses, ListRepositoriesData, ListRepositoriesErrors, ListRepositoriesResponses, ListSettingsData, ListSettingsErrors, ListSettingsResponses, PutGrantData, PutGrantErrors, PutGrantResponses, PutSettingData, PutSettingErrors, PutSettingResponses, PutTeamRoleData, PutTeamRoleErrors, PutTeamRoleResponses, SetRepositoryModeData, SetRepositoryModeErrors, SetRepositoryModeResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -48,7 +48,22 @@ export const listAuditActions = <ThrowOnError extends boolean = false>(options?:
 
 export const getDiagnostics = <ThrowOnError extends boolean = false>(options?: Options<GetDiagnosticsData, ThrowOnError>): RequestResult<GetDiagnosticsResponses, GetDiagnosticsErrors, ThrowOnError> => (options?.client ?? client).get<GetDiagnosticsResponses, GetDiagnosticsErrors, ThrowOnError>({ url: '/api/v1/diagnostics', ...options });
 
+export const getGithub = <ThrowOnError extends boolean = false>(options?: Options<GetGithubData, ThrowOnError>): RequestResult<GetGithubResponses, GetGithubErrors, ThrowOnError> => (options?.client ?? client).get<GetGithubResponses, GetGithubErrors, ThrowOnError>({ url: '/api/v1/github', ...options });
+
 export const getMe = <ThrowOnError extends boolean = false>(options?: Options<GetMeData, ThrowOnError>): RequestResult<GetMeResponses, GetMeErrors, ThrowOnError> => (options?.client ?? client).get<GetMeResponses, GetMeErrors, ThrowOnError>({ url: '/api/v1/me', ...options });
+
+export const listRepositories = <ThrowOnError extends boolean = false>(options?: Options<ListRepositoriesData, ThrowOnError>): RequestResult<ListRepositoriesResponses, ListRepositoriesErrors, ThrowOnError> => (options?.client ?? client).get<ListRepositoriesResponses, ListRepositoriesErrors, ThrowOnError>({ url: '/api/v1/repositories', ...options });
+
+export const getRepository = <ThrowOnError extends boolean = false>(options: Options<GetRepositoryData, ThrowOnError>): RequestResult<GetRepositoryResponses, GetRepositoryErrors, ThrowOnError> => (options.client ?? client).get<GetRepositoryResponses, GetRepositoryErrors, ThrowOnError>({ url: '/api/v1/repositories/{owner}/{name}', ...options });
+
+export const setRepositoryMode = <ThrowOnError extends boolean = false>(options: Options<SetRepositoryModeData, ThrowOnError>): RequestResult<SetRepositoryModeResponses, SetRepositoryModeErrors, ThrowOnError> => (options.client ?? client).put<SetRepositoryModeResponses, SetRepositoryModeErrors, ThrowOnError>({
+    url: '/api/v1/repositories/{owner}/{name}/mode',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 export const listSettings = <ThrowOnError extends boolean = false>(options?: Options<ListSettingsData, ThrowOnError>): RequestResult<ListSettingsResponses, ListSettingsErrors, ThrowOnError> => (options?.client ?? client).get<ListSettingsResponses, ListSettingsErrors, ThrowOnError>({ url: '/api/v1/settings', ...options });
 
@@ -62,6 +77,15 @@ export const putSetting = <ThrowOnError extends boolean = false>(options: Option
 });
 
 export const getSettingHistory = <ThrowOnError extends boolean = false>(options: Options<GetSettingHistoryData, ThrowOnError>): RequestResult<GetSettingHistoryResponses, GetSettingHistoryErrors, ThrowOnError> => (options.client ?? client).get<GetSettingHistoryResponses, GetSettingHistoryErrors, ThrowOnError>({ url: '/api/v1/settings/{key}/history', ...options });
+
+export const createAppManifest = <ThrowOnError extends boolean = false>(options: Options<CreateAppManifestData, ThrowOnError>): RequestResult<CreateAppManifestResponses, CreateAppManifestErrors, ThrowOnError> => (options.client ?? client).post<CreateAppManifestResponses, CreateAppManifestErrors, ThrowOnError>({
+    url: '/api/v1/setup/github/manifest',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 export const createSetupSession = <ThrowOnError extends boolean = false>(options: Options<CreateSetupSessionData, ThrowOnError>): RequestResult<CreateSetupSessionResponses, CreateSetupSessionErrors, ThrowOnError> => (options.client ?? client).post<CreateSetupSessionResponses, CreateSetupSessionErrors, ThrowOnError>({
     url: '/api/v1/setup/session',

@@ -15,8 +15,11 @@ import { Route as SigninRouteImport } from './routes/signin'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppAuditRouteImport } from './routes/_app/audit'
 import { Route as AppDiagnosticsRouteImport } from './routes/_app/diagnostics'
+import { Route as AppRepositoriesIndexRouteImport } from './routes/_app/repositories/index'
 import { Route as AppSettingsAccessRouteImport } from './routes/_app/settings/access'
 import { Route as AppSettingsGeneralRouteImport } from './routes/_app/settings/general'
+import { Route as AppSettingsGithubRouteImport } from './routes/_app/settings/github'
+import { Route as AppRepositoriesOwnerNameRouteImport } from './routes/_app/repositories/$owner.$name'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
@@ -47,6 +50,11 @@ const AppDiagnosticsRoute = AppDiagnosticsRouteImport.update({
   path: '/diagnostics',
   getParentRoute: () => AppRoute,
 } as any)
+const AppRepositoriesIndexRoute = AppRepositoriesIndexRouteImport.update({
+  id: '/repositories/',
+  path: '/repositories/',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppSettingsAccessRoute = AppSettingsAccessRouteImport.update({
   id: '/settings/access',
   path: '/settings/access',
@@ -57,6 +65,17 @@ const AppSettingsGeneralRoute = AppSettingsGeneralRouteImport.update({
   path: '/settings/general',
   getParentRoute: () => AppRoute,
 } as any)
+const AppSettingsGithubRoute = AppSettingsGithubRouteImport.update({
+  id: '/settings/github',
+  path: '/settings/github',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppRepositoriesOwnerNameRoute =
+  AppRepositoriesOwnerNameRouteImport.update({
+    id: '/repositories/$owner/$name',
+    path: '/repositories/$owner/$name',
+    getParentRoute: () => AppRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
@@ -66,6 +85,9 @@ export interface FileRoutesByFullPath {
   '/diagnostics': typeof AppDiagnosticsRoute
   '/settings/access': typeof AppSettingsAccessRoute
   '/settings/general': typeof AppSettingsGeneralRoute
+  '/settings/github': typeof AppSettingsGithubRoute
+  '/repositories/': typeof AppRepositoriesIndexRoute
+  '/repositories/$owner/$name': typeof AppRepositoriesOwnerNameRoute
 }
 export interface FileRoutesByTo {
   '/setup': typeof SetupRoute
@@ -75,6 +97,9 @@ export interface FileRoutesByTo {
   '/': typeof AppIndexRoute
   '/settings/access': typeof AppSettingsAccessRoute
   '/settings/general': typeof AppSettingsGeneralRoute
+  '/settings/github': typeof AppSettingsGithubRoute
+  '/repositories': typeof AppRepositoriesIndexRoute
+  '/repositories/$owner/$name': typeof AppRepositoriesOwnerNameRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -86,6 +111,9 @@ export interface FileRoutesById {
   '/_app/': typeof AppIndexRoute
   '/_app/settings/access': typeof AppSettingsAccessRoute
   '/_app/settings/general': typeof AppSettingsGeneralRoute
+  '/_app/settings/github': typeof AppSettingsGithubRoute
+  '/_app/repositories/': typeof AppRepositoriesIndexRoute
+  '/_app/repositories/$owner/$name': typeof AppRepositoriesOwnerNameRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -97,6 +125,9 @@ export interface FileRouteTypes {
     | '/diagnostics'
     | '/settings/access'
     | '/settings/general'
+    | '/settings/github'
+    | '/repositories/'
+    | '/repositories/$owner/$name'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/setup'
@@ -106,6 +137,9 @@ export interface FileRouteTypes {
     | '/'
     | '/settings/access'
     | '/settings/general'
+    | '/settings/github'
+    | '/repositories'
+    | '/repositories/$owner/$name'
   id:
     | '__root__'
     | '/_app'
@@ -116,6 +150,9 @@ export interface FileRouteTypes {
     | '/_app/'
     | '/_app/settings/access'
     | '/_app/settings/general'
+    | '/_app/settings/github'
+    | '/_app/repositories/'
+    | '/_app/repositories/$owner/$name'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -168,6 +205,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppDiagnosticsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/repositories/': {
+      id: '/_app/repositories/'
+      path: '/repositories'
+      fullPath: '/repositories/'
+      preLoaderRoute: typeof AppRepositoriesIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/settings/access': {
       id: '/_app/settings/access'
       path: '/settings/access'
@@ -182,6 +226,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSettingsGeneralRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/settings/github': {
+      id: '/_app/settings/github'
+      path: '/settings/github'
+      fullPath: '/settings/github'
+      preLoaderRoute: typeof AppSettingsGithubRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/repositories/$owner/$name': {
+      id: '/_app/repositories/$owner/$name'
+      path: '/repositories/$owner/$name'
+      fullPath: '/repositories/$owner/$name'
+      preLoaderRoute: typeof AppRepositoriesOwnerNameRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
@@ -191,6 +249,9 @@ interface AppRouteChildren {
   AppIndexRoute: typeof AppIndexRoute
   AppSettingsAccessRoute: typeof AppSettingsAccessRoute
   AppSettingsGeneralRoute: typeof AppSettingsGeneralRoute
+  AppSettingsGithubRoute: typeof AppSettingsGithubRoute
+  AppRepositoriesIndexRoute: typeof AppRepositoriesIndexRoute
+  AppRepositoriesOwnerNameRoute: typeof AppRepositoriesOwnerNameRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -199,6 +260,9 @@ const AppRouteChildren: AppRouteChildren = {
   AppIndexRoute: AppIndexRoute,
   AppSettingsAccessRoute: AppSettingsAccessRoute,
   AppSettingsGeneralRoute: AppSettingsGeneralRoute,
+  AppSettingsGithubRoute: AppSettingsGithubRoute,
+  AppRepositoriesIndexRoute: AppRepositoriesIndexRoute,
+  AppRepositoriesOwnerNameRoute: AppRepositoriesOwnerNameRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

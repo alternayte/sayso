@@ -7,6 +7,7 @@ package github
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -20,6 +21,29 @@ func (q *Queries) AppExists(ctx context.Context) (bool, error) {
 	var exists bool
 	err := row.Scan(&exists)
 	return exists, err
+}
+
+const deleteDelivery = `-- name: DeleteDelivery :exec
+DELETE FROM webhook_deliveries WHERE delivery_id = $1
+`
+
+func (q *Queries) DeleteDelivery(ctx context.Context, deliveryID string) error {
+	_, err := q.db.Exec(ctx, deleteDelivery, deliveryID)
+	return err
+}
+
+const finishDelivery = `-- name: FinishDelivery :exec
+UPDATE webhook_deliveries SET handled_at = now(), error = $2 WHERE delivery_id = $1
+`
+
+type FinishDeliveryParams struct {
+	DeliveryID string
+	Error      string
+}
+
+func (q *Queries) FinishDelivery(ctx context.Context, arg FinishDeliveryParams) error {
+	_, err := q.db.Exec(ctx, finishDelivery, arg.DeliveryID, arg.Error)
+	return err
 }
 
 const getApp = `-- name: GetApp :one
@@ -42,6 +66,26 @@ func (q *Queries) GetApp(ctx context.Context) (GithubApp, error) {
 		&i.CreatedAt,
 	)
 	return i, err
+}
+
+const hasActiveRound = `-- name: HasActiveRound :one
+SELECT EXISTS (
+    SELECT 1 FROM rounds r JOIN reviews v ON v.id = r.review_id
+    WHERE v.repository_id = $1 AND v.pr_number = $2 AND r.head_sha = $3
+      AND r.status IN ('queued', 'running', 'publishing', 'done'))
+`
+
+type HasActiveRoundParams struct {
+	RepositoryID uuid.UUID
+	PrNumber     int32
+	HeadSha      string
+}
+
+func (q *Queries) HasActiveRound(ctx context.Context, arg HasActiveRoundParams) (bool, error) {
+	row := q.db.QueryRow(ctx, hasActiveRound, arg.RepositoryID, arg.PrNumber, arg.HeadSha)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
 }
 
 const insertApp = `-- name: InsertApp :exec
@@ -74,4 +118,194 @@ func (q *Queries) InsertApp(ctx context.Context, arg InsertAppParams) error {
 		arg.HtmlUrl,
 	)
 	return err
+}
+
+const insertDelivery = `-- name: InsertDelivery :one
+INSERT INTO webhook_deliveries (delivery_id, event, action, received_via)
+VALUES ($1, $2, $3, $4)
+ON CONFLICT (delivery_id) DO NOTHING
+RETURNING delivery_id
+`
+
+type InsertDeliveryParams struct {
+	DeliveryID  string
+	Event       string
+	Action      string
+	ReceivedVia string
+}
+
+func (q *Queries) InsertDelivery(ctx context.Context, arg InsertDeliveryParams) (string, error) {
+	row := q.db.QueryRow(ctx, insertDelivery,
+		arg.DeliveryID,
+		arg.Event,
+		arg.Action,
+		arg.ReceivedVia,
+	)
+	var delivery_id string
+	err := row.Scan(&delivery_id)
+	return delivery_id, err
+}
+
+const installations = `-- name: Installations :many
+SELECT installation_id, account_login, suspended_at, created_at FROM installations ORDER BY account_login
+`
+
+func (q *Queries) Installations(ctx context.Context) ([]Installation, error) {
+	rows, err := q.db.Query(ctx, installations)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Installation
+	for rows.Next() {
+		var i Installation
+		if err := rows.Scan(
+			&i.InstallationID,
+			&i.AccountLogin,
+			&i.SuspendedAt,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const isRedelivery = `-- name: IsRedelivery :one
+SELECT EXISTS (SELECT 1 FROM webhook_redeliveries WHERE delivery_id = $1)
+`
+
+func (q *Queries) IsRedelivery(ctx context.Context, deliveryID string) (bool, error) {
+	row := q.db.QueryRow(ctx, isRedelivery, deliveryID)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
+const knownDeliveries = `-- name: KnownDeliveries :many
+SELECT delivery_id FROM webhook_deliveries WHERE delivery_id = ANY($1::text[])
+`
+
+func (q *Queries) KnownDeliveries(ctx context.Context, ids []string) ([]string, error) {
+	rows, err := q.db.Query(ctx, knownDeliveries, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var delivery_id string
+		if err := rows.Scan(&delivery_id); err != nil {
+			return nil, err
+		}
+		items = append(items, delivery_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const lastDelivery = `-- name: LastDelivery :one
+SELECT delivery_id, event, action, received_via, received_at, handled_at, error FROM webhook_deliveries ORDER BY received_at DESC LIMIT 1
+`
+
+func (q *Queries) LastDelivery(ctx context.Context) (WebhookDelivery, error) {
+	row := q.db.QueryRow(ctx, lastDelivery)
+	var i WebhookDelivery
+	err := row.Scan(
+		&i.DeliveryID,
+		&i.Event,
+		&i.Action,
+		&i.ReceivedVia,
+		&i.ReceivedAt,
+		&i.HandledAt,
+		&i.Error,
+	)
+	return i, err
+}
+
+const recentDeliveries = `-- name: RecentDeliveries :many
+SELECT delivery_id, event, action, received_via, received_at, handled_at, error FROM webhook_deliveries ORDER BY received_at DESC LIMIT $1
+`
+
+func (q *Queries) RecentDeliveries(ctx context.Context, limit int32) ([]WebhookDelivery, error) {
+	rows, err := q.db.Query(ctx, recentDeliveries, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []WebhookDelivery
+	for rows.Next() {
+		var i WebhookDelivery
+		if err := rows.Scan(
+			&i.DeliveryID,
+			&i.Event,
+			&i.Action,
+			&i.ReceivedVia,
+			&i.ReceivedAt,
+			&i.HandledAt,
+			&i.Error,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const requestRedelivery = `-- name: RequestRedelivery :exec
+INSERT INTO webhook_redeliveries (delivery_id) VALUES ($1) ON CONFLICT (delivery_id) DO UPDATE SET requested_at = now()
+`
+
+func (q *Queries) RequestRedelivery(ctx context.Context, deliveryID string) error {
+	_, err := q.db.Exec(ctx, requestRedelivery, deliveryID)
+	return err
+}
+
+const setInstallationSuspended = `-- name: SetInstallationSuspended :exec
+UPDATE installations SET suspended_at = $2 WHERE installation_id = $1
+`
+
+type SetInstallationSuspendedParams struct {
+	InstallationID int64
+	SuspendedAt    *time.Time
+}
+
+func (q *Queries) SetInstallationSuspended(ctx context.Context, arg SetInstallationSuspendedParams) error {
+	_, err := q.db.Exec(ctx, setInstallationSuspended, arg.InstallationID, arg.SuspendedAt)
+	return err
+}
+
+const upsertInstallation = `-- name: UpsertInstallation :exec
+INSERT INTO installations (installation_id, account_login) VALUES ($1, $2)
+ON CONFLICT (installation_id) DO UPDATE SET account_login = EXCLUDED.account_login
+`
+
+type UpsertInstallationParams struct {
+	InstallationID int64
+	AccountLogin   string
+}
+
+func (q *Queries) UpsertInstallation(ctx context.Context, arg UpsertInstallationParams) error {
+	_, err := q.db.Exec(ctx, upsertInstallation, arg.InstallationID, arg.AccountLogin)
+	return err
+}
+
+const webhookSecretID = `-- name: WebhookSecretID :one
+SELECT webhook_secret_id FROM github_app LIMIT 1
+`
+
+func (q *Queries) WebhookSecretID(ctx context.Context) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, webhookSecretID)
+	var webhook_secret_id uuid.UUID
+	err := row.Scan(&webhook_secret_id)
+	return webhook_secret_id, err
 }

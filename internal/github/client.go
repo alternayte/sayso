@@ -3,6 +3,7 @@
 package github
 
 import (
+	"bytes"
 	"context"
 	"crypto"
 	"crypto/rand"
@@ -37,6 +38,8 @@ type Client struct {
 	APIURL string
 	HTTP   *http.Client
 	Now    func() time.Time
+	// Limits is shared by all clients of a process. Nil means no tracking.
+	Limits *RateLimits
 }
 
 // User is a GitHub account.
@@ -168,23 +171,58 @@ func (c *Client) now() time.Time {
 }
 
 func (c *Client) api(ctx context.Context, method, path, auth string, out any) error {
-	req, err := http.NewRequestWithContext(ctx, method, strings.TrimRight(c.APIURL, "/")+path, nil)
+	return c.call(ctx, call{method: method, path: path, auth: auth, out: out})
+}
+
+// call is one REST request. inst keys the rate limit; 0 means a call
+// without an installation (App JWT or user token).
+type call struct {
+	method, path, auth string
+	in, out            any
+	inst               int64
+	prio               Priority
+	onResponse         func(*http.Response)
+}
+
+func (c *Client) call(ctx context.Context, k call) error {
+	if err := c.Limits.wait(ctx, k.inst, k.prio); err != nil {
+		return err
+	}
+	var body io.Reader
+	if k.in != nil {
+		b, err := json.Marshal(k.in)
+		if err != nil {
+			return err
+		}
+		body = bytes.NewReader(b)
+	}
+	req, err := http.NewRequestWithContext(ctx, k.method, strings.TrimRight(c.APIURL, "/")+k.path, body)
 	if err != nil {
 		return err
 	}
-	req.Header.Set("Authorization", auth)
+	req.Header.Set("Authorization", k.auth)
 	req.Header.Set("Accept", "application/vnd.github+json")
 	req.Header.Set("X-GitHub-Api-Version", "2022-11-28")
-	return c.do(req, out)
+	if k.in != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
+	return c.doLimited(req, k)
 }
 
-func (c *Client) do(req *http.Request, out any) error {
+func (c *Client) do(req *http.Request, out any) error { return c.doLimited(req, call{out: out}) }
+
+func (c *Client) doLimited(req *http.Request, k call) error {
+	out := k.out
 	resp, err := c.HTTP.Do(req)
 	if err != nil {
 		return fmt.Errorf("github: %s %s: %w", req.Method, req.URL.Path, err)
 	}
 	defer resp.Body.Close()
-	body, err := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
+	c.Limits.observe(k.inst, resp)
+	if k.onResponse != nil {
+		k.onResponse(resp)
+	}
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 16<<20))
 	if err != nil {
 		return err
 	}
@@ -192,12 +230,23 @@ func (c *Client) do(req *http.Request, out any) error {
 	case resp.StatusCode == http.StatusNotFound:
 		return ErrNotFound
 	case resp.StatusCode >= 300:
-		return fmt.Errorf("github: %s %s: status %d: %s", req.Method, req.URL.Path, resp.StatusCode, truncate(body, 200))
+		return &StatusError{Method: req.Method, Path: req.URL.Path, Code: resp.StatusCode, Body: truncate(body, 200)}
 	}
 	if out == nil || len(body) == 0 {
 		return nil
 	}
 	return json.Unmarshal(body, out)
+}
+
+// StatusError is a GitHub response with a status of 300 or more.
+type StatusError struct {
+	Method, Path string
+	Code         int
+	Body         string
+}
+
+func (e *StatusError) Error() string {
+	return fmt.Sprintf("github: %s %s: status %d: %s", e.Method, e.Path, e.Code, e.Body)
 }
 
 func truncate(b []byte, n int) string {

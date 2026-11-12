@@ -1,9 +1,6 @@
-# Additions for the e2e stack. The fake App credentials reach the API as
-# environment variables, which the seeded secrets reference.
+# Additions for the e2e stack. The fake GitHub sends webhooks to the API on the Compose network.
 services:
   sayso:
     environment:
-      E2E_GH_CLIENT_SECRET: acme-client-secret
-      E2E_GH_PRIVATE_KEY: ${E2E_GH_PRIVATE_KEY}
-      E2E_GH_WEBHOOK_SECRET: acme-webhook-secret
       SAYSO_BOOTSTRAP_ADMINS: octo-admin
+      SAYSO_PUBLIC_WEBHOOK_URL: http://sayso:8080/webhooks/github

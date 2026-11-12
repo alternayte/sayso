@@ -10,11 +10,13 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humachi"
 	"github.com/go-chi/chi/v5"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/alternayte/sayso/internal/audit"
 	"github.com/alternayte/sayso/internal/auth"
 	"github.com/alternayte/sayso/internal/github"
+	"github.com/alternayte/sayso/internal/repos"
 	"github.com/alternayte/sayso/internal/secrets"
 	"github.com/alternayte/sayso/internal/settings"
 )
@@ -25,6 +27,10 @@ type Features struct {
 	Secrets      *secrets.Store
 	Auth         *auth.Service
 	GitHubClient func(ctx context.Context) (*github.Client, error)
+	RateLimits   *github.RateLimits
+	Tokens       *github.Tokens
+	Ingest       *github.Ingest
+	Relay        *github.RelayClient
 }
 
 // NewFeatures builds the feature services on the shared resources.
@@ -41,6 +47,7 @@ func NewFeatures(ctx context.Context, d *Deps) (*Features, error) {
 	if err != nil {
 		return nil, err
 	}
+	limits := github.NewRateLimits(github.RealClock)
 	gh := func(ctx context.Context) (*github.Client, error) {
 		web, err := st.String(ctx, settings.GitHubWebURL)
 		if err != nil {
@@ -50,13 +57,25 @@ func NewFeatures(ctx context.Context, d *Deps) (*Features, error) {
 		if err != nil {
 			return nil, err
 		}
-		return &github.Client{WebURL: web, APIURL: api, HTTP: hc}, nil
+		return &github.Client{WebURL: web, APIURL: api, HTTP: hc, Limits: limits}, nil
 	}
 	a := auth.NewService(d.Pool, auth.Config{
 		BaseURL: d.Config.BaseURL, SetupToken: d.Config.SetupToken, BootstrapAdmins: d.Config.BootstrapAdmins,
+		WebhookURL: d.Config.PublicWebhookURL,
 		SigningKey: derive(d.Config.SecretKey, "setup cookie"),
 	}, sec, gh, d.Log)
-	return &Features{Settings: st, Secrets: sec, Auth: a, GitHubClient: gh}, nil
+	signaled := prometheus.NewHistogram(prometheus.HistogramOpts{
+		Name: "sayso_webhook_signal_seconds", Help: "Time from webhook request start to the workflow signal.",
+		Buckets: []float64{.01, .025, .05, .1, .25, .5, 1, 2, 5},
+	})
+	d.Metrics.MustRegister(signaled)
+	tokens := github.NewTokens()
+	ingest := &github.Ingest{Pool: d.Pool, Secrets: sec, Temporal: d.Temporal, GitHub: gh, Tokens: tokens, Log: d.Log, Signaled: signaled}
+	f := &Features{Settings: st, Secrets: sec, Auth: a, GitHubClient: gh, RateLimits: limits, Tokens: tokens, Ingest: ingest}
+	if d.Config.Ingress == "relay" {
+		f.Relay = &github.RelayClient{URL: d.Config.RelayURL, Token: d.Config.RelayToken, HTTP: hc, Ingest: ingest, Log: d.Log.With("component", "relay-client")}
+	}
+	return f, nil
 }
 
 func derive(key []byte, purpose string) []byte {
@@ -85,6 +104,8 @@ func NewHandler(d *Deps, f *Features) http.Handler {
 	r.Handle("/metrics", promhttp.HandlerFor(d.Metrics, promhttp.HandlerOpts{}))
 	r.Get("/auth/github/login", f.Auth.Login)
 	r.Get("/auth/github/callback", f.Auth.Callback)
+	r.Get("/setup/github/callback", f.Auth.ManifestCallback)
+	r.Post("/webhooks/github", f.Ingest.ServeHTTP)
 	r.Post("/auth/logout", f.Auth.Logout)
 	r.Handle("/temporal", temporalUI(d.Config.TemporalUIURL))
 	r.Handle("/temporal/*", temporalUI(d.Config.TemporalUIURL))
@@ -101,6 +122,17 @@ func registerOperations(api huma.API, d *Deps, f *Features) {
 	f.Auth.Register(v1)
 	f.Settings.Register(v1)
 	audit.Register(v1, d.Pool, auth.Op(auth.Admin))
+	repos.Register(v1, d.Pool, repos.Access{View: auth.Op(auth.Viewer), Edit: auth.Op(auth.Maintainer), Actor: func(ctx context.Context) audit.Actor {
+		return auth.UserFrom(ctx).Actor()
+	}})
+	ingress := github.IngressInfo{Mode: "direct", Relay: f.Relay}
+	if d.Config != nil {
+		ingress.Mode, ingress.WebhookURL = d.Config.Ingress, d.Config.PublicWebhookURL
+		if ingress.WebhookURL == "" {
+			ingress.WebhookURL = d.Config.BaseURL + "/webhooks/github"
+		}
+	}
+	github.Register(v1, d.Pool, auth.Op(auth.Admin), ingress)
 	registerDiagnostics(v1, d, f)
 }
 

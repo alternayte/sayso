@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -26,6 +27,11 @@ func fakeCmd() *cobra.Command {
 		mux.HandleFunc("POST /_fake/signin-as/{login}", func(w http.ResponseWriter, r *http.Request) {
 			gh.SignInAs(r.PathValue("login"))
 			w.WriteHeader(http.StatusNoContent)
+		})
+		// Install the App on repositories: ?repos=acme/payments,acme/web
+		mux.HandleFunc("POST /_fake/install", func(w http.ResponseWriter, r *http.Request) {
+			_, code := gh.Install(strings.Split(r.URL.Query().Get("repos"), ",")...)
+			w.WriteHeader(code)
 		})
 		srv := &http.Server{Addr: githubAddr, Handler: mux, ReadHeaderTimeout: 10 * time.Second}
 		ctx, stop := signal.NotifyContext(c.Context(), os.Interrupt, syscall.SIGTERM)

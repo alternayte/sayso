@@ -10,8 +10,26 @@ export type AccessBody = {
     users: Array<UserBody>;
 };
 
+export type AppBody = {
+    app_id: number;
+    html_url: string;
+    install_url: string;
+    org: string;
+    slug: string;
+};
+
 export type CreateSetupSessionRequest = {
     token: string;
+};
+
+export type DeliveryBody = {
+    action: string;
+    delivery_id: string;
+    error: string;
+    event: string;
+    handled_at: string | null;
+    received_at: string;
+    received_via: string;
 };
 
 export type DiagnosticsBody = {
@@ -71,6 +89,13 @@ export type ErrorModel = {
     type?: string;
 };
 
+export type GitHubBody = {
+    app: AppBody;
+    deliveries: Array<DeliveryBody>;
+    ingress: IngressBody;
+    installations: Array<InstallationBody>;
+};
+
 export type GrantBody = {
     granted_by: string;
     login: string;
@@ -83,6 +108,28 @@ export type HistoryBody = {
     revision: number;
     updated_at: string;
     updated_by: string;
+};
+
+export type IngressBody = {
+    mode: 'direct' | 'relay';
+    relay_connected: boolean;
+    relay_error: string;
+    webhook_url: string;
+};
+
+export type InstallationBody = {
+    account_login: string;
+    id: number;
+    suspended_at: string | null;
+};
+
+export type ManifestBody = {
+    org: string;
+};
+
+export type ManifestForm = {
+    action_url: string;
+    manifest: string;
 };
 
 export type MeBody = {
@@ -103,11 +150,24 @@ export type PutTeamRoleRequest = {
     role: 'admin' | 'maintainer' | 'viewer';
 };
 
+export type RepositoryBody = {
+    default_branch: string;
+    enabled_at: string | null;
+    full_name: string;
+    id: string;
+    mode: 'off' | 'shadow' | 'comment' | 'gate';
+    private: boolean;
+};
+
 export type Result = {
     detail: string;
     ms: number;
     name: string;
     ok: boolean;
+};
+
+export type SetRepositoryModeRequest = {
+    mode: 'off' | 'shadow' | 'comment' | 'gate';
 };
 
 export type SettingBody = {
@@ -121,6 +181,7 @@ export type SettingBody = {
 
 export type SetupStateBody = {
     app_exists: boolean;
+    install_url: string;
     setup_session: boolean;
     signed_in: boolean;
 };
@@ -351,6 +412,31 @@ export type GetDiagnosticsResponses = {
 
 export type GetDiagnosticsResponse = GetDiagnosticsResponses[keyof GetDiagnosticsResponses];
 
+export type GetGithubData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/github';
+};
+
+export type GetGithubErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type GetGithubError = GetGithubErrors[keyof GetGithubErrors];
+
+export type GetGithubResponses = {
+    /**
+     * OK
+     */
+    200: GitHubBody;
+};
+
+export type GetGithubResponse = GetGithubResponses[keyof GetGithubResponses];
+
 export type GetMeData = {
     body?: never;
     path?: never;
@@ -375,6 +461,87 @@ export type GetMeResponses = {
 };
 
 export type GetMeResponse = GetMeResponses[keyof GetMeResponses];
+
+export type ListRepositoriesData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/repositories';
+};
+
+export type ListRepositoriesErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type ListRepositoriesError = ListRepositoriesErrors[keyof ListRepositoriesErrors];
+
+export type ListRepositoriesResponses = {
+    /**
+     * OK
+     */
+    200: Array<RepositoryBody>;
+};
+
+export type ListRepositoriesResponse = ListRepositoriesResponses[keyof ListRepositoriesResponses];
+
+export type GetRepositoryData = {
+    body?: never;
+    path: {
+        owner: string;
+        name: string;
+    };
+    query?: never;
+    url: '/api/v1/repositories/{owner}/{name}';
+};
+
+export type GetRepositoryErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type GetRepositoryError = GetRepositoryErrors[keyof GetRepositoryErrors];
+
+export type GetRepositoryResponses = {
+    /**
+     * OK
+     */
+    200: RepositoryBody;
+};
+
+export type GetRepositoryResponse = GetRepositoryResponses[keyof GetRepositoryResponses];
+
+export type SetRepositoryModeData = {
+    body: SetRepositoryModeRequest;
+    path: {
+        owner: string;
+        name: string;
+    };
+    query?: never;
+    url: '/api/v1/repositories/{owner}/{name}/mode';
+};
+
+export type SetRepositoryModeErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type SetRepositoryModeError = SetRepositoryModeErrors[keyof SetRepositoryModeErrors];
+
+export type SetRepositoryModeResponses = {
+    /**
+     * OK
+     */
+    200: RepositoryBody;
+};
+
+export type SetRepositoryModeResponse = SetRepositoryModeResponses[keyof SetRepositoryModeResponses];
 
 export type ListSettingsData = {
     body?: never;
@@ -454,6 +621,31 @@ export type GetSettingHistoryResponses = {
 };
 
 export type GetSettingHistoryResponse = GetSettingHistoryResponses[keyof GetSettingHistoryResponses];
+
+export type CreateAppManifestData = {
+    body: ManifestBody;
+    path?: never;
+    query?: never;
+    url: '/api/v1/setup/github/manifest';
+};
+
+export type CreateAppManifestErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type CreateAppManifestError = CreateAppManifestErrors[keyof CreateAppManifestErrors];
+
+export type CreateAppManifestResponses = {
+    /**
+     * OK
+     */
+    200: ManifestForm;
+};
+
+export type CreateAppManifestResponse = CreateAppManifestResponses[keyof CreateAppManifestResponses];
 
 export type CreateSetupSessionData = {
     body: CreateSetupSessionRequest;

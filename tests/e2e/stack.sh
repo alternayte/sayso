@@ -11,20 +11,16 @@ compose_dir="$root/deploy/compose"
 if [[ "$cmd" == down ]]; then
   # shellcheck disable=SC1090
   source "$envfile"
-  export SAYSO_SECRET_KEY=unused E2E_GH_PRIVATE_KEY=unused
+  export SAYSO_SECRET_KEY=unused
   docker compose -p "$E2E_PROJECT" --profile fakes -f "$compose_dir/compose.yaml" -f "$root/tests/e2e/compose.e2e.yaml" down -v --remove-orphans >/dev/null 2>&1 || true
   exit 0
 fi
 
 project="sayso-e2e-$$"
 port=$((20000 + RANDOM % 20000))
-key_file="$(mktemp)"
-openssl genrsa -traditional -out "$key_file" 2048 2>/dev/null || openssl genrsa -out "$key_file" 2048 2>/dev/null
 export SAYSO_IMAGE="${SAYSO_IMAGE:-sayso:dev}" SAYSO_AGENT_IMAGE="${SAYSO_AGENT_IMAGE:-sayso-agent:dev}"
 export SAYSO_SECRET_KEY="$(openssl rand -base64 32)" SAYSO_SETUP_TOKEN="e2e-setup-token"
 export SAYSO_PORT="$port" SAYSO_FAKE_PORT=9001 SAYSO_BASE_URL="http://127.0.0.1:$port"
-export E2E_GH_PRIVATE_KEY="$(cat "$key_file")"
-rm -f "$key_file"
 cat > "$envfile" <<ENV
 E2E_PROJECT=$project
 E2E_BASE_URL=http://127.0.0.1:$port

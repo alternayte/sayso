@@ -40,6 +40,8 @@ type Config struct {
 	BaseURL         string
 	SetupToken      string
 	BootstrapAdmins []string
+	// WebhookURL is SAYSO_PUBLIC_WEBHOOK_URL for the App manifest.
+	WebhookURL string
 	// SigningKey signs the setup cookie. Derive it from the secret key.
 	SigningKey []byte
 }
@@ -48,13 +50,19 @@ type Config struct {
 type Service struct {
 	pool    *pgxpool.Pool
 	cfg     Config
-	secrets github.SecretReader
+	secrets Secrets
 	GitHub  func(ctx context.Context) (*github.Client, error)
 	Now     func() time.Time
 	log     *slog.Logger
 }
 
-func NewService(pool *pgxpool.Pool, cfg Config, sec github.SecretReader, gh func(context.Context) (*github.Client, error), log *slog.Logger) *Service {
+// Secrets reads and writes stored secret values.
+type Secrets interface {
+	github.SecretReader
+	github.SecretWriter
+}
+
+func NewService(pool *pgxpool.Pool, cfg Config, sec Secrets, gh func(context.Context) (*github.Client, error), log *slog.Logger) *Service {
 	return &Service{pool: pool, cfg: cfg, secrets: sec, GitHub: gh, Now: time.Now, log: log}
 }
 

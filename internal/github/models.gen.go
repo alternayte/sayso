@@ -22,3 +22,20 @@ type GithubApp struct {
 	HtmlUrl         string
 	CreatedAt       time.Time
 }
+
+type Installation struct {
+	InstallationID int64
+	AccountLogin   string
+	SuspendedAt    *time.Time
+	CreatedAt      time.Time
+}
+
+type WebhookDelivery struct {
+	DeliveryID  string
+	Event       string
+	Action      string
+	ReceivedVia string
+	ReceivedAt  time.Time
+	HandledAt   *time.Time
+	Error       string
+}

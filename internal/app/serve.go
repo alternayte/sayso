@@ -32,7 +32,7 @@ type Deps struct {
 // within ShutdownTimeout.
 func Serve(ctx context.Context, cfg *Config, log *slog.Logger, red *Redactor) error {
 	if cfg.Role == RoleRelay {
-		return fmt.Errorf("role relay is not available in this build")
+		return ServeRelay(ctx, cfg, log)
 	}
 	d, f, closeAll, err := Open(ctx, cfg, log, red)
 	if err != nil {
@@ -54,6 +54,24 @@ func Serve(ctx context.Context, cfg *Config, log *slog.Logger, red *Redactor) er
 	}
 	defer func() { _ = flush(context.Background()) }()
 
+	var stopWorker func()
+	if cfg.Role.RunsWorker() {
+		if stopWorker, err = StartWorker(ctx, d, f); err != nil {
+			return err
+		}
+	}
+	if cfg.Role.RunsAPI() && f.Relay != nil {
+		rctx, cancel := context.WithCancel(ctx)
+		defer cancel()
+		go f.Relay.Run(rctx)
+	}
+	return listenAndDrain(ctx, cfg, log, h, stopWorker)
+}
+
+// listenAndDrain serves HTTP until ctx ends. Then it stops the Temporal
+// worker from polling, lets running activities and requests finish, and
+// returns within ShutdownTimeout (REQ-CORE-009).
+func listenAndDrain(ctx context.Context, cfg *Config, log *slog.Logger, h http.Handler, stopWorker func()) error {
 	ln, err := net.Listen("tcp", cfg.Listen)
 	if err != nil {
 		return fmt.Errorf("listen %s: %w", cfg.Listen, err)
@@ -71,9 +89,22 @@ func Serve(ctx context.Context, cfg *Config, log *slog.Logger, red *Redactor) er
 	log.Info("shutting down")
 	sctx, cancel := context.WithTimeout(context.Background(), ShutdownTimeout)
 	defer cancel()
+	drained := make(chan struct{})
+	go func() {
+		if stopWorker != nil {
+			stopWorker()
+		}
+		close(drained)
+	}()
 	if err := srv.Shutdown(sctx); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return fmt.Errorf("http shutdown: %w", err)
 	}
+	select {
+	case <-drained:
+	case <-sctx.Done():
+		return errors.New("the worker did not stop within the shutdown time")
+	}
+	log.Info("stopped")
 	return nil
 }
 

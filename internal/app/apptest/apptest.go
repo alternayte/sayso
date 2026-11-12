@@ -54,17 +54,26 @@ type Options struct {
 	SetupToken      string
 	BootstrapAdmins []string
 	NoApp           bool
+	// Temporal starts the Temporal dev server and connects the API to it.
+	Temporal bool
+	// Env adds process variables, for example SAYSO_INGRESS.
+	Env map[string]string
 }
 
 // Env is one running API with its fakes.
 type Env struct {
-	Deps   *app.Deps
-	F      *app.Features
-	GitHub *fakegh.Fake
-	Server *httptest.Server
-	Base   string
-	Clock  *Clock
+	Deps     *app.Deps
+	F        *app.Features
+	GitHub   *fakegh.Fake
+	GHServer *httptest.Server
+	Server   *httptest.Server
+	Base     string
+	Clock    *Clock
+	Temporal client.Client
 }
+
+// WebhookSecret is the webhook secret of the seeded App.
+const WebhookSecret = "acme-webhook-secret"
 
 // New starts the API handler on a fresh database. Unless NoApp is set, the
 // GitHub App for the fake acme organization exists.
@@ -78,20 +87,27 @@ func New(t *testing.T, o Options) *Env {
 
 	srv := httptest.NewUnstartedServer(nil)
 	base := "http://" + srv.Listener.Addr().String()
-	cfg, _, err := app.LoadConfig(func(k string) string {
-		return map[string]string{
-			"SAYSO_DATABASE_URL": "postgres://in-process", "SAYSO_SECRET_KEY": testenv.SecretKey(),
-			"SAYSO_BASE_URL": base, "SAYSO_SETUP_TOKEN": o.SetupToken,
-			"SAYSO_BOOTSTRAP_ADMINS": strings.Join(o.BootstrapAdmins, ","),
-		}[k]
-	}, nil, app.Need{Database: true, SecretKey: true})
+	vars := map[string]string{
+		"SAYSO_DATABASE_URL": "postgres://in-process", "SAYSO_SECRET_KEY": testenv.SecretKey(),
+		"SAYSO_BASE_URL": base, "SAYSO_SETUP_TOKEN": o.SetupToken,
+		"SAYSO_BOOTSTRAP_ADMINS": strings.Join(o.BootstrapAdmins, ","),
+	}
+	for k, v := range o.Env {
+		vars[k] = v
+	}
+	cfg, _, err := app.LoadConfig(func(k string) string { return vars[k] }, nil, app.Need{Database: true, SecretKey: true})
 	if err != nil {
 		t.Fatal(err)
 	}
-	tc, err := client.NewLazyClient(client.Options{HostPort: "127.0.0.1:1"})
+	hostPort := "127.0.0.1:1"
+	if o.Temporal {
+		hostPort = testenv.TemporalDev(t).Address
+	}
+	tc, err := client.NewLazyClient(client.Options{HostPort: hostPort, Logger: quietTemporal{}})
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(tc.Close)
 	red := app.NewRedactor()
 	d := &app.Deps{Config: cfg, Log: slog.New(slog.NewTextHandler(io.Discard, nil)), Redactor: red, Pool: pool, Temporal: tc, Metrics: prometheus.NewRegistry()}
 	f, err := app.NewFeatures(ctx, d)
@@ -113,14 +129,41 @@ func New(t *testing.T, o Options) *Env {
 		}
 		pemKey := string(pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(key)}))
 		a := &github.App{AppID: 77, Slug: "sayso-acme", Org: "acme", ClientID: fake.ClientID, ClientSecret: fake.Secret, PrivateKeyPEM: pemKey}
-		if err := github.SaveApp(ctx, pool, f.Secrets, a, "acme-webhook-secret", ghSrv.URL+"/apps/sayso-acme"); err != nil {
+		if err := github.SaveApp(ctx, pool, f.Secrets, a, WebhookSecret, ghSrv.URL+"/apps/sayso-acme"); err != nil {
 			t.Fatal(err)
 		}
+		fake.SetHook(base+"/webhooks/github", WebhookSecret)
 	}
 	srv.Config.Handler = app.NewHandler(d, f)
 	srv.Start()
 	t.Cleanup(srv.Close)
-	return &Env{Deps: d, F: f, GitHub: fake, Server: srv, Base: base, Clock: clock}
+	return &Env{Deps: d, F: f, GitHub: fake, GHServer: ghSrv, Server: srv, Base: base, Clock: clock, Temporal: tc}
+}
+
+// quietTemporal drops the Temporal SDK log lines.
+type quietTemporal struct{}
+
+func (quietTemporal) Debug(string, ...any) {}
+func (quietTemporal) Info(string, ...any)  {}
+func (quietTemporal) Warn(string, ...any)  {}
+func (quietTemporal) Error(string, ...any) {}
+
+// SQL runs a statement and fails the test on error.
+func (e *Env) SQL(t *testing.T, query string, args ...any) {
+	t.Helper()
+	if _, err := e.Deps.Pool.Exec(context.Background(), query, args...); err != nil {
+		t.Fatalf("%s: %v", query, err)
+	}
+}
+
+// Count returns the result of a count query.
+func (e *Env) Count(t *testing.T, query string, args ...any) int {
+	t.Helper()
+	var n int
+	if err := e.Deps.Pool.QueryRow(context.Background(), query, args...).Scan(&n); err != nil {
+		t.Fatalf("%s: %v", query, err)
+	}
+	return n
 }
 
 // Client returns an HTTP client with its own cookie jar that sends the

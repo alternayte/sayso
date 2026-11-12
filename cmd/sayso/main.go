@@ -38,15 +38,21 @@ func versionCmd() *cobra.Command {
 func serveCmd() *cobra.Command {
 	var role string
 	c := &cobra.Command{Use: "serve", Short: "Run the server in a role", RunE: func(c *cobra.Command, _ []string) error {
-		cfg, log, red, err := setup(app.Need{Database: true, SecretKey: true})
+		r := app.Role(os.Getenv("SAYSO_ROLE"))
+		if c.Flags().Changed("role") || r == "" {
+			r = app.Role(role)
+		}
+		parsed, err := app.ParseRole(string(r))
 		if err != nil {
 			return err
 		}
-		if c.Flags().Changed("role") {
-			if cfg.Role, err = app.ParseRole(role); err != nil {
-				return err
-			}
+		// The relay has no database and no secret key (SI-15).
+		need := app.Need{Database: parsed != app.RoleRelay, SecretKey: parsed != app.RoleRelay}
+		cfg, log, red, err := setup(need)
+		if err != nil {
+			return err
 		}
+		cfg.Role = parsed
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 		defer stop()
 		return app.Serve(ctx, cfg, log, red)

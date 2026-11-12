@@ -70,3 +70,61 @@ export function PageHead({ title, hint, actions }: { title: string; hint?: strin
     </header>
   );
 }
+
+type SegmentedProps<T extends string> = {
+  label: string;
+  options: { value: T; label: string }[];
+  value: T;
+  onChange: (v: T) => void;
+  disabled?: boolean;
+  className?: string;
+};
+
+/**
+ * Segmented is a radio group in the segmented style. Arrow keys move the choice, as in a native
+ * radio group.
+ */
+export function Segmented<T extends string>({ label, options, value, onChange, disabled, className }: SegmentedProps<T>) {
+  const press = usePress<HTMLButtonElement>();
+  const move = (delta: number) => {
+    const i = options.findIndex((o) => o.value === value);
+    const next = options[(i + delta + options.length) % options.length];
+    if (next) onChange(next.value);
+  };
+  return (
+    <div
+      role="radiogroup"
+      aria-label={label}
+      className={`segmented ${className ?? ""}`}
+      onKeyDown={(e) => {
+        if (disabled) return;
+        if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+          e.preventDefault();
+          move(1);
+        } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+          e.preventDefault();
+          move(-1);
+        }
+      }}
+    >
+      {options.map((o) => {
+        const on = o.value === value;
+        return (
+          <button
+            key={o.value}
+            type="button"
+            role="radio"
+            aria-checked={on}
+            tabIndex={on ? 0 : -1}
+            disabled={disabled}
+            className={`segment press ${on ? "segment-on" : ""}`}
+            onClick={() => !on && onChange(o.value)}
+            {...press}
+          >
+            {o.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}

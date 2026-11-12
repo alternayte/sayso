@@ -2,8 +2,8 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 import { signIn, sql } from "../stack";
 
-const adminRoutes = ["/", "/settings/general", "/settings/access", "/audit", "/diagnostics"];
-const settingsRoutes = ["/settings/general", "/settings/access", "/audit", "/diagnostics"];
+const adminRoutes = ["/", "/repositories", "/settings/github", "/settings/general", "/settings/access", "/audit", "/diagnostics"];
+const settingsRoutes = ["/settings/github", "/settings/general", "/settings/access", "/audit", "/diagnostics"];
 
 function collectCSP(page: Page) {
   const violations: string[] = [];
@@ -17,7 +17,7 @@ test("SCN-UI-001 a viewer reaches no settings route, an admin loads every route"
   await signIn(page, "dev-bob");
   await expect(page.getByRole("heading", { name: "Reviews" })).toBeVisible();
   const nav = page.getByRole("navigation", { name: "Main" });
-  for (const name of ["General", "Access", "Audit log", "Diagnostics"]) await expect(nav.getByRole("link", { name })).toHaveCount(0);
+  for (const name of ["GitHub", "General", "Access", "Audit log", "Diagnostics"]) await expect(nav.getByRole("link", { name })).toHaveCount(0);
   for (const r of settingsRoutes) {
     await page.goto(r);
     await expect(page.getByRole("heading", { name: "Page not found" })).toBeVisible();

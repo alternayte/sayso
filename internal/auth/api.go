@@ -78,9 +78,10 @@ type MeBody struct {
 }
 
 type SetupStateBody struct {
-	AppExists    bool `json:"app_exists"`
-	SetupSession bool `json:"setup_session"`
-	SignedIn     bool `json:"signed_in"`
+	AppExists    bool   `json:"app_exists"`
+	SetupSession bool   `json:"setup_session"`
+	SignedIn     bool   `json:"signed_in"`
+	InstallURL   string `json:"install_url"`
 }
 
 type TeamRoleBody struct {
@@ -111,6 +112,7 @@ type AccessBody struct {
 
 // Register adds the auth operations.
 func (s *Service) Register(api huma.API) {
+	s.registerManifest(api)
 	huma.Register(api, huma.Operation{
 		OperationID: "get-me", Method: http.MethodGet, Path: "/me", Tags: []string{"auth"}, Metadata: Op(Viewer),
 	}, func(ctx context.Context, _ *struct{}) (*struct{ Body MeBody }, error) {
@@ -125,7 +127,11 @@ func (s *Service) Register(api huma.API) {
 		if err != nil {
 			return nil, err
 		}
-		return &struct{ Body SetupStateBody }{SetupStateBody{AppExists: exists, SetupSession: SetupFrom(ctx) && !exists, SignedIn: UserFrom(ctx) != nil}}, nil
+		install, err := s.installURL(ctx)
+		if err != nil {
+			return nil, err
+		}
+		return &struct{ Body SetupStateBody }{SetupStateBody{AppExists: exists, SetupSession: SetupFrom(ctx) && !exists, SignedIn: UserFrom(ctx) != nil, InstallURL: install}}, nil
 	})
 
 	huma.Register(api, huma.Operation{

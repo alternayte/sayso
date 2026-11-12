@@ -30,6 +30,35 @@
         ],
         "type": "object"
       },
+      "AppBody": {
+        "additionalProperties": false,
+        "properties": {
+          "app_id": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "html_url": {
+            "type": "string"
+          },
+          "install_url": {
+            "type": "string"
+          },
+          "org": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "app_id",
+          "slug",
+          "org",
+          "html_url",
+          "install_url"
+        ],
+        "type": "object"
+      },
       "Create-setup-sessionRequest": {
         "additionalProperties": false,
         "properties": {
@@ -39,6 +68,47 @@
         },
         "required": [
           "token"
+        ],
+        "type": "object"
+      },
+      "DeliveryBody": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "type": "string"
+          },
+          "delivery_id": {
+            "type": "string"
+          },
+          "error": {
+            "type": "string"
+          },
+          "event": {
+            "type": "string"
+          },
+          "handled_at": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "received_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "received_via": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "delivery_id",
+          "event",
+          "action",
+          "received_via",
+          "received_at",
+          "handled_at",
+          "error"
         ],
         "type": "object"
       },
@@ -166,6 +236,36 @@
         },
         "type": "object"
       },
+      "GitHubBody": {
+        "additionalProperties": false,
+        "properties": {
+          "app": {
+            "$ref": "#/components/schemas/AppBody"
+          },
+          "deliveries": {
+            "items": {
+              "$ref": "#/components/schemas/DeliveryBody"
+            },
+            "type": "array"
+          },
+          "ingress": {
+            "$ref": "#/components/schemas/IngressBody"
+          },
+          "installations": {
+            "items": {
+              "$ref": "#/components/schemas/InstallationBody"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "app",
+          "installations",
+          "ingress",
+          "deliveries"
+        ],
+        "type": "object"
+      },
       "GrantBody": {
         "additionalProperties": false,
         "properties": {
@@ -214,6 +314,89 @@
           "new_value",
           "updated_by",
           "updated_at"
+        ],
+        "type": "object"
+      },
+      "IngressBody": {
+        "additionalProperties": false,
+        "properties": {
+          "mode": {
+            "enum": [
+              "direct",
+              "relay"
+            ],
+            "type": "string"
+          },
+          "relay_connected": {
+            "type": "boolean"
+          },
+          "relay_error": {
+            "type": "string"
+          },
+          "webhook_url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "mode",
+          "webhook_url",
+          "relay_connected",
+          "relay_error"
+        ],
+        "type": "object"
+      },
+      "InstallationBody": {
+        "additionalProperties": false,
+        "properties": {
+          "account_login": {
+            "type": "string"
+          },
+          "id": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "suspended_at": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "account_login",
+          "suspended_at"
+        ],
+        "type": "object"
+      },
+      "ManifestBody": {
+        "additionalProperties": false,
+        "properties": {
+          "org": {
+            "maxLength": 39,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "org"
+        ],
+        "type": "object"
+      },
+      "ManifestForm": {
+        "additionalProperties": false,
+        "properties": {
+          "action_url": {
+            "type": "string"
+          },
+          "manifest": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "action_url",
+          "manifest"
         ],
         "type": "object"
       },
@@ -281,6 +464,48 @@
         ],
         "type": "object"
       },
+      "RepositoryBody": {
+        "additionalProperties": false,
+        "properties": {
+          "default_branch": {
+            "type": "string"
+          },
+          "enabled_at": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "full_name": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "mode": {
+            "enum": [
+              "off",
+              "shadow",
+              "comment",
+              "gate"
+            ],
+            "type": "string"
+          },
+          "private": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "full_name",
+          "default_branch",
+          "private",
+          "mode",
+          "enabled_at"
+        ],
+        "type": "object"
+      },
       "Result": {
         "additionalProperties": false,
         "properties": {
@@ -303,6 +528,24 @@
           "ok",
           "detail",
           "ms"
+        ],
+        "type": "object"
+      },
+      "Set-repository-modeRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "mode": {
+            "enum": [
+              "off",
+              "shadow",
+              "comment",
+              "gate"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "mode"
         ],
         "type": "object"
       },
@@ -342,6 +585,9 @@
           "app_exists": {
             "type": "boolean"
           },
+          "install_url": {
+            "type": "string"
+          },
           "setup_session": {
             "type": "boolean"
           },
@@ -352,7 +598,8 @@
         "required": [
           "app_exists",
           "setup_session",
-          "signed_in"
+          "signed_in",
+          "install_url"
         ],
         "type": "object"
       },
@@ -726,6 +973,36 @@
         ]
       }
     },
+    "/api/v1/github": {
+      "get": {
+        "operationId": "get-github",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GitHubBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "tags": [
+          "github"
+        ]
+      }
+    },
     "/api/v1/me": {
       "get": {
         "operationId": "get-me",
@@ -753,6 +1030,145 @@
         },
         "tags": [
           "auth"
+        ]
+      }
+    },
+    "/api/v1/repositories": {
+      "get": {
+        "operationId": "list-repositories",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RepositoryBody"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "tags": [
+          "repositories"
+        ]
+      }
+    },
+    "/api/v1/repositories/{owner}/{name}": {
+      "get": {
+        "operationId": "get-repository",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "owner",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RepositoryBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "tags": [
+          "repositories"
+        ]
+      }
+    },
+    "/api/v1/repositories/{owner}/{name}/mode": {
+      "put": {
+        "operationId": "set-repository-mode",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "owner",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Set-repository-modeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RepositoryBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "tags": [
+          "repositories"
         ]
       }
     },
@@ -879,6 +1295,53 @@
         },
         "tags": [
           "settings"
+        ]
+      }
+    },
+    "/api/v1/setup/github/manifest": {
+      "post": {
+        "operationId": "create-app-manifest",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ManifestBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManifestForm"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "Set-Cookie": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "tags": [
+          "setup"
         ]
       }
     },

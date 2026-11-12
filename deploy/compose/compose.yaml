@@ -119,6 +119,20 @@ services:
     environment: *sayso-env
     restart: unless-stopped
 
+  # Profile relay: the public relay role, for testing the relay ingress path. Set SAYSO_INGRESS=relay,
+  # SAYSO_RELAY_URL=http://relay:8080 and SAYSO_RELAY_TOKEN in .env. It has no database and no volume.
+  relay:
+    profiles: ["relay"]
+    image: ${SAYSO_IMAGE:-ghcr.io/alternayte/sayso:latest}
+    command: ["serve", "--role", "relay"]
+    read_only: true
+    environment:
+      SAYSO_RELAY_TOKEN: ${SAYSO_RELAY_TOKEN:-}
+      SAYSO_LOG_LEVEL: ${SAYSO_LOG_LEVEL:-info}
+    ports:
+      - "127.0.0.1:${SAYSO_RELAY_PORT:-8081}:8080"
+    restart: unless-stopped
+
   # Profile fakes: the fake GitHub for demos and e2e tests. The browser and the containers both
   # reach it as github.fake.localhost:9001.
   fake:

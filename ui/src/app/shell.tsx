@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { Activity, Home, LogOut, ScrollText, Settings2, Users } from "lucide-react";
+import { Activity, FolderGit2, Home, LogOut, ScrollText, Settings2, Users, Webhook } from "lucide-react";
 import { useId, type ReactNode } from "react";
 import { Brand } from "@/app/brand";
 import { Button, ErrorAlert } from "@/components/app-ui";
@@ -13,6 +13,8 @@ type NavItem = { to: string; label: CopyKey; Icon: typeof Home; min: Me["role"] 
 
 const nav: NavItem[] = [
   { to: "/", label: "nav.home", Icon: Home, min: "viewer" },
+  { to: "/repositories", label: "nav.repositories", Icon: FolderGit2, min: "viewer" },
+  { to: "/settings/github", label: "nav.github", Icon: Webhook, min: "admin" },
   { to: "/settings/general", label: "nav.general", Icon: Settings2, min: "admin" },
   { to: "/settings/access", label: "nav.access", Icon: Users, min: "admin" },
   { to: "/audit", label: "nav.audit", Icon: ScrollText, min: "admin" },

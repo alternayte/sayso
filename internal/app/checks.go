@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
+	"github.com/jackc/pgx/v5"
 	"go.temporal.io/api/serviceerror"
 	"go.temporal.io/api/workflowservice/v1"
 	"google.golang.org/protobuf/types/known/durationpb"
@@ -70,6 +71,26 @@ func Checks(d *Deps, f *Features) []doctor.Check {
 				return "", err
 			}
 			return fmt.Sprintf("App %s for %s mints installation tokens", a.Slug, a.Org), nil
+		}},
+		{Name: "webhook_ingress", Run: func(ctx context.Context) (string, error) {
+			last, err := github.New(d.Pool).LastDelivery(ctx)
+			when := "no delivery received yet"
+			if err == nil {
+				when = "last delivery " + last.ReceivedAt.UTC().Format(time.RFC3339) + " (" + last.Event + ")"
+			} else if !errors.Is(err, pgx.ErrNoRows) {
+				return "", err
+			}
+			if d.Config.Ingress != "relay" {
+				return "direct, " + when, nil
+			}
+			if f.Relay == nil {
+				return "", errors.New("relay ingress without a relay client")
+			}
+			st := f.Relay.State()
+			if !st.Connected {
+				return "", fmt.Errorf("relay stream to %s is not connected: %s", d.Config.RelayURL, st.LastError)
+			}
+			return "relay stream connected, " + when, nil
 		}},
 		{Name: "outbound_proxy", Run: func(context.Context) (string, error) {
 			if _, err := HTTPClient(d.Config); err != nil {
