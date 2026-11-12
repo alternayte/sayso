@@ -65,6 +65,17 @@ func derive(key []byte, purpose string) []byte {
 	return m.Sum(nil)
 }
 
+// probeHandler serves only the health, readiness and metrics routes, for
+// the worker role.
+func probeHandler(d *Deps) http.Handler {
+	r := chi.NewRouter()
+	r.Use(httpMetrics(d.Metrics))
+	r.Get("/healthz", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
+	r.Get("/readyz", d.readyz)
+	r.Handle("/metrics", promhttp.HandlerFor(d.Metrics, promhttp.HandlerOpts{}))
+	return r
+}
+
 // NewHandler returns the HTTP handler of the api role.
 func NewHandler(d *Deps, f *Features) http.Handler {
 	r := chi.NewRouter()
@@ -75,6 +86,8 @@ func NewHandler(d *Deps, f *Features) http.Handler {
 	r.Get("/auth/github/login", f.Auth.Login)
 	r.Get("/auth/github/callback", f.Auth.Callback)
 	r.Post("/auth/logout", f.Auth.Logout)
+	r.Handle("/temporal", temporalUI(d.Config.TemporalUIURL))
+	r.Handle("/temporal/*", temporalUI(d.Config.TemporalUIURL))
 
 	api := NewAPI(r)
 	api.UseMiddleware(auth.Enforce(api, func(ctx context.Context) (bool, error) { return github.Exists(ctx, d.Pool) }))

@@ -1,0 +1,136 @@
+# Sayso on one host from the released images. It needs no checkout:
+#   curl -fsSLO https://raw.githubusercontent.com/alternayte/sayso/main/deploy/compose/compose.yaml
+#   curl -fsSL -o .env https://raw.githubusercontent.com/alternayte/sayso/main/deploy/compose/.env.example
+#   then set SAYSO_SECRET_KEY and SAYSO_SETUP_TOKEN in .env
+#   docker compose up -d
+# PostgreSQL holds the Sayso database and the two Temporal databases. Only PostgreSQL has a volume.
+name: sayso
+
+x-sayso-env: &sayso-env
+  SAYSO_DATABASE_URL: postgresql://sayso:${POSTGRES_PASSWORD:-sayso}@postgres:5432/sayso?sslmode=disable
+  SAYSO_SECRET_KEY: ${SAYSO_SECRET_KEY:?set SAYSO_SECRET_KEY in .env, for example with openssl rand -base64 32}
+  SAYSO_BASE_URL: ${SAYSO_BASE_URL:-http://localhost:8080}
+  SAYSO_PUBLIC_WEBHOOK_URL: ${SAYSO_PUBLIC_WEBHOOK_URL:-}
+  SAYSO_INGRESS: ${SAYSO_INGRESS:-direct}
+  SAYSO_RELAY_URL: ${SAYSO_RELAY_URL:-}
+  SAYSO_RELAY_TOKEN: ${SAYSO_RELAY_TOKEN:-}
+  SAYSO_SETUP_TOKEN: ${SAYSO_SETUP_TOKEN:-}
+  SAYSO_BOOTSTRAP_ADMINS: ${SAYSO_BOOTSTRAP_ADMINS:-}
+  SAYSO_TEMPORAL_ADDRESS: temporal:7233
+  SAYSO_TEMPORAL_NAMESPACE: default
+  SAYSO_TEMPORAL_UI_URL: http://temporal-ui:8080
+  SAYSO_RUNNER: process
+  SAYSO_LOG_LEVEL: ${SAYSO_LOG_LEVEL:-info}
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: sayso
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sayso}
+      POSTGRES_DB: sayso
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sayso -d sayso"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+    restart: unless-stopped
+
+  # auto-setup creates the temporal and temporal_visibility databases on the PostgreSQL above,
+  # applies their schema and registers the default namespace with 7 days retention.
+  temporal:
+    image: temporalio/auto-setup:${TEMPORAL_VERSION:-1.29.1}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB: postgres12
+      DB_PORT: "5432"
+      POSTGRES_SEEDS: postgres
+      POSTGRES_USER: sayso
+      POSTGRES_PWD: ${POSTGRES_PASSWORD:-sayso}
+      BIND_ON_IP: 0.0.0.0
+      TEMPORAL_BROADCAST_ADDRESS: 127.0.0.1
+      DEFAULT_NAMESPACE_RETENTION: 7d
+    healthcheck:
+      test: ["CMD-SHELL", "temporal operator namespace describe -n default --address $$(hostname -i):7233 >/dev/null 2>&1"]
+      interval: 5s
+      timeout: 5s
+      retries: 60
+      start_period: 10s
+    restart: unless-stopped
+
+  # auto-setup reads DEFAULT_NAMESPACE_RETENTION only when it creates the namespace, so this
+  # one-shot update sets it on an existing install too.
+  temporal-retention:
+    image: temporalio/auto-setup:${TEMPORAL_VERSION:-1.29.1}
+    depends_on:
+      temporal:
+        condition: service_healthy
+    entrypoint: ["temporal", "operator", "namespace", "update", "-n", "default", "--retention", "7d", "--address", "temporal:7233"]
+    restart: "no"
+
+  # The Temporal UI has no published port. The API proxies /temporal to it for admins, and it
+  # cannot change workflows.
+  temporal-ui:
+    image: temporalio/ui:${TEMPORAL_UI_VERSION:-2.56.0}
+    depends_on:
+      temporal:
+        condition: service_healthy
+    environment:
+      TEMPORAL_ADDRESS: temporal:7233
+      TEMPORAL_UI_PUBLIC_PATH: /temporal
+      TEMPORAL_DISABLE_WRITE_ACTIONS: "true"
+    restart: unless-stopped
+
+  migrate:
+    image: ${SAYSO_IMAGE:-ghcr.io/alternayte/sayso:latest}
+    command: ["migrate"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SAYSO_DATABASE_URL: postgresql://sayso:${POSTGRES_PASSWORD:-sayso}@postgres:5432/sayso?sslmode=disable
+    restart: "no"
+
+  sayso:
+    image: ${SAYSO_IMAGE:-ghcr.io/alternayte/sayso:latest}
+    command: ["serve", "--role", "api"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      temporal:
+        condition: service_healthy
+    environment: *sayso-env
+    ports:
+      - "127.0.0.1:${SAYSO_PORT:-8080}:8080"
+    restart: unless-stopped
+
+  worker:
+    image: ${SAYSO_AGENT_IMAGE:-ghcr.io/alternayte/sayso-agent:latest}
+    command: ["serve", "--role", "worker"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      temporal:
+        condition: service_healthy
+    environment: *sayso-env
+    restart: unless-stopped
+
+  # Profile fakes: the fake GitHub for demos and e2e tests. The browser and the containers both
+  # reach it as github.fake.localhost:9001.
+  fake:
+    profiles: ["fakes"]
+    image: ${SAYSO_IMAGE:-ghcr.io/alternayte/sayso:latest}
+    command: ["fake", "serve", "--github-listen", ":9001"]
+    networks:
+      default:
+        aliases: [github.fake.localhost]
+    ports:
+      - "127.0.0.1:${SAYSO_FAKE_PORT:-9001}:9001"
+    restart: unless-stopped
+
+volumes:
+  postgres-data:

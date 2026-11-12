@@ -42,7 +42,12 @@ func Serve(ctx context.Context, cfg *Config, log *slog.Logger, red *Redactor) er
 	if err := RegisterNamespace(ctx, d, f.Settings); err != nil {
 		log.Warn("temporal namespace not registered", "error", err)
 	}
-	h := traced(NewHandler(d, f))
+	var h http.Handler
+	if cfg.Role.RunsAPI() {
+		h = traced(NewHandler(d, f))
+	} else {
+		h = probeHandler(d)
+	}
 	flush, err := StartTelemetry(ctx)
 	if err != nil {
 		return fmt.Errorf("telemetry: %w", err)

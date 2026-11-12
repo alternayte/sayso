@@ -54,8 +54,21 @@ gen-check: gen
     git diff --exit-code -- '*.gen.go' ui/openapi.json ui/src/client ui/src/routeTree.gen.ts
     test -z "$(git ls-files --others --exclude-standard -- '*.gen.go' ui/openapi.json ui/src/client ui/src/routeTree.gen.ts)" || { echo "gen-check: generated files are not added to git"; exit 1; }
 
+# Build the sayso and sayso-agent images with the dev tag
+images:
+    docker build -q -f deploy/docker/Dockerfile -t sayso:dev . >/dev/null
+    docker build -q -f deploy/agent/Dockerfile -t sayso-agent:dev . >/dev/null
+
+# Image and Compose smoke tests (layer S)
+smoke: images
+    mkdir -p "$(just _reports)"
+    ./tests/smoke/compose.sh "$(just _reports)/smoke.jsonl"
+
+_reports:
+    @if [ -d .build ]; then echo .build/reports; else echo tmp/reports; fi
+
 # The full gate
-ci: gen-check fmt-check lint test contract
+ci: gen-check fmt-check lint test contract smoke
 
 # The owner's gate name; runs the same recipes as ci
 check: ci
