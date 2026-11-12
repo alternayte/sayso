@@ -8,9 +8,9 @@ test("SCN-CFG-003 the key field shows the typed value, then only the last 4 char
   await page.goto("/settings/models");
   await page.getByRole("button", { name: "Add provider" }).click();
   await page.getByLabel("Preset").selectOption({ label: "OpenAI-compatible gateway" });
-  await page.getByLabel("Name").fill("fake-gateway");
-  await page.getByLabel("Base URL").fill("http://github.fake.localhost:9002/v1");
-  const field = page.getByLabel("API key");
+  await page.getByLabel("Name", { exact: true }).fill("fake-gateway");
+  await page.getByLabel("Base URL", { exact: true }).fill("http://github.fake.localhost:9002/v1");
+  const field = page.getByLabel("API key", { exact: true });
   await field.fill(key);
   await expect(field).toHaveAttribute("type", "password");
   await page.getByRole("button", { name: "Show value" }).click();
@@ -18,7 +18,7 @@ test("SCN-CFG-003 the key field shows the typed value, then only the last 4 char
   await expect(field).toHaveValue(key);
   await page.getByRole("button", { name: "Hide value" }).click();
   await expect(field).toHaveAttribute("type", "password");
-  await page.getByLabel("Models").fill("fake-large");
+  await page.getByLabel("Models", { exact: true }).fill("fake-large");
   await page.getByRole("button", { name: "Save provider" }).click();
 
   await page.reload();
