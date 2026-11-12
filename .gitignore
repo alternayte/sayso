@@ -6,3 +6,6 @@ ui/node_modules/
 tmp/
 tests/ui/node_modules/
 tests/ui/test-results/
+
+agent/node_modules/
+agent/dist/

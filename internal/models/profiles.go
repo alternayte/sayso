@@ -171,6 +171,7 @@ func (s *Service) RunModels(ctx context.Context, profiles ...string) ([]runner.M
 		budget = max(budget, b.RoundBudgetUSD)
 		for _, t := range b.Targets {
 			out = append(out, runner.Model{Profile: name, Provider: t.Provider, Model: t.Model, MaxTokens: t.MaxTokens,
+				ContextWindow: t.ContextWindow, Reasoning: t.Reasoning, Temperature: t.Temperature,
 				PriceIn: t.PriceIn, PriceOut: t.PriceOut, PriceCacheRead: t.PriceCacheRead})
 		}
 	}

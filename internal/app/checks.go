@@ -32,6 +32,13 @@ func Checks(ctx context.Context, d *Deps, f *Features) []doctor.Check {
 			cs = append(cs, doctor.Check{Name: "provider " + n, Run: func(ctx context.Context) (string, error) { return f.Models.Check(ctx, n) }})
 		}
 	}
+	if names, err := f.MCP.Names(ctx); err != nil {
+		cs = append(cs, doctor.Check{Name: "mcp_servers", Run: func(context.Context) (string, error) { return "", err }})
+	} else {
+		for _, n := range names {
+			cs = append(cs, doctor.Check{Name: "mcp " + n, Run: func(ctx context.Context) (string, error) { return f.MCP.Check(ctx, n) }})
+		}
+	}
 	for i := range cs {
 		run := cs[i].Run
 		cs[i].Run = func(ctx context.Context) (string, error) {

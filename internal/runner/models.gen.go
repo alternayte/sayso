@@ -11,26 +11,41 @@ import (
 )
 
 type AgentRun struct {
-	ID             uuid.UUID
-	RoundID        *uuid.UUID
-	ReviewID       *uuid.UUID
-	RepositoryID   *uuid.UUID
-	Kind           string
-	Runner         string
-	ExternalRef    string
-	Status         string
-	TokenHash      []byte
-	TokenExpiresAt *time.Time
-	Models         []byte
-	BudgetUsd      float64
-	Stages         []byte
-	HarnessVersion string
-	Image          string
-	ExitReason     string
-	TokensIn       int64
-	TokensOut      int64
-	CostUsd        float64
-	CreatedAt      time.Time
-	StartedAt      *time.Time
-	FinishedAt     *time.Time
+	ID              uuid.UUID
+	RoundID         *uuid.UUID
+	ReviewID        *uuid.UUID
+	RepositoryID    *uuid.UUID
+	Kind            string
+	Runner          string
+	ExternalRef     string
+	Status          string
+	TokenHash       []byte
+	TokenExpiresAt  *time.Time
+	Models          []byte
+	BudgetUsd       float64
+	Stages          []byte
+	HarnessVersion  string
+	Image           string
+	ExitReason      string
+	TokensIn        int64
+	TokensOut       int64
+	CostUsd         float64
+	CreatedAt       time.Time
+	StartedAt       *time.Time
+	FinishedAt      *time.Time
+	Spec            []byte
+	CancelRequested bool
+	HeartbeatAt     *time.Time
+}
+
+type Artifact struct {
+	ID          int64
+	RunID       uuid.UUID
+	Name        string
+	StoreID     uuid.UUID
+	Key         string
+	Size        int64
+	Sha256      string
+	ContentType string
+	CreatedAt   time.Time
 }

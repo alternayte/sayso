@@ -1,0 +1,27 @@
+{
+  "name": "sayso-agent",
+  "private": true,
+  "version": "0.0.0",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@mariozechner/pi-ai": "0.73.1",
+    "@mariozechner/pi-coding-agent": "0.73.1",
+    "@modelcontextprotocol/sdk": "1.32.2",
+    "typebox": "1.4.7"
+  },
+  "devDependencies": {
+    "@hey-api/openapi-ts": "0.99.0",
+    "@types/node": "24.19.2",
+    "typescript": "5.9.3",
+    "vitest": "4.1.4"
+  }
+}

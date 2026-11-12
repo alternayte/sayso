@@ -1,0 +1,1420 @@
+{
+  "components": {
+    "schemas": {
+      "Assessment": {
+        "additionalProperties": false,
+        "properties": {
+          "impact": {
+            "items": {
+              "$ref": "#/components/schemas/Impact"
+            },
+            "maxItems": 6,
+            "type": "array"
+          },
+          "risk": {
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              "critical"
+            ],
+            "type": "string"
+          },
+          "risk_reasons": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "tldr": {
+            "maxLength": 1200,
+            "type": "string"
+          },
+          "where_to_look": {
+            "items": {
+              "$ref": "#/components/schemas/WhereToLook"
+            },
+            "maxItems": 6,
+            "type": "array"
+          }
+        },
+        "required": [
+          "tldr",
+          "risk",
+          "risk_reasons",
+          "where_to_look",
+          "impact"
+        ],
+        "type": "object"
+      },
+      "Challenge": {
+        "additionalProperties": false,
+        "properties": {
+          "outcome": {
+            "enum": [
+              "confirmed",
+              "refuted",
+              "downgraded"
+            ],
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "outcome",
+          "reason"
+        ],
+        "type": "object"
+      },
+      "Comment": {
+        "additionalProperties": false,
+        "properties": {
+          "author": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "author",
+          "body"
+        ],
+        "type": "object"
+      },
+      "Complete": {
+        "additionalProperties": false,
+        "properties": {
+          "error": {
+            "type": "string"
+          },
+          "exit_status": {
+            "enum": [
+              "completed",
+              "failed",
+              "incomplete_output",
+              "limit_reached",
+              "cancelled"
+            ],
+            "type": "string"
+          },
+          "result": {
+            "$ref": "#/components/schemas/Result"
+          }
+        },
+        "required": [
+          "exit_status"
+        ],
+        "type": "object"
+      },
+      "EnvironmentOK": {
+        "additionalProperties": false,
+        "properties": {
+          "detail": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "ok",
+              "failed",
+              "skipped"
+            ],
+            "type": "string"
+          },
+          "step": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "step",
+          "status"
+        ],
+        "type": "object"
+      },
+      "ErrorDetail": {
+        "additionalProperties": false,
+        "properties": {
+          "location": {
+            "description": "Where the error occurred, e.g. 'body.items[3].tags' or 'path.thing-id'",
+            "type": "string"
+          },
+          "message": {
+            "description": "Error message text",
+            "type": "string"
+          },
+          "value": {
+            "description": "The value at the given location"
+          }
+        },
+        "type": "object"
+      },
+      "ErrorModel": {
+        "additionalProperties": false,
+        "properties": {
+          "detail": {
+            "description": "A human-readable explanation specific to this occurrence of the problem.",
+            "examples": [
+              "Property foo is required but is missing."
+            ],
+            "type": "string"
+          },
+          "errors": {
+            "description": "Optional list of individual error details",
+            "items": {
+              "$ref": "#/components/schemas/ErrorDetail"
+            },
+            "type": "array"
+          },
+          "instance": {
+            "description": "A URI reference that identifies the specific occurrence of the problem.",
+            "examples": [
+              "https://example.com/error-log/abc123"
+            ],
+            "format": "uri",
+            "type": "string"
+          },
+          "status": {
+            "description": "HTTP status code",
+            "examples": [
+              400
+            ],
+            "format": "int64",
+            "type": "integer"
+          },
+          "title": {
+            "description": "A short, human-readable summary of the problem type. This value should not change between occurrences of the error.",
+            "examples": [
+              "Bad Request"
+            ],
+            "type": "string"
+          },
+          "type": {
+            "default": "about:blank",
+            "description": "A URI reference to human-readable documentation for the error.",
+            "examples": [
+              "https://example.com/errors/example"
+            ],
+            "format": "uri",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "Event": {
+        "additionalProperties": false,
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "duration_ms": {
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "payload": {
+            "description": "Base64 of gzip JSON.",
+            "type": "string"
+          },
+          "preview": {
+            "type": "string"
+          },
+          "seq": {
+            "format": "int64",
+            "maximum": 999999999,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "stage": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "tokens_in": {
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "tokens_out": {
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "type": {
+            "enum": [
+              "model_turn",
+              "tool_call",
+              "mcp_call",
+              "skill_load",
+              "finding",
+              "env",
+              "pkg_summary",
+              "note",
+              "error"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "seq",
+          "at",
+          "type"
+        ],
+        "type": "object"
+      },
+      "EventsBody": {
+        "additionalProperties": false,
+        "properties": {
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/Event"
+            },
+            "maxItems": 500,
+            "type": "array"
+          }
+        },
+        "required": [
+          "events"
+        ],
+        "type": "object"
+      },
+      "Evidence": {
+        "additionalProperties": false,
+        "properties": {
+          "detail": {
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "test",
+              "trace",
+              "call_path",
+              "reasoning"
+            ],
+            "type": "string"
+          },
+          "test_path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "detail"
+        ],
+        "type": "object"
+      },
+      "Finding": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "maxLength": 2000,
+            "type": "string"
+          },
+          "candidate_id": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "challenge": {
+            "$ref": "#/components/schemas/Challenge"
+          },
+          "end_line": {
+            "format": "int64",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "evidence": {
+            "$ref": "#/components/schemas/Evidence"
+          },
+          "path": {
+            "type": "string"
+          },
+          "same_as": {
+            "type": "string"
+          },
+          "severity": {
+            "enum": [
+              "blocker",
+              "major",
+              "minor",
+              "nit"
+            ],
+            "type": "string"
+          },
+          "start_line": {
+            "format": "int64",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "suggestion": {
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 100,
+            "type": "string"
+          }
+        },
+        "required": [
+          "candidate_id",
+          "severity",
+          "category",
+          "title",
+          "body",
+          "path",
+          "start_line",
+          "end_line",
+          "evidence"
+        ],
+        "type": "object"
+      },
+      "FixInput": {
+        "additionalProperties": false,
+        "properties": {
+          "finding": {
+            "$ref": "#/components/schemas/LedgerEntry"
+          },
+          "thread": {
+            "items": {
+              "$ref": "#/components/schemas/Comment"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "finding",
+          "thread"
+        ],
+        "type": "object"
+      },
+      "Harness": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "version"
+        ],
+        "type": "object"
+      },
+      "HeartbeatBody": {
+        "additionalProperties": false,
+        "properties": {
+          "cancel": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "cancel"
+        ],
+        "type": "object"
+      },
+      "Impact": {
+        "additionalProperties": false,
+        "properties": {
+          "area": {
+            "type": "string"
+          },
+          "why": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "area",
+          "why"
+        ],
+        "type": "object"
+      },
+      "LedgerEntry": {
+        "additionalProperties": false,
+        "properties": {
+          "category": {
+            "type": "string"
+          },
+          "end_line": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "id": {
+            "description": "S-\u003cseq\u003e",
+            "type": "string"
+          },
+          "last_human_reply": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "severity": {
+            "type": "string"
+          },
+          "start_line": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "status": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "severity",
+          "category",
+          "title",
+          "path",
+          "start_line",
+          "end_line",
+          "status"
+        ],
+        "type": "object"
+      },
+      "LedgerUpdate": {
+        "additionalProperties": false,
+        "properties": {
+          "end_line": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "finding_id": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "start_line": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "still_open",
+              "fixed",
+              "withdrawn"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "finding_id",
+          "status",
+          "reason"
+        ],
+        "type": "object"
+      },
+      "Limits": {
+        "additionalProperties": false,
+        "properties": {
+          "challenge_min_severity": {
+            "enum": [
+              "blocker",
+              "major",
+              "minor",
+              "nit"
+            ],
+            "type": "string"
+          },
+          "max_findings": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "max_tool_calls_per_stage": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "setup_timeout_seconds": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "timeout_seconds": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "max_findings",
+          "max_tool_calls_per_stage",
+          "timeout_seconds",
+          "setup_timeout_seconds",
+          "challenge_min_severity"
+        ],
+        "type": "object"
+      },
+      "Overlay": {
+        "additionalProperties": false,
+        "properties": {
+          "block": {
+            "type": "boolean"
+          },
+          "ignore": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "instructions": {
+            "type": "string"
+          },
+          "max_inline_comments": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "nits": {
+            "type": "string"
+          },
+          "restore": {
+            "enum": [
+              "auto",
+              "none"
+            ],
+            "type": "string"
+          },
+          "setup": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "toolchain": {
+            "enum": [
+              "auto",
+              "none"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "block",
+          "toolchain",
+          "restore"
+        ],
+        "type": "object"
+      },
+      "Patch": {
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "diff": {
+            "type": "string"
+          },
+          "finding_id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "finding_id",
+          "title",
+          "description",
+          "diff"
+        ],
+        "type": "object"
+      },
+      "PromptLayer": {
+        "additionalProperties": false,
+        "properties": {
+          "text": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "PromptRef": {
+        "additionalProperties": false,
+        "properties": {
+          "contract": {
+            "type": "string"
+          },
+          "execution": {
+            "type": "boolean"
+          },
+          "file": {
+            "type": "string"
+          },
+          "global": {
+            "type": "string"
+          },
+          "repository": {
+            "type": "string"
+          },
+          "skill": {
+            "type": "string"
+          },
+          "stages": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "SHA-256 of the assembled prompt of each stage.",
+            "type": "object"
+          }
+        },
+        "required": [
+          "contract",
+          "skill",
+          "execution",
+          "stages"
+        ],
+        "type": "object"
+      },
+      "Prompts": {
+        "additionalProperties": false,
+        "properties": {
+          "file": {
+            "$ref": "#/components/schemas/PromptLayer"
+          },
+          "global": {
+            "$ref": "#/components/schemas/PromptLayer"
+          },
+          "repository": {
+            "$ref": "#/components/schemas/PromptLayer"
+          }
+        },
+        "required": [
+          "global",
+          "repository",
+          "file"
+        ],
+        "type": "object"
+      },
+      "ReplyInput": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "enum": [
+              "",
+              "clarify"
+            ],
+            "type": "string"
+          },
+          "diff": {
+            "type": "string"
+          },
+          "finding": {
+            "$ref": "#/components/schemas/LedgerEntry"
+          },
+          "thread": {
+            "items": {
+              "$ref": "#/components/schemas/Comment"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "finding",
+          "thread",
+          "diff"
+        ],
+        "type": "object"
+      },
+      "ReplyResult": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "enum": [
+              "concede",
+              "hold",
+              "clarify"
+            ],
+            "type": "string"
+          },
+          "finding_id": {
+            "type": "string"
+          },
+          "text": {
+            "maxLength": 1500,
+            "type": "string"
+          }
+        },
+        "required": [
+          "finding_id",
+          "text",
+          "action"
+        ],
+        "type": "object"
+      },
+      "Result": {
+        "additionalProperties": false,
+        "properties": {
+          "assessment": {
+            "$ref": "#/components/schemas/Assessment"
+          },
+          "environment": {
+            "items": {
+              "$ref": "#/components/schemas/EnvironmentOK"
+            },
+            "type": "array"
+          },
+          "findings": {
+            "items": {
+              "$ref": "#/components/schemas/Finding"
+            },
+            "type": "array"
+          },
+          "harness": {
+            "$ref": "#/components/schemas/Harness"
+          },
+          "kind": {
+            "enum": [
+              "round",
+              "reply",
+              "fix",
+              "noop"
+            ],
+            "type": "string"
+          },
+          "ledger_updates": {
+            "items": {
+              "$ref": "#/components/schemas/LedgerUpdate"
+            },
+            "type": "array"
+          },
+          "patch": {
+            "$ref": "#/components/schemas/Patch"
+          },
+          "prompt_ref": {
+            "$ref": "#/components/schemas/PromptRef"
+          },
+          "reply": {
+            "$ref": "#/components/schemas/ReplyResult"
+          },
+          "run_id": {
+            "type": "string"
+          },
+          "skael_manifest": {
+            "$ref": "#/components/schemas/SkaelManifest"
+          },
+          "skill_ref": {
+            "$ref": "#/components/schemas/SkillRef"
+          },
+          "skills_loaded": {
+            "items": {
+              "$ref": "#/components/schemas/SkillLoaded"
+            },
+            "type": "array"
+          },
+          "usage": {
+            "$ref": "#/components/schemas/Usage"
+          }
+        },
+        "required": [
+          "run_id",
+          "kind",
+          "harness",
+          "usage"
+        ],
+        "type": "object"
+      },
+      "Skael": {
+        "additionalProperties": false,
+        "properties": {
+          "agent_key": {
+            "type": "string"
+          },
+          "hook": {
+            "type": "boolean"
+          },
+          "set": {
+            "type": "string"
+          },
+          "skill_name": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "url",
+          "set",
+          "skill_name",
+          "hook"
+        ],
+        "type": "object"
+      },
+      "SkaelManifest": {
+        "additionalProperties": false,
+        "properties": {
+          "resolution_id": {
+            "type": "string"
+          },
+          "set": {
+            "type": "string"
+          },
+          "skills": {
+            "items": {
+              "$ref": "#/components/schemas/SkaelSkill"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "set",
+          "resolution_id",
+          "skills"
+        ],
+        "type": "object"
+      },
+      "SkaelSkill": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "version": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "name",
+          "version",
+          "sha256"
+        ],
+        "type": "object"
+      },
+      "Skill": {
+        "additionalProperties": false,
+        "properties": {
+          "commit": {
+            "type": "string"
+          },
+          "files": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "name": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "source": {
+            "enum": [
+              "repository",
+              "skael",
+              "builtin"
+            ],
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "name"
+        ],
+        "type": "object"
+      },
+      "SkillLoaded": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "stage": {
+            "type": "string"
+          },
+          "version": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "name",
+          "stage"
+        ],
+        "type": "object"
+      },
+      "SkillRef": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "source": {
+            "enum": [
+              "repository",
+              "skael",
+              "builtin"
+            ],
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "name",
+          "sha256"
+        ],
+        "type": "object"
+      },
+      "Spec": {
+        "additionalProperties": false,
+        "properties": {
+          "base_sha": {
+            "type": "string"
+          },
+          "execution": {
+            "description": "False: no stage may run a command or write a file (SI-21).",
+            "type": "boolean"
+          },
+          "extensions": {
+            "items": {
+              "$ref": "#/components/schemas/SpecExtension"
+            },
+            "type": "array"
+          },
+          "fix": {
+            "$ref": "#/components/schemas/FixInput"
+          },
+          "head_sha": {
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "round",
+              "reply",
+              "fix",
+              "noop"
+            ],
+            "type": "string"
+          },
+          "ledger": {
+            "items": {
+              "$ref": "#/components/schemas/LedgerEntry"
+            },
+            "type": "array"
+          },
+          "limits": {
+            "$ref": "#/components/schemas/Limits"
+          },
+          "mcp": {
+            "items": {
+              "$ref": "#/components/schemas/SpecMCP"
+            },
+            "type": "array"
+          },
+          "models": {
+            "description": "Targets of the profiles, in fallback order per profile.",
+            "items": {
+              "$ref": "#/components/schemas/SpecModel"
+            },
+            "type": "array"
+          },
+          "overlay": {
+            "$ref": "#/components/schemas/Overlay"
+          },
+          "profiles": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Profile of each stage.",
+            "type": "object"
+          },
+          "prompts": {
+            "$ref": "#/components/schemas/Prompts"
+          },
+          "pull_request": {
+            "$ref": "#/components/schemas/SpecPullRequest"
+          },
+          "reply": {
+            "$ref": "#/components/schemas/ReplyInput"
+          },
+          "repository": {
+            "$ref": "#/components/schemas/SpecRepository"
+          },
+          "run_id": {
+            "type": "string"
+          },
+          "skael": {
+            "$ref": "#/components/schemas/Skael"
+          },
+          "skill": {
+            "$ref": "#/components/schemas/Skill"
+          },
+          "stages": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "run_id",
+          "kind",
+          "stages",
+          "repository",
+          "base_sha",
+          "head_sha",
+          "pull_request",
+          "ledger",
+          "overlay",
+          "skill",
+          "profiles",
+          "models",
+          "mcp",
+          "extensions",
+          "limits",
+          "prompts",
+          "execution"
+        ],
+        "type": "object"
+      },
+      "SpecExtension": {
+        "additionalProperties": false,
+        "properties": {
+          "env": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "name": {
+            "type": "string"
+          },
+          "package": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "package"
+        ],
+        "type": "object"
+      },
+      "SpecMCP": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
+      "SpecModel": {
+        "additionalProperties": false,
+        "properties": {
+          "api": {
+            "type": "string"
+          },
+          "base_url": {
+            "type": "string"
+          },
+          "compat": {
+            "additionalProperties": {},
+            "type": "object"
+          },
+          "context_window": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "max_tokens": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "model": {
+            "type": "string"
+          },
+          "profile": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "reasoning": {
+            "type": "string"
+          },
+          "temperature": {
+            "format": "double",
+            "type": "number"
+          }
+        },
+        "required": [
+          "profile",
+          "provider",
+          "model"
+        ],
+        "type": "object"
+      },
+      "SpecPullRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "author": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          },
+          "changed_files": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "diff_stat": {
+            "type": "string"
+          },
+          "labels": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "number": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "number",
+          "title",
+          "body",
+          "labels",
+          "author",
+          "diff_stat",
+          "changed_files"
+        ],
+        "type": "object"
+      },
+      "SpecRepository": {
+        "additionalProperties": false,
+        "properties": {
+          "clone_url": {
+            "type": "string"
+          },
+          "default_branch": {
+            "type": "string"
+          },
+          "full_name": {
+            "type": "string"
+          },
+          "token": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "full_name",
+          "clone_url",
+          "default_branch"
+        ],
+        "type": "object"
+      },
+      "Usage": {
+        "additionalProperties": false,
+        "properties": {
+          "tokens_in": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "tokens_out": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "tokens_in",
+          "tokens_out"
+        ],
+        "type": "object"
+      },
+      "WhereToLook": {
+        "additionalProperties": false,
+        "properties": {
+          "target": {
+            "type": "string"
+          },
+          "why": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "target",
+          "why"
+        ],
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "title": "Sayso runner API",
+    "version": "1.0.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/complete": {
+      "post": {
+        "operationId": "post-complete",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Complete"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "tags": [
+          "runner"
+        ]
+      }
+    },
+    "/events": {
+      "post": {
+        "operationId": "post-events",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EventsBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "tags": [
+          "runner"
+        ]
+      }
+    },
+    "/heartbeat": {
+      "post": {
+        "operationId": "post-heartbeat",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HeartbeatBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "tags": [
+          "runner"
+        ]
+      }
+    },
+    "/spec": {
+      "get": {
+        "operationId": "get-spec",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Spec"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "tags": [
+          "runner"
+        ]
+      }
+    }
+  },
+  "servers": [
+    {
+      "url": "/api/runner/v1"
+    }
+  ]
+}

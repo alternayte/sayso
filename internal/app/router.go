@@ -16,8 +16,11 @@ import (
 	"github.com/alternayte/sayso/internal/audit"
 	"github.com/alternayte/sayso/internal/auth"
 	"github.com/alternayte/sayso/internal/github"
+	"github.com/alternayte/sayso/internal/mcpproxy"
 	"github.com/alternayte/sayso/internal/models"
 	"github.com/alternayte/sayso/internal/repos"
+	"github.com/alternayte/sayso/internal/runner"
+	"github.com/alternayte/sayso/internal/storage"
 	"github.com/alternayte/sayso/internal/secrets"
 	"github.com/alternayte/sayso/internal/settings"
 )
@@ -34,6 +37,8 @@ type Features struct {
 	Relay        *github.RelayClient
 	Models       *models.Service
 	ProxyMetrics *models.ProxyMetrics
+	MCP          *mcpproxy.Service
+	MCPProxy     *mcpproxy.Proxy
 }
 
 // NewFeatures builds the feature services on the shared resources.
@@ -75,7 +80,9 @@ func NewFeatures(ctx context.Context, d *Deps) (*Features, error) {
 	tokens := github.NewTokens()
 	ingest := &github.Ingest{Pool: d.Pool, Secrets: sec, Temporal: d.Temporal, GitHub: gh, Tokens: tokens, Log: d.Log, Signaled: signaled}
 	f := &Features{Settings: st, Secrets: sec, Auth: a, GitHubClient: gh, RateLimits: limits, Tokens: tokens, Ingest: ingest,
-		Models: models.NewService(d.Pool, sec, hc, d.Redactor.Redact, d.Log), ProxyMetrics: models.NewProxyMetrics(d.Metrics)}
+		Models: models.NewService(d.Pool, sec, hc, d.Redactor.Redact, d.Log), ProxyMetrics: models.NewProxyMetrics(d.Metrics),
+		MCP: mcpproxy.NewService(d.Pool, sec, hc, d.Log)}
+	f.MCPProxy = f.MCP.NewProxy(d.Redactor.Redact)
 	if d.Config.Ingress == "relay" {
 		f.Relay = &github.RelayClient{URL: d.Config.RelayURL, Token: d.Config.RelayToken, HTTP: hc, Ingest: ingest, Log: d.Log.With("component", "relay-client")}
 	}
@@ -111,6 +118,9 @@ func NewHandler(d *Deps, f *Features) http.Handler {
 	r.Get("/setup/github/callback", f.Auth.ManifestCallback)
 	r.Post("/webhooks/github", f.Ingest.ServeHTTP)
 	r.Handle("/llm/{provider}/*", f.Models.Proxy(f.ProxyMetrics))
+	ra := &runner.API{Pool: d.Pool, Stores: &storage.Registry{Pool: d.Pool}, Enrich: enrichSpec(d, f), Redact: d.Redactor.Redact}
+	r.Mount("/api/runner/v1", ra.Handler())
+	r.Handle("/mcp/{name}", f.MCPProxy)
 	r.Post("/auth/logout", f.Auth.Logout)
 	r.Handle("/temporal", temporalUI(d.Config.TemporalUIURL))
 	r.Handle("/temporal/*", temporalUI(d.Config.TemporalUIURL))
@@ -138,6 +148,7 @@ func registerOperations(api huma.API, d *Deps, f *Features) {
 			return allowed, json.Unmarshal(row.Value, &allowed)
 		}})
 	f.Models.Register(v1, models.Access{Admin: auth.Op(auth.Admin), Actor: actor})
+	f.MCP.Register(v1, mcpproxy.Access{Admin: auth.Op(auth.Admin), Actor: actor})
 	ingress := github.IngressInfo{Mode: "direct", Relay: f.Relay}
 	if d.Config != nil {
 		ingress.Mode, ingress.WebhookURL = d.Config.Ingress, d.Config.PublicWebhookURL
@@ -152,7 +163,7 @@ func registerOperations(api huma.API, d *Deps, f *Features) {
 // OpenAPI returns the OpenAPI document of the API as JSON.
 func OpenAPI() ([]byte, error) {
 	api := NewAPI(chi.NewRouter())
-	registerOperations(api, &Deps{}, &Features{Models: &models.Service{}})
+	registerOperations(api, &Deps{}, &Features{Models: &models.Service{}, MCP: &mcpproxy.Service{}})
 	return json.MarshalIndent(api.OpenAPI(), "", "  ")
 }
 

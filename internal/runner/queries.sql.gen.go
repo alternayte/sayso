@@ -12,10 +12,44 @@ import (
 	"github.com/google/uuid"
 )
 
+const artifacts = `-- name: Artifacts :many
+SELECT id, run_id, name, store_id, key, size, sha256, content_type, created_at FROM artifacts WHERE run_id = $1 ORDER BY name
+`
+
+func (q *Queries) Artifacts(ctx context.Context, runID uuid.UUID) ([]Artifact, error) {
+	rows, err := q.db.Query(ctx, artifacts, runID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Artifact
+	for rows.Next() {
+		var i Artifact
+		if err := rows.Scan(
+			&i.ID,
+			&i.RunID,
+			&i.Name,
+			&i.StoreID,
+			&i.Key,
+			&i.Size,
+			&i.Sha256,
+			&i.ContentType,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const createRun = `-- name: CreateRun :one
-INSERT INTO agent_runs (id, round_id, review_id, repository_id, kind, runner, status, token_hash, token_expires_at, models, budget_usd, stages, started_at)
-VALUES ($1, $2, $3, $4, $5, $6, 'running', $7, $8, $9, $10, $11, now())
-RETURNING id, round_id, review_id, repository_id, kind, runner, external_ref, status, token_hash, token_expires_at, models, budget_usd, stages, harness_version, image, exit_reason, tokens_in, tokens_out, cost_usd, created_at, started_at, finished_at
+INSERT INTO agent_runs (id, round_id, review_id, repository_id, kind, runner, status, token_hash, token_expires_at, models, budget_usd, stages, spec, started_at)
+VALUES ($1, $2, $3, $4, $5, $6, 'running', $7, $8, $9, $10, $11, $12, now())
+RETURNING id, round_id, review_id, repository_id, kind, runner, external_ref, status, token_hash, token_expires_at, models, budget_usd, stages, harness_version, image, exit_reason, tokens_in, tokens_out, cost_usd, created_at, started_at, finished_at, spec, cancel_requested, heartbeat_at
 `
 
 type CreateRunParams struct {
@@ -30,6 +64,7 @@ type CreateRunParams struct {
 	Models         []byte
 	BudgetUsd      float64
 	Stages         []byte
+	Spec           []byte
 }
 
 func (q *Queries) CreateRun(ctx context.Context, arg CreateRunParams) (AgentRun, error) {
@@ -45,6 +80,7 @@ func (q *Queries) CreateRun(ctx context.Context, arg CreateRunParams) (AgentRun,
 		arg.Models,
 		arg.BudgetUsd,
 		arg.Stages,
+		arg.Spec,
 	)
 	var i AgentRun
 	err := row.Scan(
@@ -70,6 +106,9 @@ func (q *Queries) CreateRun(ctx context.Context, arg CreateRunParams) (AgentRun,
 		&i.CreatedAt,
 		&i.StartedAt,
 		&i.FinishedAt,
+		&i.Spec,
+		&i.CancelRequested,
+		&i.HeartbeatAt,
 	)
 	return i, err
 }
@@ -77,7 +116,7 @@ func (q *Queries) CreateRun(ctx context.Context, arg CreateRunParams) (AgentRun,
 const finishRun = `-- name: FinishRun :one
 UPDATE agent_runs SET status = $1, exit_reason = $2, finished_at = now(), token_expires_at = LEAST(token_expires_at, now())
 WHERE id = $3
-RETURNING id, round_id, review_id, repository_id, kind, runner, external_ref, status, token_hash, token_expires_at, models, budget_usd, stages, harness_version, image, exit_reason, tokens_in, tokens_out, cost_usd, created_at, started_at, finished_at
+RETURNING id, round_id, review_id, repository_id, kind, runner, external_ref, status, token_hash, token_expires_at, models, budget_usd, stages, harness_version, image, exit_reason, tokens_in, tokens_out, cost_usd, created_at, started_at, finished_at, spec, cancel_requested, heartbeat_at
 `
 
 type FinishRunParams struct {
@@ -112,12 +151,15 @@ func (q *Queries) FinishRun(ctx context.Context, arg FinishRunParams) (AgentRun,
 		&i.CreatedAt,
 		&i.StartedAt,
 		&i.FinishedAt,
+		&i.Spec,
+		&i.CancelRequested,
+		&i.HeartbeatAt,
 	)
 	return i, err
 }
 
 const getRun = `-- name: GetRun :one
-SELECT id, round_id, review_id, repository_id, kind, runner, external_ref, status, token_hash, token_expires_at, models, budget_usd, stages, harness_version, image, exit_reason, tokens_in, tokens_out, cost_usd, created_at, started_at, finished_at FROM agent_runs WHERE id = $1
+SELECT id, round_id, review_id, repository_id, kind, runner, external_ref, status, token_hash, token_expires_at, models, budget_usd, stages, harness_version, image, exit_reason, tokens_in, tokens_out, cost_usd, created_at, started_at, finished_at, spec, cancel_requested, heartbeat_at FROM agent_runs WHERE id = $1
 `
 
 func (q *Queries) GetRun(ctx context.Context, id uuid.UUID) (AgentRun, error) {
@@ -146,8 +188,22 @@ func (q *Queries) GetRun(ctx context.Context, id uuid.UUID) (AgentRun, error) {
 		&i.CreatedAt,
 		&i.StartedAt,
 		&i.FinishedAt,
+		&i.Spec,
+		&i.CancelRequested,
+		&i.HeartbeatAt,
 	)
 	return i, err
+}
+
+const heartbeat = `-- name: Heartbeat :one
+UPDATE agent_runs SET heartbeat_at = now() WHERE id = $1 RETURNING cancel_requested
+`
+
+func (q *Queries) Heartbeat(ctx context.Context, id uuid.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, heartbeat, id)
+	var cancel_requested bool
+	err := row.Scan(&cancel_requested)
+	return cancel_requested, err
 }
 
 const insertServerEvent = `-- name: InsertServerEvent :exec
@@ -182,8 +238,47 @@ func (q *Queries) InsertServerEvent(ctx context.Context, arg InsertServerEventPa
 	return err
 }
 
+const putArtifact = `-- name: PutArtifact :exec
+INSERT INTO artifacts (run_id, name, store_id, key, size, sha256, content_type)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+ON CONFLICT (run_id, name) DO UPDATE SET store_id = EXCLUDED.store_id, key = EXCLUDED.key, size = EXCLUDED.size,
+    sha256 = EXCLUDED.sha256, content_type = EXCLUDED.content_type, created_at = now()
+`
+
+type PutArtifactParams struct {
+	RunID       uuid.UUID
+	Name        string
+	StoreID     uuid.UUID
+	Key         string
+	Size        int64
+	Sha256      string
+	ContentType string
+}
+
+func (q *Queries) PutArtifact(ctx context.Context, arg PutArtifactParams) error {
+	_, err := q.db.Exec(ctx, putArtifact,
+		arg.RunID,
+		arg.Name,
+		arg.StoreID,
+		arg.Key,
+		arg.Size,
+		arg.Sha256,
+		arg.ContentType,
+	)
+	return err
+}
+
+const requestCancel = `-- name: RequestCancel :exec
+UPDATE agent_runs SET cancel_requested = true WHERE id = $1
+`
+
+func (q *Queries) RequestCancel(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, requestCancel, id)
+	return err
+}
+
 const runByTokenHash = `-- name: RunByTokenHash :one
-SELECT id, round_id, review_id, repository_id, kind, runner, external_ref, status, token_hash, token_expires_at, models, budget_usd, stages, harness_version, image, exit_reason, tokens_in, tokens_out, cost_usd, created_at, started_at, finished_at FROM agent_runs WHERE token_hash = $1
+SELECT id, round_id, review_id, repository_id, kind, runner, external_ref, status, token_hash, token_expires_at, models, budget_usd, stages, harness_version, image, exit_reason, tokens_in, tokens_out, cost_usd, created_at, started_at, finished_at, spec, cancel_requested, heartbeat_at FROM agent_runs WHERE token_hash = $1
 `
 
 func (q *Queries) RunByTokenHash(ctx context.Context, tokenHash []byte) (AgentRun, error) {
@@ -212,6 +307,38 @@ func (q *Queries) RunByTokenHash(ctx context.Context, tokenHash []byte) (AgentRu
 		&i.CreatedAt,
 		&i.StartedAt,
 		&i.FinishedAt,
+		&i.Spec,
+		&i.CancelRequested,
+		&i.HeartbeatAt,
 	)
 	return i, err
+}
+
+const setExternalRef = `-- name: SetExternalRef :exec
+UPDATE agent_runs SET external_ref = $2, harness_version = CASE WHEN $3::text = '' THEN harness_version ELSE $3::text END WHERE id = $1
+`
+
+type SetExternalRefParams struct {
+	ID          uuid.UUID
+	ExternalRef string
+	Harness     string
+}
+
+func (q *Queries) SetExternalRef(ctx context.Context, arg SetExternalRefParams) error {
+	_, err := q.db.Exec(ctx, setExternalRef, arg.ID, arg.ExternalRef, arg.Harness)
+	return err
+}
+
+const setHarness = `-- name: SetHarness :exec
+UPDATE agent_runs SET harness_version = $2 WHERE id = $1
+`
+
+type SetHarnessParams struct {
+	ID             uuid.UUID
+	HarnessVersion string
+}
+
+func (q *Queries) SetHarness(ctx context.Context, arg SetHarnessParams) error {
+	_, err := q.db.Exec(ctx, setHarness, arg.ID, arg.HarnessVersion)
+	return err
 }

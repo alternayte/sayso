@@ -37,3 +37,9 @@ RETURNING *;
 UPDATE repositories SET profile_review = @review, profile_challenge = @challenge, profile_reply = @reply, profile_fix = @fix
 WHERE id = @id
 RETURNING *;
+
+-- name: SetMCPServers :one
+UPDATE repositories SET mcp_servers = @servers::text[] WHERE id = @id RETURNING *;
+
+-- name: KnownMCPServers :many
+SELECT name FROM mcp_servers WHERE name = ANY(@names::text[]);

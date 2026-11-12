@@ -1,0 +1,539 @@
+{
+  "$defs": {
+    "Assessment": {
+      "additionalProperties": false,
+      "properties": {
+        "impact": {
+          "items": {
+            "$ref": "#/$defs/Impact"
+          },
+          "maxItems": 6,
+          "type": "array"
+        },
+        "risk": {
+          "enum": [
+            "low",
+            "medium",
+            "high",
+            "critical"
+          ],
+          "type": "string"
+        },
+        "risk_reasons": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "tldr": {
+          "maxLength": 1200,
+          "type": "string"
+        },
+        "where_to_look": {
+          "items": {
+            "$ref": "#/$defs/WhereToLook"
+          },
+          "maxItems": 6,
+          "type": "array"
+        }
+      },
+      "required": [
+        "tldr",
+        "risk",
+        "risk_reasons",
+        "where_to_look",
+        "impact"
+      ],
+      "type": "object"
+    },
+    "Challenge": {
+      "additionalProperties": false,
+      "properties": {
+        "outcome": {
+          "enum": [
+            "confirmed",
+            "refuted",
+            "downgraded"
+          ],
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "outcome",
+        "reason"
+      ],
+      "type": "object"
+    },
+    "EnvironmentOK": {
+      "additionalProperties": false,
+      "properties": {
+        "detail": {
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "ok",
+            "failed",
+            "skipped"
+          ],
+          "type": "string"
+        },
+        "step": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "step",
+        "status"
+      ],
+      "type": "object"
+    },
+    "Evidence": {
+      "additionalProperties": false,
+      "properties": {
+        "detail": {
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "test",
+            "trace",
+            "call_path",
+            "reasoning"
+          ],
+          "type": "string"
+        },
+        "test_path": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "detail"
+      ],
+      "type": "object"
+    },
+    "Finding": {
+      "additionalProperties": false,
+      "properties": {
+        "body": {
+          "maxLength": 2000,
+          "type": "string"
+        },
+        "candidate_id": {
+          "type": "string"
+        },
+        "category": {
+          "type": "string"
+        },
+        "challenge": {
+          "$ref": "#/$defs/Challenge"
+        },
+        "end_line": {
+          "format": "int64",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "evidence": {
+          "$ref": "#/$defs/Evidence"
+        },
+        "path": {
+          "type": "string"
+        },
+        "same_as": {
+          "type": "string"
+        },
+        "severity": {
+          "enum": [
+            "blocker",
+            "major",
+            "minor",
+            "nit"
+          ],
+          "type": "string"
+        },
+        "start_line": {
+          "format": "int64",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "suggestion": {
+          "type": "string"
+        },
+        "title": {
+          "maxLength": 100,
+          "type": "string"
+        }
+      },
+      "required": [
+        "candidate_id",
+        "severity",
+        "category",
+        "title",
+        "body",
+        "path",
+        "start_line",
+        "end_line",
+        "evidence"
+      ],
+      "type": "object"
+    },
+    "Harness": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "version"
+      ],
+      "type": "object"
+    },
+    "Impact": {
+      "additionalProperties": false,
+      "properties": {
+        "area": {
+          "type": "string"
+        },
+        "why": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "area",
+        "why"
+      ],
+      "type": "object"
+    },
+    "LedgerUpdate": {
+      "additionalProperties": false,
+      "properties": {
+        "end_line": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "finding_id": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "start_line": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "status": {
+          "enum": [
+            "still_open",
+            "fixed",
+            "withdrawn"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "finding_id",
+        "status",
+        "reason"
+      ],
+      "type": "object"
+    },
+    "Patch": {
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "type": "string"
+        },
+        "diff": {
+          "type": "string"
+        },
+        "finding_id": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "finding_id",
+        "title",
+        "description",
+        "diff"
+      ],
+      "type": "object"
+    },
+    "PromptRef": {
+      "additionalProperties": false,
+      "properties": {
+        "contract": {
+          "type": "string"
+        },
+        "execution": {
+          "type": "boolean"
+        },
+        "file": {
+          "type": "string"
+        },
+        "global": {
+          "type": "string"
+        },
+        "repository": {
+          "type": "string"
+        },
+        "skill": {
+          "type": "string"
+        },
+        "stages": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "SHA-256 of the assembled prompt of each stage.",
+          "type": "object"
+        }
+      },
+      "required": [
+        "contract",
+        "skill",
+        "execution",
+        "stages"
+      ],
+      "type": "object"
+    },
+    "ReplyResult": {
+      "additionalProperties": false,
+      "properties": {
+        "action": {
+          "enum": [
+            "concede",
+            "hold",
+            "clarify"
+          ],
+          "type": "string"
+        },
+        "finding_id": {
+          "type": "string"
+        },
+        "text": {
+          "maxLength": 1500,
+          "type": "string"
+        }
+      },
+      "required": [
+        "finding_id",
+        "text",
+        "action"
+      ],
+      "type": "object"
+    },
+    "SkaelManifest": {
+      "additionalProperties": false,
+      "properties": {
+        "resolution_id": {
+          "type": "string"
+        },
+        "set": {
+          "type": "string"
+        },
+        "skills": {
+          "items": {
+            "$ref": "#/$defs/SkaelSkill"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "set",
+        "resolution_id",
+        "skills"
+      ],
+      "type": "object"
+    },
+    "SkaelSkill": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "sha256": {
+          "type": "string"
+        },
+        "version": {
+          "format": "int64",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "name",
+        "version",
+        "sha256"
+      ],
+      "type": "object"
+    },
+    "SkillLoaded": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "stage": {
+          "type": "string"
+        },
+        "version": {
+          "format": "int64",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "name",
+        "stage"
+      ],
+      "type": "object"
+    },
+    "SkillRef": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "sha256": {
+          "type": "string"
+        },
+        "source": {
+          "enum": [
+            "repository",
+            "skael",
+            "builtin"
+          ],
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "source",
+        "name",
+        "sha256"
+      ],
+      "type": "object"
+    },
+    "Usage": {
+      "additionalProperties": false,
+      "properties": {
+        "tokens_in": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "tokens_out": {
+          "format": "int64",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "tokens_in",
+        "tokens_out"
+      ],
+      "type": "object"
+    },
+    "WhereToLook": {
+      "additionalProperties": false,
+      "properties": {
+        "target": {
+          "type": "string"
+        },
+        "why": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "target",
+        "why"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://sayso.dev/schemas/result.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "assessment": {
+      "$ref": "#/$defs/Assessment"
+    },
+    "environment": {
+      "items": {
+        "$ref": "#/$defs/EnvironmentOK"
+      },
+      "type": "array"
+    },
+    "findings": {
+      "items": {
+        "$ref": "#/$defs/Finding"
+      },
+      "type": "array"
+    },
+    "harness": {
+      "$ref": "#/$defs/Harness"
+    },
+    "kind": {
+      "enum": [
+        "round",
+        "reply",
+        "fix",
+        "noop"
+      ],
+      "type": "string"
+    },
+    "ledger_updates": {
+      "items": {
+        "$ref": "#/$defs/LedgerUpdate"
+      },
+      "type": "array"
+    },
+    "patch": {
+      "$ref": "#/$defs/Patch"
+    },
+    "prompt_ref": {
+      "$ref": "#/$defs/PromptRef"
+    },
+    "reply": {
+      "$ref": "#/$defs/ReplyResult"
+    },
+    "run_id": {
+      "type": "string"
+    },
+    "skael_manifest": {
+      "$ref": "#/$defs/SkaelManifest"
+    },
+    "skill_ref": {
+      "$ref": "#/$defs/SkillRef"
+    },
+    "skills_loaded": {
+      "items": {
+        "$ref": "#/$defs/SkillLoaded"
+      },
+      "type": "array"
+    },
+    "usage": {
+      "$ref": "#/$defs/Usage"
+    }
+  },
+  "required": [
+    "run_id",
+    "kind",
+    "harness",
+    "usage"
+  ],
+  "title": "Sayso agent run result",
+  "type": "object"
+}

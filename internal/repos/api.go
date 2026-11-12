@@ -28,6 +28,7 @@ type RepositoryBody struct {
 	Mode          string       `json:"mode" enum:"off,shadow,comment,gate"`
 	EnabledAt     *time.Time   `json:"enabled_at"`
 	Profiles      ProfilesBody `json:"profiles"`
+	MCPServers    []string     `json:"mcp_servers"`
 }
 
 // ProfilesBody is the profile of each stage of a repository.
@@ -40,7 +41,7 @@ type ProfilesBody struct {
 
 func body(r Repository) RepositoryBody {
 	return RepositoryBody{ID: r.ID.String(), FullName: r.FullName, DefaultBranch: r.DefaultBranch, Private: r.Private, Mode: r.Mode, EnabledAt: r.EnabledAt,
-		Profiles: ProfilesBody{Review: r.ProfileReview, Challenge: r.ProfileChallenge, Reply: r.ProfileReply, Fix: r.ProfileFix}}
+		Profiles: ProfilesBody{Review: r.ProfileReview, Challenge: r.ProfileChallenge, Reply: r.ProfileReply, Fix: r.ProfileFix}, MCPServers: r.McpServers}
 }
 
 // Access is the operation metadata of each access level. The caller owns
@@ -147,6 +148,49 @@ func Register(api huma.API, pool *pgxpool.Pool, acc Access) {
 				return err
 			}
 			return audit.Write(ctx, tx, acc.Actor(ctx), "repository.profiles", r.FullName, map[string]any{"profiles": p})
+		})
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, huma.Error404NotFound("repository not found")
+		}
+		if err != nil {
+			return nil, err
+		}
+		return &struct{ Body RepositoryBody }{body(out)}, nil
+	})
+
+	huma.Register(api, huma.Operation{
+		OperationID: "set-repository-mcp", Method: http.MethodPut, Path: "/repositories/{owner}/{name}/mcp", Tags: []string{"repositories"}, Metadata: acc.Edit,
+	}, func(ctx context.Context, in *struct {
+		Owner string `path:"owner"`
+		Name  string `path:"name"`
+		Body  struct {
+			Servers []string `json:"servers"`
+		}
+	}) (*struct{ Body RepositoryBody }, error) {
+		want := in.Body.Servers
+		if want == nil {
+			want = []string{}
+		}
+		known, err := New(pool).KnownMCPServers(ctx, want)
+		if err != nil {
+			return nil, err
+		}
+		for _, n := range want {
+			if !slices.Contains(known, n) {
+				return nil, huma.Error422UnprocessableEntity(fmt.Sprintf("MCP server %q does not exist", n))
+			}
+		}
+		var out Repository
+		err = pgx.BeginFunc(ctx, pool, func(tx pgx.Tx) error {
+			q := New(tx)
+			r, err := q.ByFullName(ctx, in.Owner+"/"+in.Name)
+			if err != nil {
+				return err
+			}
+			if out, err = q.SetMCPServers(ctx, SetMCPServersParams{ID: r.ID, Servers: want}); err != nil {
+				return err
+			}
+			return audit.Write(ctx, tx, acc.Actor(ctx), "repository.mcp", r.FullName, map[string]any{"servers": want})
 		})
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, huma.Error404NotFound("repository not found")

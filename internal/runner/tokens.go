@@ -26,13 +26,16 @@ var ErrInvalidToken = errors.New("run token is not valid")
 // Model is one provider and model that a run may call, with the prices of
 // its profile target (per million tokens).
 type Model struct {
-	Profile        string  `json:"profile"`
-	Provider       string  `json:"provider"`
-	Model          string  `json:"model"`
-	MaxTokens      int     `json:"max_tokens,omitempty"`
-	PriceIn        float64 `json:"price_in"`
-	PriceOut       float64 `json:"price_out"`
-	PriceCacheRead float64 `json:"price_cache_read"`
+	Profile        string   `json:"profile"`
+	Provider       string   `json:"provider"`
+	Model          string   `json:"model"`
+	MaxTokens      int      `json:"max_tokens,omitempty"`
+	ContextWindow  int      `json:"context_window,omitempty"`
+	Reasoning      string   `json:"reasoning,omitempty"`
+	Temperature    *float64 `json:"temperature,omitempty"`
+	PriceIn        float64  `json:"price_in"`
+	PriceOut       float64  `json:"price_out"`
+	PriceCacheRead float64  `json:"price_cache_read"`
 }
 
 // NewRun is what the worker knows when it creates an agent run.
@@ -45,6 +48,7 @@ type NewRun struct {
 	Models       []Model
 	BudgetUSD    float64
 	Stages       []string
+	Spec         Spec
 }
 
 // Create inserts a running agent run and returns it with its token. Only
@@ -67,13 +71,17 @@ func Create(ctx context.Context, db DBTX, n NewRun, now time.Time) (AgentRun, st
 	if err != nil {
 		return AgentRun{}, "", err
 	}
+	spec, err := json.Marshal(n.Spec)
+	if err != nil {
+		return AgentRun{}, "", err
+	}
 	if n.Runner == "" {
 		n.Runner = "process"
 	}
 	exp := now.Add(TokenLifetime)
 	run, err := New(db).CreateRun(ctx, CreateRunParams{
 		ID: id, RoundID: n.RoundID, ReviewID: n.ReviewID, RepositoryID: n.RepositoryID, Kind: n.Kind, Runner: n.Runner,
-		TokenHash: hash(tok), TokenExpiresAt: &exp, Models: models, BudgetUsd: n.BudgetUSD, Stages: stages,
+		TokenHash: hash(tok), TokenExpiresAt: &exp, Models: models, BudgetUsd: n.BudgetUSD, Stages: stages, Spec: spec,
 	})
 	return run, tok, err
 }

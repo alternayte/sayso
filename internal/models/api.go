@@ -413,3 +413,14 @@ func (s *Service) Check(ctx context.Context, name string) (string, error) {
 	}
 	return c.Models[0] + " " + detail, nil
 }
+
+// APIOf returns the API type and compat flags of a provider for pi.
+func (s *Service) APIOf(ctx context.Context, name string) (string, map[string]any, error) {
+	row, err := New(s.pool).GetProvider(ctx, name)
+	if err != nil {
+		return "", nil, fmt.Errorf("provider %s: %w", name, err)
+	}
+	compat := map[string]any{}
+	_ = json.Unmarshal(row.Compat, &compat)
+	return row.ApiType, compat, nil
+}

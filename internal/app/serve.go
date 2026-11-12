@@ -60,6 +60,21 @@ func Serve(ctx context.Context, cfg *Config, log *slog.Logger, red *Redactor) er
 			return err
 		}
 	}
+	if cfg.Role.RunsAPI() {
+		defer f.MCPProxy.Close()
+		go func() {
+			t := time.NewTicker(time.Minute)
+			defer t.Stop()
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case <-t.C:
+					f.MCPProxy.Sweep(ctx)
+				}
+			}
+		}()
+	}
 	if cfg.Role.RunsAPI() && f.Relay != nil {
 		rctx, cancel := context.WithCancel(ctx)
 		defer cancel()

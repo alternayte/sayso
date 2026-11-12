@@ -123,6 +123,30 @@ func (q *Queries) ByGitHubID(ctx context.Context, githubID int64) (Repository, e
 	return i, err
 }
 
+const knownMCPServers = `-- name: KnownMCPServers :many
+SELECT name FROM mcp_servers WHERE name = ANY($1::text[])
+`
+
+func (q *Queries) KnownMCPServers(ctx context.Context, names []string) ([]string, error) {
+	rows, err := q.db.Query(ctx, knownMCPServers, names)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return nil, err
+		}
+		items = append(items, name)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const list = `-- name: List :many
 SELECT id, github_id, installation_id, full_name, default_branch, private, mode, profile_review, profile_challenge, profile_reply, profile_fix, skael_set, agent_image, mcp_servers, feeds, max_concurrent_rounds, execution, challenge_min_severity, enabled_at, removed_at, created_at FROM repositories WHERE removed_at IS NULL ORDER BY lower(full_name)
 `
@@ -199,6 +223,44 @@ type SetDefaultBranchParams struct {
 func (q *Queries) SetDefaultBranch(ctx context.Context, arg SetDefaultBranchParams) error {
 	_, err := q.db.Exec(ctx, setDefaultBranch, arg.GithubID, arg.DefaultBranch)
 	return err
+}
+
+const setMCPServers = `-- name: SetMCPServers :one
+UPDATE repositories SET mcp_servers = $1::text[] WHERE id = $2 RETURNING id, github_id, installation_id, full_name, default_branch, private, mode, profile_review, profile_challenge, profile_reply, profile_fix, skael_set, agent_image, mcp_servers, feeds, max_concurrent_rounds, execution, challenge_min_severity, enabled_at, removed_at, created_at
+`
+
+type SetMCPServersParams struct {
+	Servers []string
+	ID      uuid.UUID
+}
+
+func (q *Queries) SetMCPServers(ctx context.Context, arg SetMCPServersParams) (Repository, error) {
+	row := q.db.QueryRow(ctx, setMCPServers, arg.Servers, arg.ID)
+	var i Repository
+	err := row.Scan(
+		&i.ID,
+		&i.GithubID,
+		&i.InstallationID,
+		&i.FullName,
+		&i.DefaultBranch,
+		&i.Private,
+		&i.Mode,
+		&i.ProfileReview,
+		&i.ProfileChallenge,
+		&i.ProfileReply,
+		&i.ProfileFix,
+		&i.SkaelSet,
+		&i.AgentImage,
+		&i.McpServers,
+		&i.Feeds,
+		&i.MaxConcurrentRounds,
+		&i.Execution,
+		&i.ChallengeMinSeverity,
+		&i.EnabledAt,
+		&i.RemovedAt,
+		&i.CreatedAt,
+	)
+	return i, err
 }
 
 const setMode = `-- name: SetMode :one
