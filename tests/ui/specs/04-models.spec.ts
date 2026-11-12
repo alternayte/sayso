@@ -20,6 +20,7 @@ test("SCN-CFG-003 the key field shows the typed value, then only the last 4 char
   await expect(field).toHaveAttribute("type", "password");
   await page.getByLabel("Models", { exact: true }).fill("fake-large");
   await page.getByRole("button", { name: "Save provider" }).click();
+  await expect(page.getByRole("button", { name: "Save provider" })).toBeHidden();
 
   await page.reload();
   const row = page.getByRole("listitem").filter({ hasText: "fake-gateway" });
