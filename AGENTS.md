@@ -5,10 +5,12 @@ Sayso is a self-hosted GitHub pull request reviewer that runs an agent with skil
 One Go binary serves the api, worker and relay roles, and a separate agent image runs the Node agent runtime.
 
 ## Run
-- The repository holds no code yet. The build adds the justfile, and this section lists its recipes after that.
+- `just build` builds the binary into bin/. `just` lists all recipes.
+- bin/sayso serve needs SAYSO_DATABASE_URL, SAYSO_SECRET_KEY and a Temporal server. Migrations run at start.
 
 ## Test
-- No gate exists yet. The build adds just ci as the gate. This repository has no just check.
+- `just check` is the gate. It runs the same recipes as `just ci`, which public CI runs. It needs Docker.
+- `just test` runs the unit and integration tests against PostgreSQL and Temporal testcontainers.
 - `checks/agents-md.sh` checks this file.
 
 ## Stack rules
@@ -20,6 +22,7 @@ One Go binary serves the api, worker and relay roles, and a separate agent image
 - The agent process never holds a model key, a GitHub write token or an MCP credential. It reaches models and MCP servers only through the API proxies with a run token.
 - Sayso never submits APPROVE or REQUEST_CHANGES, never merges, and never pushes to a branch it did not create.
 - Licence is MIT. Add no GPL, AGPL, SSPL or BSL dependency.
+- Keep code readable and maintainable. Do not comment a function whose name and signature already say what it does.
 - Write docs, UI copy, bot comments and commit messages in ASD-STE100 style.
 
 ## Domain words
