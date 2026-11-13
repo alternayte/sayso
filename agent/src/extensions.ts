@@ -22,7 +22,10 @@ export function packageName(spec: string): string {
  * environment values. A package that the image did not bake installs from
  * the registry now and is cached nowhere.
  */
-export async function loadExtensions(exts: SpecExtension[], emit: (e: NewEvent) => void): Promise<string[]> {
+export async function loadExtensions(
+  exts: SpecExtension[],
+  emit: (e: NewEvent) => void,
+): Promise<string[]> {
   const paths: string[] = [];
   for (const e of exts) {
     Object.assign(process.env, e.env ?? {});
@@ -32,15 +35,37 @@ export async function loadExtensions(exts: SpecExtension[], emit: (e: NewEvent) 
       const prefix = join(homedir(), ".sayso", "extensions");
       mkdirSync(prefix, { recursive: true });
       try {
-        await run("npm", ["install", "--no-audit", "--no-fund", "--ignore-scripts", "--prefix", prefix, e.package], { timeout: 300_000 });
+        await run(
+          "npm",
+          [
+            "install",
+            "--no-audit",
+            "--no-fund",
+            "--ignore-scripts",
+            "--prefix",
+            prefix,
+            e.package,
+          ],
+          { timeout: 300_000 },
+        );
         dir = join(prefix, "node_modules", name);
       } catch (err) {
-        emit({ type: "error", name: `extension ${e.name}`, status: "failed", preview: `npm install ${e.package} failed: ${String((err as { stderr?: string }).stderr ?? err).slice(0, 300)}` });
+        emit({
+          type: "error",
+          name: `extension ${e.name}`,
+          status: "failed",
+          preview: `npm install ${e.package} failed: ${String((err as { stderr?: string }).stderr ?? err).slice(0, 300)}`,
+        });
         continue;
       }
     }
     paths.push(dir);
-    emit({ type: "note", name: `extension ${e.name}`, status: "loaded", preview: `${e.package} from ${dir}` });
+    emit({
+      type: "note",
+      name: `extension ${e.name}`,
+      status: "loaded",
+      preview: `${e.package} from ${dir}`,
+    });
   }
   return paths;
 }

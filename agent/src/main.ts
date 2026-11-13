@@ -29,7 +29,7 @@ import type {
   Spec,
   SpecModel,
 } from "./protocol/index.js";
-import { pullSkael } from "./skael.js";
+import { type Pulled, pullSkael, skaelActivation } from "./skael.js";
 import { runStage, sessionsDir } from "./session.js";
 import {
   applyChallenge,
@@ -88,15 +88,24 @@ function skillFolder(file: string): { text: string; sha256: string } {
     }
   };
   if (existsSync(folder)) walk(folder);
-  for (const f of files) h.update(relative(folder, f) + "\0" + readFileSync(f, "utf8") + "\0");
-  return { text: existsSync(file) ? readFileSync(file, "utf8") : "", sha256: h.digest("hex") };
+  for (const f of files)
+    h.update(relative(folder, f) + "\0" + readFileSync(f, "utf8") + "\0");
+  return {
+    text: existsSync(file) ? readFileSync(file, "utf8") : "",
+    sha256: h.digest("hex"),
+  };
 }
 
 /** builtinText returns the text and the SHA-256 of the skill files in the spec. */
-function builtinText(files: Record<string, string>): { text: string; sha256: string } {
+function builtinText(files: Record<string, string>): {
+  text: string;
+  sha256: string;
+} {
   const h = createHash("sha256");
   let text = "";
-  for (const [p, content] of Object.entries(files).sort(([a], [b]) => a.localeCompare(b))) {
+  for (const [p, content] of Object.entries(files).sort(([a], [b]) =>
+    a.localeCompare(b),
+  )) {
     h.update(p + "\0" + content + "\0");
     if (p.endsWith("SKILL.md")) text = content;
   }
@@ -108,7 +117,7 @@ interface ResolvedSkill {
   ref: SkillRef;
   manifest?: SkaelManifest;
   loaded?: SkillLoaded[];
-  extension?: string;
+  pulled?: Pulled;
 }
 
 /**
@@ -116,31 +125,65 @@ interface ResolvedSkill {
  * `skael pull`; when the pull fails, the run uses the built-in skill that the
  * spec carries and records an error event (REQ-SKL-003).
  */
-async function resolveSkill(spec: Spec, ws: Workspace, events: EventStream): Promise<ResolvedSkill> {
+async function resolveSkill(
+  spec: Spec,
+  ws: Workspace,
+  events: EventStream,
+): Promise<ResolvedSkill> {
   if (spec.skill.source === "repository" && spec.skill.path) {
     const sk = skillFolder(join(ws.base, spec.skill.path));
-    return { skill: sk, ref: { source: "repository", name: spec.skill.name, version: spec.skill.commit, sha256: sk.sha256 } };
+    return {
+      skill: sk,
+      ref: {
+        source: "repository",
+        name: spec.skill.name,
+        version: spec.skill.commit,
+        sha256: sk.sha256,
+      },
+    };
   }
   if (spec.skill.source === "skael" && spec.skael) {
-    const pulled = await pullSkael(spec.skael, join(ws.root, "skills"), (e) => events.emit(e));
-    const entry = pulled?.manifest.skills.find((s) => s.name === spec.skael!.skill_name);
+    const pulled = await pullSkael(spec.skael, join(ws.root, "skills"), (e) =>
+      events.emit(e),
+    );
+    const entry = pulled?.manifest.skills.find(
+      (s) => s.name === spec.skael!.skill_name,
+    );
     if (pulled && entry) {
       const file = join(pulled.skillsDir, entry.name, "SKILL.md");
       const sk = skillFolder(file);
-      // The agent reads the skill file, so the Skael hook records the activation.
+      // The agent reads the skill file, so the activation extension reports it.
       sk.text = `The review skill is in ${file}. Read it with the read tool before you start.\n\n${sk.text}`;
       return {
         skill: sk,
-        ref: { source: "skael", name: entry.name, version: String(entry.version), sha256: sk.sha256 },
+        ref: {
+          source: "skael",
+          name: entry.name,
+          version: String(entry.version),
+          sha256: sk.sha256,
+        },
         manifest: pulled.manifest,
-        loaded: pulled.manifest.skills.map((s) => ({ name: s.name, version: s.version, stage: "review" })),
-        extension: pulled.extension,
+        loaded: pulled.manifest.skills.map((s) => ({
+          name: s.name,
+          version: s.version,
+          stage: "review",
+        })),
+        pulled,
       };
     }
-    if (pulled && !entry) events.emit({ type: "error", name: "skael skill", status: "failed", preview: `The set ${spec.skael.set} has no skill ${spec.skael.skill_name}; the run uses the built-in skill.` });
+    if (pulled && !entry)
+      events.emit({
+        type: "error",
+        name: "skael skill",
+        status: "failed",
+        preview: `The set ${spec.skael.set} has no skill ${spec.skael.skill_name}; the run uses the built-in skill.`,
+      });
   }
   const sk = builtinText(spec.skill.files ?? {});
-  return { skill: sk, ref: { source: "builtin", name: "pr-review", sha256: sk.sha256 } };
+  return {
+    skill: sk,
+    ref: { source: "builtin", name: "pr-review", sha256: sk.sha256 },
+  };
 }
 
 function targetsOf(spec: Spec, stage: Stage): SpecModel[] {
@@ -207,7 +250,12 @@ export async function run(): Promise<number> {
     const outcome = await stages(spec, ws, token, events, abort.signal);
     clearTimeout(deadline);
     await uploadArtifacts(api, ws.head, work);
-    if (outcome.result?.skael_manifest) await api.artifact("manifest.json", JSON.stringify(outcome.result.skael_manifest, null, 2), "application/json");
+    if (outcome.result?.skael_manifest)
+      await api.artifact(
+        "manifest.json",
+        JSON.stringify(outcome.result.skael_manifest, null, 2),
+        "application/json",
+      );
     if (cancelled) {
       await finish({ exit_status: "cancelled" });
       return 0;
@@ -314,8 +362,20 @@ async function stages(
           emit: (e) => events.emit(e),
         }),
         mcpTools(mcp.tools),
+        ...(spec.skael?.hook && resolved.pulled
+          ? [
+              skaelActivation({
+                skael: spec.skael,
+                pulled: resolved.pulled,
+                stage,
+                cwd: ws.head,
+                loaded: (result.skills_loaded ??= []),
+                emit: (e) => events.emit(e),
+              }),
+            ]
+          : []),
       ],
-      extensionPaths: [...(resolved.extension ? [resolved.extension] : []), ...extPaths],
+      extensionPaths: extPaths,
       contextFiles,
       maxToolCalls: spec.limits.max_tool_calls_per_stage || 200,
       toolNames: [
@@ -342,7 +402,12 @@ async function stages(
     if (spec.kind === "round") {
       let note: string | undefined;
       if (spec.execution) {
-        Object.assign(process.env, await configureFeeds(spec.feeds, token, ws.head, (e) => events.emit(e)));
+        Object.assign(
+          process.env,
+          await configureFeeds(spec.feeds, token, ws.head, (e) =>
+            events.emit(e),
+          ),
+        );
         const prepared = await prepareEnvironment(
           ws.head,
           spec.overlay,

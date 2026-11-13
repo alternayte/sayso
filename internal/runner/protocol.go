@@ -100,6 +100,8 @@ type Skael struct {
 	Set       string `json:"set"`
 	SkillName string `json:"skill_name"`
 	Hook      bool   `json:"hook"`
+	// ExternalRunID is the round ID. The runtime reports activations under it.
+	ExternalRunID string `json:"external_run_id,omitempty"`
 }
 
 // SpecModel is one model target as pi needs it. BaseURL is the model proxy.
@@ -313,6 +315,8 @@ type SkillLoaded struct {
 	Name    string `json:"name"`
 	Version int    `json:"version,omitempty"`
 	Stage   string `json:"stage"`
+	// Reported is true when the runtime reported the activation to Skael during the run.
+	Reported bool `json:"reported,omitempty"`
 }
 
 type Usage struct {

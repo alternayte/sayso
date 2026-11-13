@@ -4,6 +4,7 @@ package feeds
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
@@ -382,6 +383,10 @@ func (s *Service) SpecFeeds(ctx context.Context, repoFullName string, names []st
 				return nil, err
 			}
 			e.Credential, e.Username, e.AuthStyle = v, f.Username, f.AuthStyle
+			// The runtime writes a Basic credential encoded, as npm _auth does.
+			if f.AuthStyle == AuthBasic {
+				s.secrets.Learn(secretName(f.Name), base64.StdEncoding.EncodeToString([]byte(f.Username+":"+v)))
+			}
 		}
 		out = append(out, e)
 	}

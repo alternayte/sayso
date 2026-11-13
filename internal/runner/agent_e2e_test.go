@@ -189,7 +189,7 @@ func TestSCN_RUN_012_Toolchains(t *testing.T) {
 		}
 		return got
 	}
-	web := h.start(t, runOpts{repo: "acme/web", script: "[script:review-assess-only]", execution: true,
+	web := h.start(t, runOpts{repo: "acme/web", script: "[script:review-assess-only]", execution: true, feeds: []string{"acme-npm"},
 		overlay: runner.Overlay{Block: true, Toolchain: "auto", Restore: "auto", Setup: []string{"node --version > .setup-node && test -s .setup-node"}}})
 	mustStatus(t, web, "done")
 	got := envSteps(web)

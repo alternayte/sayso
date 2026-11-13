@@ -1,6 +1,21 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { Activity, Cpu, FolderGit2, Plug, Home, LogOut, ScrollText, Settings2, Users, Webhook } from "lucide-react";
+import {
+  Activity,
+  BookOpen,
+  Container,
+  Cpu,
+  FolderGit2,
+  Home,
+  LogOut,
+  Package,
+  Plug,
+  Puzzle,
+  ScrollText,
+  Settings2,
+  Users,
+  Webhook,
+} from "lucide-react";
 import { useId, type ReactNode } from "react";
 import { Brand } from "@/app/brand";
 import { Button, ErrorAlert } from "@/components/app-ui";
@@ -17,6 +32,10 @@ const nav: NavItem[] = [
   { to: "/settings/github", label: "nav.github", Icon: Webhook, min: "admin" },
   { to: "/settings/models", label: "nav.models", Icon: Cpu, min: "admin" },
   { to: "/settings/mcp", label: "nav.mcp", Icon: Plug, min: "admin" },
+  { to: "/settings/skills", label: "nav.skills", Icon: BookOpen, min: "admin" },
+  { to: "/settings/extensions", label: "nav.extensions", Icon: Puzzle, min: "admin" },
+  { to: "/settings/feeds", label: "nav.feeds", Icon: Package, min: "admin" },
+  { to: "/settings/images", label: "nav.images", Icon: Container, min: "admin" },
   { to: "/settings/general", label: "nav.general", Icon: Settings2, min: "admin" },
   { to: "/settings/access", label: "nav.access", Icon: Users, min: "admin" },
   { to: "/audit", label: "nav.audit", Icon: ScrollText, min: "admin" },

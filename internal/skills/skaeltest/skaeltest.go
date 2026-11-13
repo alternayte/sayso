@@ -191,7 +191,7 @@ func (s *Skael) seed(t *testing.T) {
 	}
 	call(t, plain, http.MethodPost, s.URL+"/api/service-accounts", s.ownerKey, map[string]string{"name": "sayso"}, &acct)
 	call(t, plain, http.MethodPost, s.URL+"/api/service-accounts/"+acct.ID+"/keys", s.ownerKey,
-		map[string]any{"name": "agent", "scopes": []string{"skills:read", "sets:read", "events:write"}, "set_id": set.ID}, &key)
+		map[string]any{"name": "agent", "scopes": []string{"skills:read", "sets:read", "events:write"}}, &key)
 	s.AgentKey = key.Key
 	call(t, plain, http.MethodPost, s.URL+"/api/service-accounts/"+acct.ID+"/keys", s.ownerKey,
 		map[string]any{"name": "reporter", "scopes": []string{"events:write", "outcomes:write"}}, &key)

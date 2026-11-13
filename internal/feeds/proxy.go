@@ -144,7 +144,9 @@ func (s *Service) Proxy(w http.ResponseWriter, r *http.Request) {
 		perr(w, http.StatusBadRequest, "bad request")
 		return
 	}
-	for _, k := range []string{"Accept", "Content-Type", "Git-Protocol", "User-Agent", "Npm-Command", "X-Nuget-Client-Version"} {
+	// Keep the length: git http-backend refuses a chunked upload-pack body.
+	req.ContentLength = r.ContentLength
+	for _, k := range []string{"Accept", "Content-Type", "Content-Encoding", "Git-Protocol", "User-Agent", "Npm-Command", "X-Nuget-Client-Version"} {
 		if v := r.Header.Get(k); v != "" {
 			req.Header.Set(k, v)
 		}
@@ -340,9 +342,13 @@ var errRepoNotListed = errors.New("the repository is not listed for this feed")
 // upstream returns the upstream URL and the credential header value of a path.
 func (s *Service) upstream(ctx context.Context, f PackageFeed, path string) (string, string, error) {
 	if f.Kind == KindGitHub {
-		owner, rest, _ := strings.Cut(strings.TrimPrefix(path, "/"), "/")
-		repo, _, _ := strings.Cut(rest, ".git/")
-		full := owner + "/" + strings.TrimSuffix(repo, ".git")
+		repoPath, suffix := path, ""
+		for _, sfx := range []string{"/info/refs", "/git-upload-pack"} {
+			if strings.HasSuffix(path, sfx) {
+				repoPath, suffix = strings.TrimSuffix(path, sfx), sfx
+			}
+		}
+		full := strings.TrimSuffix(strings.Trim(repoPath, "/"), ".git")
 		if !slices.ContainsFunc(f.Repos, func(r string) bool { return strings.EqualFold(r, full) }) {
 			return "", "", errRepoNotListed
 		}
@@ -350,7 +356,7 @@ func (s *Service) upstream(ctx context.Context, f PackageFeed, path string) (str
 		if err != nil {
 			return "", "", err
 		}
-		u := strings.TrimRight(web, "/") + path
+		u := strings.TrimRight(web, "/") + "/" + full + ".git" + suffix
 		return u, "Basic " + base64.StdEncoding.EncodeToString([]byte("x-access-token:"+tok)), nil
 	}
 	u, err := url.JoinPath(f.UpstreamUrl, path)

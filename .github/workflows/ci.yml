@@ -1,0 +1,61 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  layer:
+    name: ${{ matrix.recipe }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        # The recipes of `just ci`, one job each.
+        recipe: [static, test, contract, e2e, k8s, smoke]
+    steps:
+      - name: Free disk space for the images
+        if: contains(fromJSON('["e2e","k8s","smoke"]'), matrix.recipe)
+        run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.3
+      - uses: extractions/setup-just@v2
+        with:
+          just-version: 1.58.0
+      - name: Install golangci-lint
+        if: matrix.recipe == 'static'
+        run: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.15.0
+      - run: just setup
+      - name: Run the recipes
+        run: |
+          if [ "${{ matrix.recipe }}" = static ]; then
+            just gen-check fmt-check lint
+          else
+            just ${{ matrix.recipe }}
+          fi
+      - name: Keep the test reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reports-${{ matrix.recipe }}
+          path: |
+            tmp/reports/
+            tests/ui/test-results/
+          if-no-files-found: ignore

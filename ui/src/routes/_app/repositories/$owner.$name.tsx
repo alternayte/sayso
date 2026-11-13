@@ -4,11 +4,14 @@ import { useState } from "react";
 import {
   getRepositoryOptions,
   listRepositoriesQueryKey,
+  setRepositoryFeedsMutation,
   setRepositoryMcpMutation,
   setRepositoryModeMutation,
 } from "@/client/@tanstack/react-query.gen";
 import type { RepositoryBody } from "@/client/types.gen";
 import { Button, ErrorAlert, PageHead, Segmented } from "@/components/app-ui";
+import { Alert } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { t } from "@/lib/copy";
@@ -43,6 +46,7 @@ function Repository() {
             canEdit={atLeast(me.role, "maintainer")}
             queryKey={opts.queryKey}
           />
+          <FeedsCard key={repo.data.feeds.join(",")} repo={repo.data} canEdit={atLeast(me.role, "maintainer")} queryKey={opts.queryKey} />
         </div>
       )}
     </>
@@ -138,6 +142,55 @@ function McpCard({ repo, canEdit, queryKey }: { repo: RepositoryBody; canEdit: b
           <div className="flex items-center gap-3">
             <Button mutation={save} onClick={() => save.mutate({ path: { owner, name }, body: { servers: chosen } })}>
               {t("repos.mcp.save")}
+            </Button>
+          </div>
+        ) : null}
+        <ErrorAlert error={save.error} />
+      </div>
+    </Card>
+  );
+}
+
+function FeedsCard({ repo, canEdit, queryKey }: { repo: RepositoryBody; canEdit: boolean; queryKey: readonly unknown[] }) {
+  const qc = useQueryClient();
+  const [owner = "", name = ""] = repo.full_name.split("/");
+  const [chosen, setChosen] = useState<string[]>(repo.feeds);
+  const save = useMutation({ ...setRepositoryFeedsMutation(), onSuccess: () => qc.invalidateQueries({ queryKey }) });
+  const available = repo.feeds_available ?? [];
+  const exposed = available.filter((f) => f.inject && repo.feeds.includes(f.name)).map((f) => f.name);
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{t("repos.feeds.label")}</CardTitle>
+      </CardHeader>
+      <div className="grid gap-3 p-4">
+        <p className="t-hint max-w-[640px]">{t("repos.feeds.hint")}</p>
+        {exposed.length > 0 ? <Alert tone="warning">{t("repos.feeds.inject_warning", { feeds: exposed.join(", ") })}</Alert> : null}
+        {available.length === 0 ? <p className="t-hint">{t("repos.feeds.none")}</p> : null}
+        <ul className="grid gap-2">
+          {available.map((f) => (
+            <li key={f.name}>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  disabled={!canEdit}
+                  checked={chosen.includes(f.name)}
+                  onChange={(e) => setChosen(e.target.checked ? [...chosen, f.name] : chosen.filter((x) => x !== f.name))}
+                />
+                <span className="t-value text-ink">{f.name}</span>
+                {f.inject ? (
+                  <Badge dot tone="warning">
+                    {t("feeds.mode.inject")}
+                  </Badge>
+                ) : null}
+              </label>
+            </li>
+          ))}
+        </ul>
+        {canEdit && available.length > 0 ? (
+          <div className="flex items-center gap-3">
+            <Button mutation={save} onClick={() => save.mutate({ path: { owner, name }, body: { feeds: chosen } })}>
+              {t("repos.feeds.save")}
             </Button>
           </div>
         ) : null}

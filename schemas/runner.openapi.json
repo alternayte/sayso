@@ -834,6 +834,9 @@
           "agent_key": {
             "type": "string"
           },
+          "external_run_id": {
+            "type": "string"
+          },
           "hook": {
             "type": "boolean"
           },
@@ -940,6 +943,9 @@
         "properties": {
           "name": {
             "type": "string"
+          },
+          "reported": {
+            "type": "boolean"
           },
           "stage": {
             "type": "string"

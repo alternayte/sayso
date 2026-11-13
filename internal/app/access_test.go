@@ -52,6 +52,19 @@ var required = map[string]string{
 	"delete-mcp-server":       "admin",
 	"test-mcp-server":         "admin",
 	"set-repository-mcp":      "maintainer",
+	"set-repository-feeds":    "maintainer",
+	"list-feeds":              "admin",
+	"put-feed":                "admin",
+	"delete-feed":             "admin",
+	"test-feed":               "admin",
+	"list-extensions":         "admin",
+	"put-extension":           "admin",
+	"delete-extension":        "admin",
+	"get-skills":              "admin",
+	"put-skael":               "admin",
+	"list-agent-images":       "admin",
+	"put-agent-image":         "admin",
+	"delete-agent-image":      "admin",
 }
 
 var rank = map[string]int{"anonymous": 0, "viewer": 1, "maintainer": 2, "admin": 3}

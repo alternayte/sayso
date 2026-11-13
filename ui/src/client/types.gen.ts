@@ -96,6 +96,45 @@ export type ErrorModel = {
     type?: string;
 };
 
+export type ExtensionBody = {
+    /**
+     * False: the run installs it from the registry at start and caches it nowhere
+     */
+    baked: boolean;
+    enabled: boolean;
+    env: {
+        [key: string]: string;
+    };
+    kind: string;
+    name: string;
+    repositories: Array<string>;
+    secrets: {
+        [key: string]: Field;
+    };
+    spec: string;
+};
+
+export type ExtensionInput = {
+    enabled: boolean;
+    env?: {
+        [key: string]: string;
+    };
+    /**
+     * Empty: every repository
+     */
+    repositories?: Array<string>;
+    /**
+     * Environment variables with secret values
+     */
+    secrets?: {
+        [key: string]: Input;
+    };
+    /**
+     * npm package with an exact version, for example acme-pi-lint@1.4.0
+     */
+    spec: string;
+};
+
 export type FeedBody = {
     allowed_repositories: Array<string>;
     auth_header: string;
@@ -148,6 +187,11 @@ export type FeedInput = {
     username?: string;
 };
 
+export type FeedOption = {
+    inject: boolean;
+    name: string;
+};
+
 export type Field = {
     env_name?: string;
     kind?: 'stored' | 'env_ref';
@@ -176,6 +220,15 @@ export type HistoryBody = {
     revision: number;
     updated_at: string;
     updated_by: string;
+};
+
+export type ImageBody = {
+    default: boolean;
+    /**
+     * Image reference with a tag or digest
+     */
+    image: string;
+    name: string;
 };
 
 export type IngressBody = {
@@ -282,6 +335,11 @@ export type ProviderInput = {
     tokens_per_minute?: number;
 };
 
+export type PutAgentImageRequest = {
+    default?: boolean;
+    image: string;
+};
+
 export type PutGrantRequest = {
     role: 'admin' | 'maintainer' | 'viewer';
 };
@@ -302,6 +360,8 @@ export type PutTeamRoleRequest = {
 export type RepositoryBody = {
     default_branch: string;
     enabled_at: string | null;
+    feeds: Array<string>;
+    feeds_available?: Array<FeedOption>;
     full_name: string;
     id: string;
     mcp_available?: Array<string>;
@@ -352,6 +412,10 @@ export type ServerInput = {
     url: string;
 };
 
+export type SetRepositoryFeedsRequest = {
+    feeds: Array<string>;
+};
+
 export type SetRepositoryMcpRequest = {
     servers: Array<string>;
 };
@@ -374,6 +438,42 @@ export type SetupStateBody = {
     install_url: string;
     setup_session: boolean;
     signed_in: boolean;
+};
+
+export type SkaelBody = {
+    activation_hook: boolean;
+    agent_key: Field;
+    allowed_sets: Array<string>;
+    default_set: string;
+    reporter_key: Field;
+    review_skill: string;
+    url: string;
+};
+
+export type SkaelInput = {
+    activation_hook: boolean;
+    /**
+     * skills:read, sets:read and events:write; it reaches agent runs
+     */
+    agent_key?: Input;
+    allowed_sets: Array<string>;
+    default_set: string;
+    /**
+     * events:write and outcomes:write; it never leaves the API
+     */
+    reporter_key?: Input;
+    review_skill: string;
+    url: string;
+};
+
+export type SkillsBody = {
+    /**
+     * Files of the built-in review skill
+     */
+    builtin: {
+        [key: string]: string;
+    };
+    skael: SkaelBody;
 };
 
 export type Smoke = {
@@ -562,6 +662,85 @@ export type PutTeamRoleResponses = {
 
 export type PutTeamRoleResponse = PutTeamRoleResponses[keyof PutTeamRoleResponses];
 
+export type ListAgentImagesData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/agent-images';
+};
+
+export type ListAgentImagesErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type ListAgentImagesError = ListAgentImagesErrors[keyof ListAgentImagesErrors];
+
+export type ListAgentImagesResponses = {
+    /**
+     * OK
+     */
+    200: Array<ImageBody>;
+};
+
+export type ListAgentImagesResponse = ListAgentImagesResponses[keyof ListAgentImagesResponses];
+
+export type DeleteAgentImageData = {
+    body?: never;
+    path: {
+        name: string;
+    };
+    query?: never;
+    url: '/api/v1/agent-images/{name}';
+};
+
+export type DeleteAgentImageErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type DeleteAgentImageError = DeleteAgentImageErrors[keyof DeleteAgentImageErrors];
+
+export type DeleteAgentImageResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type DeleteAgentImageResponse = DeleteAgentImageResponses[keyof DeleteAgentImageResponses];
+
+export type PutAgentImageData = {
+    body: PutAgentImageRequest;
+    path: {
+        name: string;
+    };
+    query?: never;
+    url: '/api/v1/agent-images/{name}';
+};
+
+export type PutAgentImageErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type PutAgentImageError = PutAgentImageErrors[keyof PutAgentImageErrors];
+
+export type PutAgentImageResponses = {
+    /**
+     * OK
+     */
+    200: ImageBody;
+};
+
+export type PutAgentImageResponse = PutAgentImageResponses[keyof PutAgentImageResponses];
+
 export type ListAuditData = {
     body?: never;
     path?: never;
@@ -640,6 +819,85 @@ export type GetDiagnosticsResponses = {
 };
 
 export type GetDiagnosticsResponse = GetDiagnosticsResponses[keyof GetDiagnosticsResponses];
+
+export type ListExtensionsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/extensions';
+};
+
+export type ListExtensionsErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type ListExtensionsError = ListExtensionsErrors[keyof ListExtensionsErrors];
+
+export type ListExtensionsResponses = {
+    /**
+     * OK
+     */
+    200: Array<ExtensionBody>;
+};
+
+export type ListExtensionsResponse = ListExtensionsResponses[keyof ListExtensionsResponses];
+
+export type DeleteExtensionData = {
+    body?: never;
+    path: {
+        name: string;
+    };
+    query?: never;
+    url: '/api/v1/extensions/{name}';
+};
+
+export type DeleteExtensionErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type DeleteExtensionError = DeleteExtensionErrors[keyof DeleteExtensionErrors];
+
+export type DeleteExtensionResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type DeleteExtensionResponse = DeleteExtensionResponses[keyof DeleteExtensionResponses];
+
+export type PutExtensionData = {
+    body: ExtensionInput;
+    path: {
+        name: string;
+    };
+    query?: never;
+    url: '/api/v1/extensions/{name}';
+};
+
+export type PutExtensionErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type PutExtensionError = PutExtensionErrors[keyof PutExtensionErrors];
+
+export type PutExtensionResponses = {
+    /**
+     * OK
+     */
+    200: ExtensionBody;
+};
+
+export type PutExtensionResponse = PutExtensionResponses[keyof PutExtensionResponses];
 
 export type ListFeedsData = {
     body?: never;
@@ -1243,6 +1501,34 @@ export type GetRepositoryResponses = {
 
 export type GetRepositoryResponse = GetRepositoryResponses[keyof GetRepositoryResponses];
 
+export type SetRepositoryFeedsData = {
+    body: SetRepositoryFeedsRequest;
+    path: {
+        owner: string;
+        name: string;
+    };
+    query?: never;
+    url: '/api/v1/repositories/{owner}/{name}/feeds';
+};
+
+export type SetRepositoryFeedsErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type SetRepositoryFeedsError = SetRepositoryFeedsErrors[keyof SetRepositoryFeedsErrors];
+
+export type SetRepositoryFeedsResponses = {
+    /**
+     * OK
+     */
+    200: RepositoryBody;
+};
+
+export type SetRepositoryFeedsResponse = SetRepositoryFeedsResponses[keyof SetRepositoryFeedsResponses];
+
 export type SetRepositoryMcpData = {
     body: SetRepositoryMcpRequest;
     path: {
@@ -1480,3 +1766,53 @@ export type GetSetupStateResponses = {
 };
 
 export type GetSetupStateResponse = GetSetupStateResponses[keyof GetSetupStateResponses];
+
+export type GetSkillsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/skills';
+};
+
+export type GetSkillsErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type GetSkillsError = GetSkillsErrors[keyof GetSkillsErrors];
+
+export type GetSkillsResponses = {
+    /**
+     * OK
+     */
+    200: SkillsBody;
+};
+
+export type GetSkillsResponse = GetSkillsResponses[keyof GetSkillsResponses];
+
+export type PutSkaelData = {
+    body: SkaelInput;
+    path?: never;
+    query?: never;
+    url: '/api/v1/skills/skael';
+};
+
+export type PutSkaelErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type PutSkaelError = PutSkaelErrors[keyof PutSkaelErrors];
+
+export type PutSkaelResponses = {
+    /**
+     * OK
+     */
+    200: SkillsBody;
+};
+
+export type PutSkaelResponse = PutSkaelResponses[keyof PutSkaelResponses];

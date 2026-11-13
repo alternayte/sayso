@@ -46,3 +46,12 @@ SELECT name FROM mcp_servers WHERE name = ANY(@names::text[]);
 
 -- name: MCPServerNames :many
 SELECT name FROM mcp_servers ORDER BY name;
+
+-- name: SetFeeds :one
+UPDATE repositories SET feeds = @feeds::text[] WHERE id = @id RETURNING *;
+
+-- name: FeedsFor :many
+-- The package feeds that a repository may use, and whether each gives its credential to runs.
+SELECT name, mode = 'inject' AS inject FROM package_feeds
+WHERE coalesce(cardinality(allowed_repositories), 0) = 0 OR lower(@full_name::text) = ANY(SELECT lower(x) FROM unnest(allowed_repositories) x)
+ORDER BY name;

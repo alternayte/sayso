@@ -8,12 +8,31 @@ import type { SpecFeed } from "./protocol/index.js";
 
 const run = promisify(execFile);
 
-/** Repository files that can name a feed URL (§8.11). */
-export const feedFiles = [".npmrc", "nuget.config", "NuGet.Config", "pip.conf", ".yarnrc.yml", "settings.xml"];
+/**
+ * Repository files that can name a feed URL (§8.11). Lockfiles hold the
+ * resolved package URLs, so they are rewritten too.
+ */
+export const feedFiles = [
+  ".npmrc",
+  "nuget.config",
+  "NuGet.Config",
+  "pip.conf",
+  ".yarnrc.yml",
+  "settings.xml",
+  "package-lock.json",
+  "npm-shrinkwrap.json",
+  "yarn.lock",
+  "pnpm-lock.yaml",
+  "bun.lock",
+];
 
 /** credentialOf returns the user name and secret that a run sends to a feed URL. */
-function credentialOf(f: SpecFeed, token: string): { user: string; secret: string } {
-  if (f.mode === "inject") return { user: f.username || "token", secret: f.credential ?? "" };
+function credentialOf(
+  f: SpecFeed,
+  token: string,
+): { user: string; secret: string } {
+  if (f.mode === "inject")
+    return { user: f.username || "token", secret: f.credential ?? "" };
   return { user: "x-access-token", secret: token };
 }
 
@@ -35,7 +54,12 @@ export function feedBase(f: SpecFeed): string {
  * URLs in repository files, which it marks skip-worktree so that git diff
  * shows only the pull request's changes (REQ-PKG-003).
  */
-export async function configureFeeds(feeds: SpecFeed[], token: string, head: string, emit: (e: NewEvent) => void): Promise<NodeJS.ProcessEnv> {
+export async function configureFeeds(
+  feeds: SpecFeed[],
+  token: string,
+  head: string,
+  emit: (e: NewEvent) => void,
+): Promise<NodeJS.ProcessEnv> {
   const env: NodeJS.ProcessEnv = {};
   if (feeds.length === 0) return env;
   const home = homedir();
@@ -52,15 +76,26 @@ export async function configureFeeds(feeds: SpecFeed[], token: string, head: str
     switch (f.kind) {
       case "npm": {
         const host = base.replace(/^https?:/, "");
-        if (!npmrc.some((l) => l.startsWith("registry="))) npmrc.push(`registry=${base}/`);
-        npmrc.push(f.mode === "inject" && f.auth_style === "basic" ? `${host}/:_auth=${Buffer.from(`${user}:${secret}`).toString("base64")}` : `${host}/:_authToken=${secret}`);
+        if (!npmrc.some((l) => l.startsWith("registry=")))
+          npmrc.push(`registry=${base}/`);
+        npmrc.push(
+          f.mode === "inject" && f.auth_style === "basic"
+            ? `${host}/:_auth=${Buffer.from(`${user}:${secret}`).toString("base64")}`
+            : `${host}/:_authToken=${secret}`,
+        );
         break;
       }
       case "nuget": {
         const index = f.match_urls.find((m) => m.endsWith("index.json"));
-        const suffix = index ? new URL(index).pathname.split("/").slice(-2).join("/") : "v3/index.json";
-        nugetSources.push(`    <add key="${f.name}" value="${base}/${suffix}" protocolVersion="3" />`);
-        nugetCreds.push(`    <${f.name}>\n      <add key="Username" value="${user}" />\n      <add key="ClearTextPassword" value="${secret}" />\n    </${f.name}>`);
+        const suffix = index
+          ? new URL(index).pathname.split("/").slice(-2).join("/")
+          : "v3/index.json";
+        nugetSources.push(
+          `    <add key="${f.name}" value="${base}/${suffix}" protocolVersion="3" />`,
+        );
+        nugetCreds.push(
+          `    <${f.name}>\n      <add key="Username" value="${user}" />\n      <add key="ClearTextPassword" value="${secret}" />\n    </${f.name}>`,
+        );
         break;
       }
       case "pypi":
@@ -75,14 +110,20 @@ export async function configureFeeds(feeds: SpecFeed[], token: string, head: str
       case "github":
         for (const r of f.repos) {
           goprivate.push(`github.com/${r}`);
-          await run("git", ["config", "--global", `url.${withAuth(`${base}/${r}`, user, secret)}.insteadOf`, `https://github.com/${r}`]);
+          await run("git", [
+            "config",
+            "--global",
+            `url.${withAuth(`${base}/${r}`, user, secret)}.insteadOf`,
+            `https://github.com/${r}`,
+          ]);
         }
         break;
     }
   }
   if (npmrc.length) {
-    npmrc.push("replace-registry-host=always");
-    writeFileSync(join(home, ".npmrc"), npmrc.join("\n") + "\n", { mode: 0o600 });
+    writeFileSync(join(home, ".npmrc"), npmrc.join("\n") + "\n", {
+      mode: 0o600,
+    });
   }
   if (nugetSources.length) {
     const dir = join(home, ".nuget", "NuGet");
@@ -96,16 +137,37 @@ export async function configureFeeds(feeds: SpecFeed[], token: string, head: str
   if (pip.length) {
     const dir = join(home, ".config", "pip");
     mkdirSync(dir, { recursive: true });
-    writeFileSync(join(dir, "pip.conf"), `[global]\nindex-url = ${pip[0]}\n${pip.length > 1 ? `extra-index-url = ${pip.slice(1).join(" ")}\n` : ""}`, { mode: 0o600 });
+    writeFileSync(
+      join(dir, "pip.conf"),
+      `[global]\nindex-url = ${pip[0]}\n${pip.length > 1 ? `extra-index-url = ${pip.slice(1).join(" ")}\n` : ""}`,
+      { mode: 0o600 },
+    );
   }
   if (maven.length) {
     const dir = join(home, ".m2");
     mkdirSync(dir, { recursive: true });
-    const servers = maven.map((m) => `    <server><id>${m.id}</id><username>${m.user}</username><password>${m.secret}</password></server>`).join("\n");
-    const mirrors = maven.map((m) => `    <mirror><id>${m.id}</id><mirrorOf>*</mirrorOf><url>${m.url}</url></mirror>`).join("\n");
-    writeFileSync(join(dir, "settings.xml"), `<settings>\n  <servers>\n${servers}\n  </servers>\n  <mirrors>\n${mirrors}\n  </mirrors>\n</settings>\n`, { mode: 0o600 });
+    const servers = maven
+      .map(
+        (m) =>
+          `    <server><id>${m.id}</id><username>${m.user}</username><password>${m.secret}</password></server>`,
+      )
+      .join("\n");
+    const mirrors = maven
+      .map(
+        (m) =>
+          `    <mirror><id>${m.id}</id><mirrorOf>*</mirrorOf><url>${m.url}</url></mirror>`,
+      )
+      .join("\n");
+    writeFileSync(
+      join(dir, "settings.xml"),
+      `<settings>\n  <servers>\n${servers}\n  </servers>\n  <mirrors>\n${mirrors}\n  </mirrors>\n</settings>\n`,
+      { mode: 0o600 },
+    );
   }
-  if (goproxies.length) env.GOPROXY = [...goproxies, "https://proxy.golang.org", "direct"].join(",");
+  if (goproxies.length)
+    env.GOPROXY = [...goproxies, "https://proxy.golang.org", "direct"].join(
+      ",",
+    );
   if (goprivate.length) {
     env.GOPRIVATE = goprivate.join(",");
     env.GONOSUMDB = goprivate.join(",");
@@ -116,9 +178,18 @@ export async function configureFeeds(feeds: SpecFeed[], token: string, head: str
 }
 
 /** rewriteRepoFiles replaces match URLs in the repository's feed files and marks them skip-worktree. */
-async function rewriteRepoFiles(feeds: SpecFeed[], head: string, emit: (e: NewEvent) => void): Promise<void> {
-  const { stdout } = await run("git", ["ls-files"], { cwd: head, maxBuffer: 64 << 20 });
-  const files = stdout.split("\n").filter((p) => feedFiles.includes(basename(p)));
+async function rewriteRepoFiles(
+  feeds: SpecFeed[],
+  head: string,
+  emit: (e: NewEvent) => void,
+): Promise<void> {
+  const { stdout } = await run("git", ["ls-files"], {
+    cwd: head,
+    maxBuffer: 64 << 20,
+  });
+  const files = stdout
+    .split("\n")
+    .filter((p) => feedFiles.includes(basename(p)));
   for (const p of files) {
     const full = join(head, p);
     const before = readFileSync(full, "utf8");
@@ -130,7 +201,14 @@ async function rewriteRepoFiles(feeds: SpecFeed[], head: string, emit: (e: NewEv
     }
     if (after === before) continue;
     writeFileSync(full, after);
-    await run("git", ["update-index", "--skip-worktree", "--", p], { cwd: head });
-    emit({ type: "env", name: `feed file ${p}`, status: "ok", preview: `${p} points at the package feeds` });
+    await run("git", ["update-index", "--skip-worktree", "--", p], {
+      cwd: head,
+    });
+    emit({
+      type: "env",
+      name: `feed file ${p}`,
+      status: "ok",
+      preview: `${p} points at the package feeds`,
+    });
   }
 }

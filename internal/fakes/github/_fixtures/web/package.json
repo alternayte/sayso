@@ -2,5 +2,10 @@
   "name": "acme-web",
   "version": "1.0.0",
   "private": true,
-  "scripts": { "test": "node --test" }
+  "scripts": {
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@acme/money": "1.0.0"
+  }
 }

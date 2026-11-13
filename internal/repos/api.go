@@ -31,6 +31,16 @@ type RepositoryBody struct {
 	MCPServers    []string     `json:"mcp_servers"`
 	// MCPAvailable are the servers that admins configured; only the detail has it.
 	MCPAvailable []string `json:"mcp_available,omitempty"`
+	Feeds        []string `json:"feeds"`
+	// FeedsAvailable are the package feeds that the repository may use; only the detail has it.
+	FeedsAvailable []FeedOption `json:"feeds_available,omitempty"`
+}
+
+// FeedOption is a package feed that a repository may use.
+type FeedOption struct {
+	Name string `json:"name"`
+	// Inject is true when the feed gives its credential to agent runs (§8.11).
+	Inject bool `json:"inject"`
 }
 
 // ProfilesBody is the profile of each stage of a repository.
@@ -43,7 +53,24 @@ type ProfilesBody struct {
 
 func body(r Repository) RepositoryBody {
 	return RepositoryBody{ID: r.ID.String(), FullName: r.FullName, DefaultBranch: r.DefaultBranch, Private: r.Private, Mode: r.Mode, EnabledAt: r.EnabledAt,
-		Profiles: ProfilesBody{Review: r.ProfileReview, Challenge: r.ProfileChallenge, Reply: r.ProfileReply, Fix: r.ProfileFix}, MCPServers: r.McpServers}
+		Profiles: ProfilesBody{Review: r.ProfileReview, Challenge: r.ProfileChallenge, Reply: r.ProfileReply, Fix: r.ProfileFix}, MCPServers: r.McpServers, Feeds: r.Feeds}
+}
+
+func detail(ctx context.Context, q *Queries, r Repository) (RepositoryBody, error) {
+	b := body(r)
+	var err error
+	if b.MCPAvailable, err = q.MCPServerNames(ctx); err != nil {
+		return b, err
+	}
+	rows, err := q.FeedsFor(ctx, r.FullName)
+	if err != nil {
+		return b, err
+	}
+	b.FeedsAvailable = make([]FeedOption, 0, len(rows))
+	for _, f := range rows {
+		b.FeedsAvailable = append(b.FeedsAvailable, FeedOption(f))
+	}
+	return b, nil
 }
 
 // Access is the operation metadata of each access level. The caller owns
@@ -88,8 +115,8 @@ func Register(api huma.API, pool *pgxpool.Pool, acc Access) {
 		if err != nil {
 			return nil, err
 		}
-		b := body(r)
-		if b.MCPAvailable, err = New(pool).MCPServerNames(ctx); err != nil {
+		b, err := detail(ctx, New(pool), r)
+		if err != nil {
 			return nil, err
 		}
 		return &struct{ Body RepositoryBody }{b}, nil
@@ -205,5 +232,53 @@ func Register(api huma.API, pool *pgxpool.Pool, acc Access) {
 			return nil, err
 		}
 		return &struct{ Body RepositoryBody }{body(out)}, nil
+	})
+
+	huma.Register(api, huma.Operation{
+		OperationID: "set-repository-feeds", Method: http.MethodPut, Path: "/repositories/{owner}/{name}/feeds", Tags: []string{"repositories"}, Metadata: acc.Edit,
+	}, func(ctx context.Context, in *struct {
+		Owner string `path:"owner"`
+		Name  string `path:"name"`
+		Body  struct {
+			Feeds []string `json:"feeds"`
+		}
+	}) (*struct{ Body RepositoryBody }, error) {
+		want := in.Body.Feeds
+		if want == nil {
+			want = []string{}
+		}
+		var out RepositoryBody
+		err := pgx.BeginFunc(ctx, pool, func(tx pgx.Tx) error {
+			q := New(tx)
+			r, err := q.ByFullName(ctx, in.Owner+"/"+in.Name)
+			if err != nil {
+				return err
+			}
+			allowed, err := q.FeedsFor(ctx, r.FullName)
+			if err != nil {
+				return err
+			}
+			for _, n := range want {
+				if !slices.ContainsFunc(allowed, func(f FeedsForRow) bool { return f.Name == n }) {
+					return huma.Error422UnprocessableEntity(fmt.Sprintf("package feed %q does not exist or is not allowed for %s", n, r.FullName))
+				}
+			}
+			saved, err := q.SetFeeds(ctx, SetFeedsParams{ID: r.ID, Feeds: want})
+			if err != nil {
+				return err
+			}
+			if err := audit.Write(ctx, tx, acc.Actor(ctx), "repository.feeds", r.FullName, map[string]any{"feeds": want}); err != nil {
+				return err
+			}
+			out, err = detail(ctx, q, saved)
+			return err
+		})
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, huma.Error404NotFound("repository not found")
+		}
+		if err != nil {
+			return nil, err
+		}
+		return &struct{ Body RepositoryBody }{out}, nil
 	})
 }

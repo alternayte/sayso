@@ -119,6 +119,13 @@ export async function runStage(
     systemPromptOverride: () => s.systemPrompt,
   });
   await loader.reload();
+  for (const x of loader.getExtensions().errors)
+    s.emit({
+      type: "error",
+      name: "extension",
+      status: "failed",
+      preview: `${x.path}: ${x.error}`.slice(0, 400),
+    });
   mkdirSync(s.sessionDir, { recursive: true });
   const first = registry.find(s.targets[0]!.provider, s.targets[0]!.model);
   if (!first) return { error: "no model target for this stage" };
