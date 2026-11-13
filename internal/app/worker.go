@@ -28,6 +28,7 @@ func StartWorker(ctx context.Context, d *Deps, f *Features) (func(), error) {
 	w.RegisterActivity(&github.ReconcileActivities{Pool: d.Pool, Secrets: f.Secrets, GitHub: f.GitHubClient, Temporal: d.Temporal})
 	w.RegisterWorkflowWithOptions(review.PRReview, workflow.RegisterOptions{Name: signals.WorkflowType})
 	w.RegisterWorkflowWithOptions(review.ReviewRound, workflow.RegisterOptions{Name: review.RoundWorkflowType})
+	w.RegisterWorkflowWithOptions(review.AgentWork, workflow.RegisterOptions{Name: review.WorkWorkflowType})
 	w.RegisterActivity(ReviewActivities(d, f))
 	limit, err := f.Settings.Int(ctx, settings.WorkerMaxAgentRuns)
 	if err != nil {

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/fs"
 	"regexp"
+	"sort"
 	"strings"
 
 	"go.yaml.in/yaml/v3"
@@ -14,8 +15,9 @@ import (
 // in the system prompt or a message, for example "[script:review-blocker]"
 // in the repository guidance. Each stage has its own list of steps; the step
 // of a request is the number of assistant turns that came before it. A
-// stage key "<stage>+ledger" answers instead when the prompt has the ledger
-// section, which only rounds after the first have.
+// stage key "<stage>+<text>" answers instead when the prompt contains the
+// text; "+ledger" means the ledger section, which only rounds after the
+// first have. Keys are tried in sorted order.
 //
 //go:embed scripts/*.yaml
 var scriptFS embed.FS
@@ -49,8 +51,23 @@ func (s *Script) step(system, prompt string, turns int) Step {
 		stage = m[1]
 	}
 	steps := s.Stages[stage]
-	if alt, ok := s.Stages[stage+"+ledger"]; ok && strings.Contains(prompt, "## Ledger of this pull request") {
-		steps = alt
+	keys := make([]string, 0, len(s.Stages))
+	for k := range s.Stages {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		needle, ok := strings.CutPrefix(k, stage+"+")
+		if !ok {
+			continue
+		}
+		if needle == "ledger" {
+			needle = "## Ledger of this pull request"
+		}
+		if strings.Contains(prompt, needle) {
+			steps = s.Stages[k]
+			break
+		}
 	}
 	if turns < len(steps) {
 		return steps[turns]

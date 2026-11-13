@@ -29,10 +29,11 @@ type AgentActivities struct {
 	Heartbeat time.Duration
 }
 
-// RunAgentInput names the round and its admission slot.
+// RunAgentInput names the round, or the queued work, and its admission slot.
 type RunAgentInput struct {
-	RoundID     uuid.UUID `json:"round_id"`
-	AdmissionID uuid.UUID `json:"admission_id"`
+	RoundID     uuid.UUID  `json:"round_id"`
+	WorkID      *uuid.UUID `json:"work_id,omitempty"`
+	AdmissionID uuid.UUID  `json:"admission_id"`
 }
 
 // RunAgent creates the agent run of a round from its config snapshot,
@@ -42,8 +43,15 @@ func (a *AgentActivities) RunAgent(ctx context.Context, in RunAgentInput) (strin
 	var cfgRaw []byte
 	var reviewID, repoID uuid.UUID
 	var oldRun *uuid.UUID
-	err := a.Pool.QueryRow(ctx, `SELECT ro.config_snapshot, ro.review_id, rv.repository_id, ro.agent_run_id FROM rounds ro JOIN reviews rv ON rv.id = ro.review_id WHERE ro.id = $1`,
-		in.RoundID).Scan(&cfgRaw, &reviewID, &repoID, &oldRun)
+	kind := "round"
+	var err error
+	if in.WorkID != nil {
+		err = a.Pool.QueryRow(ctx, `SELECT w.spec, w.review_id, rv.repository_id, w.agent_run_id, w.kind FROM agent_work w JOIN reviews rv ON rv.id = w.review_id WHERE w.id = $1`,
+			*in.WorkID).Scan(&cfgRaw, &reviewID, &repoID, &oldRun, &kind)
+	} else {
+		err = a.Pool.QueryRow(ctx, `SELECT ro.config_snapshot, ro.review_id, rv.repository_id, ro.agent_run_id FROM rounds ro JOIN reviews rv ON rv.id = ro.review_id WHERE ro.id = $1`,
+			in.RoundID).Scan(&cfgRaw, &reviewID, &repoID, &oldRun)
+	}
 	if err != nil {
 		return "", err
 	}
@@ -76,12 +84,20 @@ func (a *AgentActivities) RunAgent(ctx context.Context, in RunAgentInput) (strin
 	if spec.Feeds == nil {
 		spec.Feeds = []runner.SpecFeed{}
 	}
-	run, tok, err := runner.Create(ctx, a.Pool, runner.NewRun{RoundID: &in.RoundID, ReviewID: &reviewID, RepositoryID: &repoID, Kind: "round", Runner: a.RunnerKind,
-		Models: cfg.Models, BudgetUSD: cfg.BudgetUSD, Stages: spec.Stages, Spec: spec}, time.Now())
+	nr := runner.NewRun{ReviewID: &reviewID, RepositoryID: &repoID, Kind: kind, Runner: a.RunnerKind, Models: cfg.Models, BudgetUSD: cfg.BudgetUSD, Stages: spec.Stages, Spec: spec}
+	if in.WorkID == nil {
+		nr.RoundID = &in.RoundID
+	}
+	run, tok, err := runner.Create(ctx, a.Pool, nr, time.Now())
 	if err != nil {
 		return "", err
 	}
-	if _, err := a.Pool.Exec(ctx, `UPDATE rounds SET agent_run_id = $2 WHERE id = $1`, in.RoundID, run.ID); err != nil {
+	if in.WorkID != nil {
+		_, err = a.Pool.Exec(ctx, `WITH w AS (UPDATE agent_work SET agent_run_id = $2 WHERE id = $1) UPDATE agent_runs SET work_id = $1 WHERE id = $2`, *in.WorkID, run.ID)
+	} else {
+		_, err = a.Pool.Exec(ctx, `UPDATE rounds SET agent_run_id = $2 WHERE id = $1`, in.RoundID, run.ID)
+	}
+	if err != nil {
 		return "", err
 	}
 	timeout := time.Duration(spec.Limits.TimeoutSeconds) * time.Second

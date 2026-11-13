@@ -681,3 +681,17 @@ func (p *Publisher) StatusLine(ctx context.Context, roundID uuid.UUID) error {
 	}
 	return p.putSummary(ctx, gh, r, RenderSummary(s), prio)
 }
+
+// Override sets the round's check to success with the override (§10.4,
+// §11.2). The round must already store the override.
+func (p *Publisher) Override(ctx context.Context, roundID uuid.UUID) error {
+	r, err := p.load(ctx, roundID)
+	if err != nil || r.Mode == "shadow" || r.Mode == "off" {
+		return err
+	}
+	gh, err := p.GitHub(ctx, r.Inst, r.FullName)
+	if err != nil {
+		return err
+	}
+	return p.putCheck(ctx, gh, r, Check{Status: "completed", Conclusion: "success"})
+}

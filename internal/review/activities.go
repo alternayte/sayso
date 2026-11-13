@@ -580,6 +580,18 @@ func (a *Activities) RoundTimeout(ctx context.Context, _ uuid.UUID) (int, error)
 	return a.intSetting(ctx, settings.RoundTimeoutMinutes, 30), nil
 }
 
+// ReplyTimeout reads the reply and fix run timeout in minutes (default 10).
+func (a *Activities) ReplyTimeout(ctx context.Context, _ uuid.UUID) (int, error) {
+	return a.intSetting(ctx, settings.ReplyTimeoutMinutes, 10), nil
+}
+
+// WorkKind reads whether a work item is a reply or a fix.
+func (a *Activities) WorkKind(ctx context.Context, id uuid.UUID) (string, error) {
+	var k string
+	err := a.Pool.QueryRow(ctx, `SELECT kind FROM agent_work WHERE id = $1`, id).Scan(&k)
+	return k, err
+}
+
 // RoundStatus reads the status of a round.
 func (a *Activities) RoundStatus(ctx context.Context, roundID uuid.UUID) (string, error) {
 	var s string

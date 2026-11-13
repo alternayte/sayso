@@ -132,7 +132,6 @@ func (e *env) check(head string) fakegh.CheckRun {
 	return out
 }
 
-func (e *env) head(n int) string { return e.GitHub.Repo("acme/payments").Pulls[n].HeadSHA }
 
 func TestSCN_E2E_001_GateBlocksThenFixPasses(t *testing.T) {
 	e := real(t, "gate")

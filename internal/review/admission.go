@@ -29,6 +29,7 @@ const staleAfter = time.Minute
 type AdmitInput struct {
 	RoundID      *uuid.UUID `json:"round_id,omitempty"`
 	RunID        *uuid.UUID `json:"run_id,omitempty"`
+	WorkID       *uuid.UUID `json:"work_id,omitempty"`
 	RepositoryID uuid.UUID  `json:"repository_id"`
 	Kind         string     `json:"kind"`
 }
@@ -42,11 +43,11 @@ func (a *Activities) Admit(ctx context.Context, in AdmitInput) (uuid.UUID, error
 		prio = 0
 	}
 	var id uuid.UUID
-	err := a.Pool.QueryRow(ctx, `SELECT id FROM admissions WHERE released_at IS NULL AND (round_id = $1 OR run_id = $2)`, in.RoundID, in.RunID).Scan(&id)
+	err := a.Pool.QueryRow(ctx, `SELECT id FROM admissions WHERE released_at IS NULL AND (round_id = $1 OR run_id = $2 OR work_id = $3)`, in.RoundID, in.RunID, in.WorkID).Scan(&id)
 	if errors.Is(err, pgx.ErrNoRows) {
 		id = uuid.Must(uuid.NewV7())
-		_, err = a.Pool.Exec(ctx, `INSERT INTO admissions (id, round_id, run_id, repository_id, kind, priority) VALUES ($1, $2, $3, $4, $5, $6)`,
-			id, in.RoundID, in.RunID, in.RepositoryID, in.Kind, prio)
+		_, err = a.Pool.Exec(ctx, `INSERT INTO admissions (id, round_id, run_id, work_id, repository_id, kind, priority) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+			id, in.RoundID, in.RunID, in.WorkID, in.RepositoryID, in.Kind, prio)
 	}
 	if err != nil {
 		return uuid.Nil, err
