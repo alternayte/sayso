@@ -40,6 +40,8 @@ forbid:
 # Unit and integration tests (layers U and I)
 test: ui-build
     go test -race -count=1 ./...
+    # NFR-006 timing in the build without the race detector
+    go test -count=1 -run '^TestSCN_RUN_008' ./internal/runner/
     cd ui && bunx vitest run
     cd agent && npx vitest run
 
