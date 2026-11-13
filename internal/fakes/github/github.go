@@ -67,6 +67,7 @@ type Fake struct {
 	checkRuns map[int64]*CheckRun
 	nextID    int64
 	rate      rateState
+	pub       publishState
 }
 
 // New returns the fake with the acme organization of SDD §22: octo-admin
@@ -91,6 +92,7 @@ func New() *Fake {
 		repos:     map[string]*Repo{},
 		comments:  map[int64]*Comment{},
 		checkRuns: map[int64]*CheckRun{},
+		pub:       publishState{issueComments: map[int64]*IssueComment{}},
 		nextID:    90000,
 	}
 	f.seedRepos()

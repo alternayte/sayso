@@ -44,9 +44,17 @@ type Pull struct {
 type Comment struct {
 	ID        int64
 	Repo      string
+	Number    int
 	Body      string
 	Author    string
 	InReplyTo int64
+	Path      string
+	Line      int
+	StartLine int
+	CommitID  string
+	ReviewID  int64
+	// Resolved is the state of the thread that this top comment starts.
+	Resolved bool
 }
 
 // CheckRun is a check run that a client created or changed.
@@ -58,6 +66,8 @@ type CheckRun struct {
 	Status     string
 	Conclusion string
 	Title      string
+	Summary    string
+	ExternalID string
 }
 
 // seedRepos creates the git repositories of SDD §22 from the fixtures.
@@ -335,6 +345,7 @@ func (f *Fake) repoRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /{owner}/{repo}/git-receive-pack", f.gitHTTP)
 	mux.HandleFunc("GET /repos/{owner}/{repo}/pulls/comments/{id}", f.getComment)
 	mux.HandleFunc("PATCH /repos/{owner}/{repo}/check-runs/{id}", f.patchCheckRun)
+	f.publishRoutes(mux)
 }
 
 func (f *Fake) repoOf(r *http.Request) *Repo {
@@ -410,16 +421,17 @@ func (f *Fake) getComment(w http.ResponseWriter, r *http.Request) {
 }
 
 func (f *Fake) patchCheckRun(w http.ResponseWriter, r *http.Request) {
-	if !f.instCall(w, r) {
-		return
-	}
 	id, _ := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	var in struct {
 		Status     string `json:"status"`
 		Conclusion string `json:"conclusion"`
 		Output     *struct {
-			Title string `json:"title"`
+			Title   string `json:"title"`
+			Summary string `json:"summary"`
 		} `json:"output"`
+	}
+	if !f.writeCall(w, r) {
+		return
 	}
 	_ = json.NewDecoder(r.Body).Decode(&in)
 	f.mu.Lock()
@@ -432,7 +444,7 @@ func (f *Fake) patchCheckRun(w http.ResponseWriter, r *http.Request) {
 			c.Conclusion, c.Status = in.Conclusion, "completed"
 		}
 		if in.Output != nil {
-			c.Title = in.Output.Title
+			c.Title, c.Summary = in.Output.Title, in.Output.Summary
 		}
 	}
 	f.mu.Unlock()
