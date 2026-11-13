@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -82,6 +83,17 @@ func (p Postgres) List(ctx context.Context, prefix string) ([]string, error) {
 // Registry opens the configured stores.
 type Registry struct {
 	Pool *pgxpool.Pool
+	// Secret reads the secret of a store; nil means no store has one.
+	Secret func(ctx context.Context, id uuid.UUID) (string, error)
+
+	mu     sync.Mutex
+	opened map[uuid.UUID]opened
+}
+
+type opened struct {
+	store Store
+	// version changes when the store row changes.
+	version string
 }
 
 // Default returns the default store and its ID. New objects go there.
@@ -104,11 +116,45 @@ func (r *Registry) ByID(ctx context.Context, id uuid.UUID) (Store, error) {
 }
 
 func (r *Registry) open(row StoreRow) (Store, error) {
-	switch row.Driver {
-	case "postgres":
+	if row.Driver == "postgres" {
 		return Postgres{Pool: r.Pool}, nil
 	}
-	return nil, errors.New("store driver " + row.Driver + " is not available")
+	version := string(row.Config)
+	if row.SecretID != nil {
+		version += row.SecretID.String()
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if o, ok := r.opened[row.ID]; ok && o.version == version {
+		return o.store, nil
+	}
+	secret := ""
+	if row.SecretID != nil {
+		if r.Secret == nil {
+			return nil, errors.New("store " + row.Name + " has a secret, and the registry cannot read secrets")
+		}
+		var err error
+		if secret, err = r.Secret(context.Background(), *row.SecretID); err != nil {
+			return nil, err
+		}
+	}
+	s, err := openDriver(row.Driver, row.Config, secret)
+	if err != nil {
+		return nil, err
+	}
+	if r.opened == nil {
+		r.opened = map[uuid.UUID]opened{}
+	}
+	r.opened[row.ID] = opened{store: s, version: version}
+	return s, nil
+}
+
+// Open opens a store from a config that is not saved yet, for the test button.
+func Open(pool *pgxpool.Pool, driver string, config []byte, secret string) (Store, error) {
+	if driver == "postgres" {
+		return Postgres{Pool: pool}, nil
+	}
+	return openDriver(driver, config, secret)
 }
 
 // Object is one object of a batch put.
