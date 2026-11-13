@@ -3,11 +3,14 @@
 package runner_test
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"strings"
 	"testing"
 
@@ -243,5 +246,67 @@ func TestSCN_SKL_003_SkaelDownFallsBack(t *testing.T) {
 	}
 	if !found {
 		t.Fatal("no error event names the failed pull")
+	}
+}
+
+func TestSCN_OBS_001_EventsPayloadsAndArtifacts(t *testing.T) {
+	sk := skaeltest.Start(t)
+	h := newHarness(t)
+	skaelSettings(t, h, sk, "http://"+containerHost+":"+sk.Port)
+	skill, skael := resolve(t, h)
+	o := h.start(t, runOpts{script: "[script:review-skael]", skill: &skill, skael: skael})
+	mustStatus(t, o, "done")
+	ctx := context.Background()
+	for _, name := range []string{"session.jsonl.gz", "result.json", "manifest.json"} {
+		if n := h.e.Count(t, `SELECT count(*) FROM artifacts a JOIN blobs b ON b.key = a.key WHERE a.run_id = $1 AND a.name = $2`, o.run.ID, name); n != 1 {
+			t.Fatalf("artifact %s: %d", name, n)
+		}
+	}
+	var events, payloads, stored int
+	if err := h.e.Deps.Pool.QueryRow(ctx, `SELECT count(*), count(payload_key), count(b.key) FROM run_events e LEFT JOIN blobs b ON b.key = e.payload_key WHERE e.run_id = $1`,
+		o.run.ID).Scan(&events, &payloads, &stored); err != nil {
+		t.Fatal(err)
+	}
+	if events == 0 || payloads == 0 || stored != payloads {
+		t.Fatalf("%d events, %d with payload keys, %d payloads in the store", events, payloads, stored)
+	}
+}
+
+func TestSCN_OBS_002_SecretsRedacted(t *testing.T) {
+	sk := skaeltest.Start(t)
+	h := newHarness(t)
+	skaelSettings(t, h, sk, "http://"+containerHost+":"+sk.Port)
+	skill, skael := resolve(t, h)
+	o := h.start(t, runOpts{script: "[script:e2e-print-secrets]", execution: true, skill: &skill, skael: skael})
+	mustStatus(t, o, "done")
+	out := bashOut(h, t, o)
+	if !strings.Contains(out, "[redacted:run_token]") || !strings.Contains(out, "[redacted:skael.agent_key]") {
+		t.Fatalf("bash output: %s", out)
+	}
+	// No stored text has the token or the key: previews, payloads, artifacts.
+	ctx := context.Background()
+	if n := h.e.Count(t, `SELECT count(*) FROM run_events WHERE run_id = $1 AND (preview LIKE '%srt\_%' OR position($2 in preview) > 0)`, o.run.ID, sk.AgentKey); n != 0 {
+		t.Fatalf("%d previews hold a secret", n)
+	}
+	rows, err := h.e.Deps.Pool.Query(ctx, `SELECT a.name, b.data FROM artifacts a JOIN blobs b ON b.key = a.key WHERE a.run_id = $1
+		UNION ALL SELECT 'event.json.gz', b.data FROM run_events e JOIN blobs b ON b.key = e.payload_key WHERE e.run_id = $1`, o.run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var name string
+		var data []byte
+		_ = rows.Scan(&name, &data)
+		text := string(data)
+		if strings.HasSuffix(name, ".gz") {
+			if r, err := gzip.NewReader(bytes.NewReader(data)); err == nil {
+				b, _ := io.ReadAll(r)
+				text = string(b)
+			}
+		}
+		if strings.Contains(text, "srt_") || strings.Contains(text, sk.AgentKey) {
+			t.Fatalf("artifact %s holds a secret", name)
+		}
 	}
 }
