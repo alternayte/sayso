@@ -36,20 +36,14 @@ func ReviewActivities(d *Deps, f *Features) *review.Activities {
 	gh := gitHubSession(d, f)
 	return &review.Activities{
 		Pool: d.Pool, Settings: f.Settings, GitHub: gh,
-		Publisher:  &publish.Publisher{Pool: d.Pool, Settings: f.Settings, GitHub: gh, BaseURL: d.Config.BaseURL},
+		Publisher:  &publish.Publisher{Pool: d.Pool, Settings: f.Settings, GitHub: gh, BaseURL: d.Config.BaseURL, AppLogin: appLogin(d, f)},
 		Skills:     f.Skills,
 		Extensions: f.Extensions,
 		Feeds:      f.Feeds,
 		Reporter:   f.Reporter,
 		Stores:     f.Stores,
 		Guidance:   &guidance.Store{Pool: d.Pool},
-		AppLogin: func(ctx context.Context) string {
-			app, err := github.LoadApp(ctx, d.Pool, f.Secrets)
-			if err != nil {
-				return ""
-			}
-			return app.Slug + "[bot]"
-		},
+		AppLogin:   appLogin(d, f),
 	}
 }
 
@@ -71,4 +65,15 @@ func AgentActivities(d *Deps, f *Features) (*review.AgentActivities, error) {
 		}
 	}
 	return &review.AgentActivities{Pool: d.Pool, Extensions: f.Extensions, Feeds: f.Feeds, Runner: r, RunnerKind: d.Config.Runner, APIURL: d.Config.RunnerAPIURL}, nil
+}
+
+// appLogin is the login of the App bot, for REQ-LIFE-011 and the marker check.
+func appLogin(d *Deps, f *Features) func(ctx context.Context) string {
+	return func(ctx context.Context) string {
+		app, err := github.LoadApp(ctx, d.Pool, f.Secrets)
+		if err != nil {
+			return ""
+		}
+		return app.Slug + "[bot]"
+	}
 }

@@ -36,7 +36,7 @@ func HTTPClient(cfg *Config) (*http.Client, error) {
 }
 
 // redirectHeaders are the request headers that may follow a redirect to
-// another host. Go drops Authorization there, but not x-api-key, api-key or
+// another host or from https to http. Go drops Authorization there, but not x-api-key, api-key or
 // a custom feed header, which would hand the credential to the new host.
 var redirectHeaders = map[string]bool{"Accept": true, "Accept-Encoding": true, "Accept-Language": true, "User-Agent": true, "Content-Type": true, "Range": true}
 
@@ -44,7 +44,7 @@ func keepCredentialsOnHost(req *http.Request, via []*http.Request) error {
 	if len(via) >= 10 {
 		return errors.New("stopped after 10 redirects")
 	}
-	if req.URL.Host != via[0].URL.Host {
+	if req.URL.Host != via[0].URL.Host || req.URL.Scheme != via[0].URL.Scheme {
 		for k := range req.Header {
 			if !redirectHeaders[http.CanonicalHeaderKey(k)] {
 				req.Header.Del(k)

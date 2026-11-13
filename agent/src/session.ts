@@ -1,5 +1,5 @@
 import { mkdirSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { join } from "node:path";
 import {
   AuthStorage,
   createAgentSession,
@@ -11,7 +11,7 @@ import {
   type ExtensionFactory,
 } from "@mariozechner/pi-coding-agent";
 import type { NewEvent } from "./api.js";
-import { inside } from "./paths.js";
+import { inside, toolPaths } from "./paths.js";
 import type { SpecModel } from "./protocol/index.js";
 
 export interface StageSession {
@@ -72,7 +72,7 @@ export function confine(
   const input = (event.input ?? {}) as { path?: unknown };
   const path =
     typeof input.path === "string" && input.path !== "" ? input.path : ".";
-  if (!inside(resolve(cwd, path), workRoot))
+  if (!toolPaths(path, cwd).every((p) => inside(p, workRoot)))
     return {
       block: true,
       reason: `${event.toolName}: paths outside /work are refused`,

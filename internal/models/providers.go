@@ -5,6 +5,7 @@ package models
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -79,8 +80,29 @@ func (c Config) SetCredential(h http.Header, key string) {
 	}
 }
 
-// Endpoint joins the base URL and a path with a query.
+// inference is the request path of each API type that the proxy forwards;
+// any other path of the provider is refused (SI-03).
+var inference = map[string]*regexp.Regexp{
+	"openai-completions":   regexp.MustCompile(`^chat/completions$`),
+	"openai-responses":     regexp.MustCompile(`^responses$`),
+	"anthropic-messages":   regexp.MustCompile(`^messages$`),
+	"google-generative-ai": regexp.MustCompile(`^models/[A-Za-z0-9._-]+:(generateContent|streamGenerateContent)$`),
+}
+
+// ErrPath means a request path that is not an inference call.
+var ErrPath = errors.New("the path is not an inference call of the provider API")
+
+// Endpoint joins the base URL and an inference path with a query. The
+// path must be the inference call of the API type, with no dot segment and
+// no encoded slash, so the key reaches no other endpoint of the host.
 func (c Config) Endpoint(path, rawQuery string) (string, error) {
+	p := strings.Trim(path, "/")
+	if strings.Contains(p, "%") || strings.Contains(p, "\\") {
+		return "", ErrPath
+	}
+	if re := inference[c.APIType]; re == nil || !re.MatchString(p) {
+		return "", ErrPath
+	}
 	u, err := url.Parse(strings.TrimRight(c.BaseURL, "/") + "/" + strings.TrimLeft(path, "/"))
 	if err != nil {
 		return "", err

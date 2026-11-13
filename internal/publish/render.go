@@ -126,7 +126,7 @@ func RenderSummary(s Summary) string {
 	b.WriteString(SummaryMarker + "\n")
 	b.WriteString("**Sayso** · " + StatusLine(s.Status, s.HeadSHA, s.Reason, s.Paused) + "\n\n")
 	if s.Assessment != nil && s.Verdict != "" {
-		fmt.Fprintf(&b, "**Verdict:** %s · **Risk:** %s", verdictText[s.Verdict], s.Assessment.Risk)
+		fmt.Fprintf(&b, "**Verdict:** %s · **Risk:** %s", verdictText[s.Verdict], riskText(s.Assessment.Risk))
 		if len(s.Assessment.RiskReasons) > 0 {
 			b.WriteString(" — " + Safe(strings.Join(s.Assessment.RiskReasons, "; ")))
 		}
@@ -220,7 +220,7 @@ func RenderFinding(f findings.Finding) string {
 	if f.Body != "" {
 		b.WriteString(Safe(f.Body) + "\n\n")
 	}
-	ev := "Evidence (" + f.Evidence.Kind + ")"
+	ev := "Evidence (" + Safe(f.Evidence.Kind) + ")"
 	if f.Evidence.TestPath != "" {
 		ev += ", " + Code(f.Evidence.TestPath)
 	}
@@ -255,6 +255,16 @@ func Conclusion(mode, status, verdict string) string {
 	}
 }
 
+// riskText is one of the four risk levels; other agent text never reaches
+// GitHub in its place.
+func riskText(r string) string {
+	switch r {
+	case "low", "medium", "high", "critical":
+		return r
+	}
+	return "unknown"
+}
+
 // RenderCheck is the finished check run of a round.
 func RenderCheck(mode, status, verdict, reason string, a *runner.Assessment, open []findings.Finding) Check {
 	c := Check{Status: "completed", Conclusion: Conclusion(mode, status, verdict)}
@@ -262,7 +272,7 @@ func RenderCheck(mode, status, verdict, reason string, a *runner.Assessment, ope
 	case "done":
 		risk := ""
 		if a != nil {
-			risk = a.Risk
+			risk = riskText(a.Risk)
 		}
 		c.Title = fmt.Sprintf("%s · risk %s", verdictText[verdict], risk)
 		var b strings.Builder

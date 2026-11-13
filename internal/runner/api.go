@@ -95,7 +95,7 @@ func (a *API) Handler() http.Handler {
 func (a *API) putArtifact(w http.ResponseWriter, r *http.Request) {
 	name := path.Clean(chi.URLParam(r, "*"))
 	if !artifactName.MatchString(name) || strings.Contains(name, "..") {
-		http.Error(w, "artifact name: use session.jsonl.gz, result.json, manifest.json or tests/<path>", http.StatusUnprocessableEntity)
+		http.Error(w, "artifact name: use session.jsonl.gz, manifest.json or tests/<path>", http.StatusUnprocessableEntity)
 		return
 	}
 	data, err := io.ReadAll(http.MaxBytesReader(w, r.Body, MaxArtifact))
@@ -166,7 +166,8 @@ type HeartbeatBody struct {
 	Cancel bool `json:"cancel"`
 }
 
-var artifactName = regexp.MustCompile(`^(session\.jsonl\.gz|result\.json|manifest\.json|tests/[A-Za-z0-9._/-]{1,200})$`)
+// result.json is not here: only /complete stores it, after validation.
+var artifactName = regexp.MustCompile(`^(session\.jsonl\.gz|manifest\.json|tests/[A-Za-z0-9._/-]{1,200})$`)
 
 func (a *API) register(api huma.API) {
 	huma.Register(api, huma.Operation{OperationID: "get-spec", Method: http.MethodGet, Path: "/spec", Tags: []string{"runner"}},
