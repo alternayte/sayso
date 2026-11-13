@@ -1,0 +1,2 @@
+# pi extension packages that the agent image installs at build time, one exact
+# package@version per line. A package that is not here installs at run start.
