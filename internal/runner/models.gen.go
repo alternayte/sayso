@@ -36,6 +36,7 @@ type AgentRun struct {
 	Spec            []byte
 	CancelRequested bool
 	HeartbeatAt     *time.Time
+	WorkID          *uuid.UUID
 }
 
 type Artifact struct {

@@ -66,10 +66,16 @@ func connectProxy(t *testing.T, target string) (*httptest.Server, *atomic.Int32)
 			http.Error(w, err.Error(), http.StatusBadGateway)
 			return
 		}
-		w.WriteHeader(http.StatusOK)
+		// Hijack first and write the status line on the raw connection, so
+		// no HTTP framing reaches the TLS stream that follows.
 		conn, _, err := w.(http.Hijacker).Hijack()
 		if err != nil {
 			_ = up.Close()
+			return
+		}
+		if _, err := conn.Write([]byte("HTTP/1.1 200 Connection Established\r\n\r\n")); err != nil {
+			_ = up.Close()
+			_ = conn.Close()
 			return
 		}
 		go func() { _, _ = io.Copy(up, conn); _ = up.Close() }()
