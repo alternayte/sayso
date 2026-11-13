@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/alternayte/sayso/internal/github"
+	"github.com/alternayte/sayso/internal/guidance"
 	"github.com/alternayte/sayso/internal/publish"
 	"github.com/alternayte/sayso/internal/review"
 	"github.com/alternayte/sayso/internal/runner"
@@ -41,6 +42,7 @@ func ReviewActivities(d *Deps, f *Features) *review.Activities {
 		Feeds:      f.Feeds,
 		Reporter:   f.Reporter,
 		Stores:     f.Stores,
+		Guidance:   &guidance.Store{Pool: d.Pool},
 		AppLogin: func(ctx context.Context) string {
 			app, err := github.LoadApp(ctx, d.Pool, f.Secrets)
 			if err != nil {

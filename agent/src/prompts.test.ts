@@ -123,3 +123,17 @@ describe("SCN-RUN-014", () => {
     ).toContain("Code execution is off");
   });
 });
+
+describe("assembled prompt parity", () => {
+  // internal/guidance assembles the same text for the API preview (§8.9).
+  test("the Go assembler and the runtime give the same prompt", async () => {
+    const { readFileSync } = await import("node:fs");
+    const root = new URL("../../tests/prompts/", import.meta.url);
+    const f = JSON.parse(readFileSync(new URL("fixture.json", root), "utf8"));
+    for (const stage of ["review", "challenge", "reply", "fix"] as const) {
+      const s = spec({ execution: f.execution, prompts: f.prompts, overlay: { block: true, toolchain: "auto", restore: "auto", instructions: f.overlay_instructions } });
+      const want = readFileSync(new URL(`${stage}.golden.txt`, root), "utf8");
+      expect(assemble(s, stage, f.skill).text).toBe(want);
+    }
+  });
+});

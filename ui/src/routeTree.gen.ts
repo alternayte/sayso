@@ -23,6 +23,7 @@ import { Route as AppSettingsExtensionsRouteImport } from './routes/_app/setting
 import { Route as AppSettingsFeedsRouteImport } from './routes/_app/settings/feeds'
 import { Route as AppSettingsGeneralRouteImport } from './routes/_app/settings/general'
 import { Route as AppSettingsGithubRouteImport } from './routes/_app/settings/github'
+import { Route as AppSettingsGuidanceRouteImport } from './routes/_app/settings/guidance'
 import { Route as AppSettingsImagesRouteImport } from './routes/_app/settings/images'
 import { Route as AppSettingsMcpRouteImport } from './routes/_app/settings/mcp'
 import { Route as AppSettingsModelsRouteImport } from './routes/_app/settings/models'
@@ -102,6 +103,11 @@ const AppSettingsGithubRoute = AppSettingsGithubRouteImport.update({
   path: '/settings/github',
   getParentRoute: () => AppRoute,
 } as any)
+const AppSettingsGuidanceRoute = AppSettingsGuidanceRouteImport.update({
+  id: '/settings/guidance',
+  path: '/settings/guidance',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppSettingsImagesRoute = AppSettingsImagesRouteImport.update({
   id: '/settings/images',
   path: '/settings/images',
@@ -163,6 +169,7 @@ export interface FileRoutesByFullPath {
   '/settings/feeds': typeof AppSettingsFeedsRoute
   '/settings/general': typeof AppSettingsGeneralRoute
   '/settings/github': typeof AppSettingsGithubRoute
+  '/settings/guidance': typeof AppSettingsGuidanceRoute
   '/settings/images': typeof AppSettingsImagesRoute
   '/settings/mcp': typeof AppSettingsMcpRoute
   '/settings/models': typeof AppSettingsModelsRoute
@@ -187,6 +194,7 @@ export interface FileRoutesByTo {
   '/settings/feeds': typeof AppSettingsFeedsRoute
   '/settings/general': typeof AppSettingsGeneralRoute
   '/settings/github': typeof AppSettingsGithubRoute
+  '/settings/guidance': typeof AppSettingsGuidanceRoute
   '/settings/images': typeof AppSettingsImagesRoute
   '/settings/mcp': typeof AppSettingsMcpRoute
   '/settings/models': typeof AppSettingsModelsRoute
@@ -213,6 +221,7 @@ export interface FileRoutesById {
   '/_app/settings/feeds': typeof AppSettingsFeedsRoute
   '/_app/settings/general': typeof AppSettingsGeneralRoute
   '/_app/settings/github': typeof AppSettingsGithubRoute
+  '/_app/settings/guidance': typeof AppSettingsGuidanceRoute
   '/_app/settings/images': typeof AppSettingsImagesRoute
   '/_app/settings/mcp': typeof AppSettingsMcpRoute
   '/_app/settings/models': typeof AppSettingsModelsRoute
@@ -239,6 +248,7 @@ export interface FileRouteTypes {
     | '/settings/feeds'
     | '/settings/general'
     | '/settings/github'
+    | '/settings/guidance'
     | '/settings/images'
     | '/settings/mcp'
     | '/settings/models'
@@ -263,6 +273,7 @@ export interface FileRouteTypes {
     | '/settings/feeds'
     | '/settings/general'
     | '/settings/github'
+    | '/settings/guidance'
     | '/settings/images'
     | '/settings/mcp'
     | '/settings/models'
@@ -288,6 +299,7 @@ export interface FileRouteTypes {
     | '/_app/settings/feeds'
     | '/_app/settings/general'
     | '/_app/settings/github'
+    | '/_app/settings/guidance'
     | '/_app/settings/images'
     | '/_app/settings/mcp'
     | '/_app/settings/models'
@@ -406,6 +418,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSettingsGithubRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/settings/guidance': {
+      id: '/_app/settings/guidance'
+      path: '/settings/guidance'
+      fullPath: '/settings/guidance'
+      preLoaderRoute: typeof AppSettingsGuidanceRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/settings/images': {
       id: '/_app/settings/images'
       path: '/settings/images'
@@ -483,6 +502,7 @@ interface AppRouteChildren {
   AppSettingsFeedsRoute: typeof AppSettingsFeedsRoute
   AppSettingsGeneralRoute: typeof AppSettingsGeneralRoute
   AppSettingsGithubRoute: typeof AppSettingsGithubRoute
+  AppSettingsGuidanceRoute: typeof AppSettingsGuidanceRoute
   AppSettingsImagesRoute: typeof AppSettingsImagesRoute
   AppSettingsMcpRoute: typeof AppSettingsMcpRoute
   AppSettingsModelsRoute: typeof AppSettingsModelsRoute
@@ -506,6 +526,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppSettingsFeedsRoute: AppSettingsFeedsRoute,
   AppSettingsGeneralRoute: AppSettingsGeneralRoute,
   AppSettingsGithubRoute: AppSettingsGithubRoute,
+  AppSettingsGuidanceRoute: AppSettingsGuidanceRoute,
   AppSettingsImagesRoute: AppSettingsImagesRoute,
   AppSettingsMcpRoute: AppSettingsMcpRoute,
   AppSettingsModelsRoute: AppSettingsModelsRoute,

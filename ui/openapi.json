@@ -76,6 +76,52 @@
         ],
         "type": "object"
       },
+      "Assembled": {
+        "additionalProperties": false,
+        "properties": {
+          "layers": {
+            "items": {
+              "$ref": "#/components/schemas/AssembledLayer"
+            },
+            "type": "array"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "text",
+          "layers",
+          "sha256"
+        ],
+        "type": "object"
+      },
+      "AssembledLayer": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "enum": [
+              "contract",
+              "global",
+              "repository",
+              "file",
+              "skill"
+            ],
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "text"
+        ],
+        "type": "object"
+      },
       "Assessment": {
         "additionalProperties": false,
         "properties": {
@@ -1113,6 +1159,24 @@
         ],
         "type": "object"
       },
+      "GuidanceBody": {
+        "additionalProperties": false,
+        "properties": {
+          "current": {
+            "$ref": "#/components/schemas/Version"
+          },
+          "history": {
+            "items": {
+              "$ref": "#/components/schemas/Version"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "history"
+        ],
+        "type": "object"
+      },
       "HistoryBody": {
         "additionalProperties": false,
         "properties": {
@@ -1359,6 +1423,46 @@
           "summary",
           "comments",
           "replies"
+        ],
+        "type": "object"
+      },
+      "PreviewBody": {
+        "additionalProperties": false,
+        "properties": {
+          "prompt": {
+            "$ref": "#/components/schemas/Assembled"
+          },
+          "repository": {
+            "type": "string"
+          },
+          "stage": {
+            "type": "string"
+          },
+          "versions": {
+            "$ref": "#/components/schemas/PreviewBodyVersionsStruct"
+          }
+        },
+        "required": [
+          "repository",
+          "stage",
+          "prompt",
+          "versions"
+        ],
+        "type": "object"
+      },
+      "PreviewBodyVersionsStruct": {
+        "additionalProperties": false,
+        "properties": {
+          "global": {
+            "type": "string"
+          },
+          "repository": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "global",
+          "repository"
         ],
         "type": "object"
       },
@@ -2849,6 +2953,19 @@
         ],
         "type": "object"
       },
+      "TextInput": {
+        "additionalProperties": false,
+        "properties": {
+          "text": {
+            "maxLength": 8000,
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "type": "object"
+      },
       "ToolInfo": {
         "additionalProperties": false,
         "properties": {
@@ -2941,6 +3058,32 @@
           "role_source",
           "status",
           "last_login_at"
+        ],
+        "type": "object"
+      },
+      "Version": {
+        "additionalProperties": false,
+        "properties": {
+          "author": {
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "version": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version",
+          "text",
+          "author",
+          "created_at"
         ],
         "type": "object"
       },
@@ -3736,6 +3879,74 @@
         ]
       }
     },
+    "/api/v1/guidance": {
+      "get": {
+        "operationId": "get-guidance",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GuidanceBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "tags": [
+          "guidance"
+        ]
+      },
+      "put": {
+        "operationId": "put-guidance",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TextInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GuidanceBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "tags": [
+          "guidance"
+        ]
+      }
+    },
     "/api/v1/mcp-servers": {
       "get": {
         "operationId": "list-mcp-servers",
@@ -4492,6 +4703,110 @@
         ]
       }
     },
+    "/api/v1/repositories/{owner}/{name}/guidance": {
+      "get": {
+        "operationId": "get-repository-guidance",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "owner",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GuidanceBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "tags": [
+          "guidance"
+        ]
+      },
+      "put": {
+        "operationId": "put-repository-guidance",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "owner",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TextInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GuidanceBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "tags": [
+          "guidance"
+        ]
+      }
+    },
     "/api/v1/repositories/{owner}/{name}/mcp": {
       "put": {
         "operationId": "set-repository-mcp",
@@ -4663,6 +4978,69 @@
         },
         "tags": [
           "repositories"
+        ]
+      }
+    },
+    "/api/v1/repositories/{owner}/{name}/prompt-preview": {
+      "get": {
+        "operationId": "preview-prompt",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "owner",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "stage",
+            "schema": {
+              "default": "review",
+              "enum": [
+                "review",
+                "challenge",
+                "reply",
+                "fix"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreviewBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "tags": [
+          "guidance"
         ]
       }
     },

@@ -3,8 +3,8 @@
 import { type InfiniteData, infiniteQueryOptions, queryOptions, type UseMutationOptions } from '@tanstack/react-query';
 
 import { client } from '../client.gen';
-import { cancelRound, createAppManifest, createMcpServer, createProvider, createSetupSession, deleteAgentImage, deleteExtension, deleteFeed, deleteGrant, deleteMcpServer, deleteProfile, deleteProvider, deleteStore, deleteTeamRole, dismissFinding, exportCase, getAccess, getDiagnostics, getGithub, getMe, getRepository, getReview, getRound, getRun, getRunArtifact, getRunEventPayload, getSettingHistory, getSetupState, getSkills, getStatus, getUsage, listAgentImages, listAudit, listAuditActions, listExtensions, listFeeds, listMcpServers, listProfiles, listProviderModels, listProviderPresets, listProviders, listRepositories, listReviews, listRunEvents, listSettings, listStores, type Options, putAgentImage, putExtension, putFeed, putGrant, putProfile, putSetting, putSkael, putStore, putTeamRole, saveSteeringReview, setRepositoryFeeds, setRepositoryMcp, setRepositoryMode, setRepositoryProfiles, setRepositoryReview, steeringQueue, testFeed, testMcpServer, testProvider, testStore, updateMcpServer, updateProvider } from '../sdk.gen';
-import type { CancelRoundData, CancelRoundError, CreateAppManifestData, CreateAppManifestError, CreateAppManifestResponse, CreateMcpServerData, CreateMcpServerError, CreateMcpServerResponse, CreateProviderData, CreateProviderError, CreateProviderResponse, CreateSetupSessionData, CreateSetupSessionError, CreateSetupSessionResponse, DeleteAgentImageData, DeleteAgentImageError, DeleteAgentImageResponse, DeleteExtensionData, DeleteExtensionError, DeleteExtensionResponse, DeleteFeedData, DeleteFeedError, DeleteFeedResponse, DeleteGrantData, DeleteGrantError, DeleteGrantResponse, DeleteMcpServerData, DeleteMcpServerError, DeleteMcpServerResponse, DeleteProfileData, DeleteProfileError, DeleteProfileResponse, DeleteProviderData, DeleteProviderError, DeleteProviderResponse, DeleteStoreData, DeleteStoreError, DeleteStoreResponse, DeleteTeamRoleData, DeleteTeamRoleError, DeleteTeamRoleResponse, DismissFindingData, DismissFindingError, DismissFindingResponse, ExportCaseData, ExportCaseError, ExportCaseResponse, GetAccessData, GetAccessError, GetAccessResponse, GetDiagnosticsData, GetDiagnosticsError, GetDiagnosticsResponse, GetGithubData, GetGithubError, GetGithubResponse, GetMeData, GetMeError, GetMeResponse, GetRepositoryData, GetRepositoryError, GetRepositoryResponse, GetReviewData, GetReviewError, GetReviewResponse, GetRoundData, GetRoundError, GetRoundResponse, GetRunArtifactData, GetRunArtifactError, GetRunData, GetRunError, GetRunEventPayloadData, GetRunEventPayloadError, GetRunResponse, GetSettingHistoryData, GetSettingHistoryError, GetSettingHistoryResponse, GetSetupStateData, GetSetupStateError, GetSetupStateResponse, GetSkillsData, GetSkillsError, GetSkillsResponse, GetStatusData, GetStatusError, GetStatusResponse, GetUsageData, GetUsageError, GetUsageResponse, ListAgentImagesData, ListAgentImagesError, ListAgentImagesResponse, ListAuditActionsData, ListAuditActionsError, ListAuditActionsResponse, ListAuditData, ListAuditError, ListAuditResponse, ListExtensionsData, ListExtensionsError, ListExtensionsResponse, ListFeedsData, ListFeedsError, ListFeedsResponse, ListMcpServersData, ListMcpServersError, ListMcpServersResponse, ListProfilesData, ListProfilesError, ListProfilesResponse, ListProviderModelsData, ListProviderModelsError, ListProviderModelsResponse, ListProviderPresetsData, ListProviderPresetsError, ListProviderPresetsResponse, ListProvidersData, ListProvidersError, ListProvidersResponse, ListRepositoriesData, ListRepositoriesError, ListRepositoriesResponse, ListReviewsData, ListReviewsError, ListReviewsResponse, ListRunEventsData, ListRunEventsError, ListRunEventsResponse, ListSettingsData, ListSettingsError, ListSettingsResponse, ListStoresData, ListStoresError, ListStoresResponse, PutAgentImageData, PutAgentImageError, PutAgentImageResponse, PutExtensionData, PutExtensionError, PutExtensionResponse, PutFeedData, PutFeedError, PutFeedResponse, PutGrantData, PutGrantError, PutGrantResponse, PutProfileData, PutProfileError, PutProfileResponse, PutSettingData, PutSettingError, PutSettingResponse, PutSkaelData, PutSkaelError, PutSkaelResponse, PutStoreData, PutStoreError, PutStoreResponse, PutTeamRoleData, PutTeamRoleError, PutTeamRoleResponse, SaveSteeringReviewData, SaveSteeringReviewError, SaveSteeringReviewResponse, SetRepositoryFeedsData, SetRepositoryFeedsError, SetRepositoryFeedsResponse, SetRepositoryMcpData, SetRepositoryMcpError, SetRepositoryMcpResponse, SetRepositoryModeData, SetRepositoryModeError, SetRepositoryModeResponse, SetRepositoryProfilesData, SetRepositoryProfilesError, SetRepositoryProfilesResponse, SetRepositoryReviewData, SetRepositoryReviewError, SetRepositoryReviewResponse, SteeringQueueData, SteeringQueueError, SteeringQueueResponse, TestFeedData, TestFeedError, TestFeedResponse2, TestMcpServerData, TestMcpServerError, TestMcpServerResponse, TestProviderData, TestProviderError, TestProviderResponse, TestStoreData, TestStoreError, TestStoreResponse, UpdateMcpServerData, UpdateMcpServerError, UpdateMcpServerResponse, UpdateProviderData, UpdateProviderError, UpdateProviderResponse } from '../types.gen';
+import { cancelRound, createAppManifest, createMcpServer, createProvider, createSetupSession, deleteAgentImage, deleteExtension, deleteFeed, deleteGrant, deleteMcpServer, deleteProfile, deleteProvider, deleteStore, deleteTeamRole, dismissFinding, exportCase, getAccess, getDiagnostics, getGithub, getGuidance, getMe, getRepository, getRepositoryGuidance, getReview, getRound, getRun, getRunArtifact, getRunEventPayload, getSettingHistory, getSetupState, getSkills, getStatus, getUsage, listAgentImages, listAudit, listAuditActions, listExtensions, listFeeds, listMcpServers, listProfiles, listProviderModels, listProviderPresets, listProviders, listRepositories, listReviews, listRunEvents, listSettings, listStores, type Options, previewPrompt, putAgentImage, putExtension, putFeed, putGrant, putGuidance, putProfile, putRepositoryGuidance, putSetting, putSkael, putStore, putTeamRole, saveSteeringReview, setRepositoryFeeds, setRepositoryMcp, setRepositoryMode, setRepositoryProfiles, setRepositoryReview, steeringQueue, testFeed, testMcpServer, testProvider, testStore, updateMcpServer, updateProvider } from '../sdk.gen';
+import type { CancelRoundData, CancelRoundError, CreateAppManifestData, CreateAppManifestError, CreateAppManifestResponse, CreateMcpServerData, CreateMcpServerError, CreateMcpServerResponse, CreateProviderData, CreateProviderError, CreateProviderResponse, CreateSetupSessionData, CreateSetupSessionError, CreateSetupSessionResponse, DeleteAgentImageData, DeleteAgentImageError, DeleteAgentImageResponse, DeleteExtensionData, DeleteExtensionError, DeleteExtensionResponse, DeleteFeedData, DeleteFeedError, DeleteFeedResponse, DeleteGrantData, DeleteGrantError, DeleteGrantResponse, DeleteMcpServerData, DeleteMcpServerError, DeleteMcpServerResponse, DeleteProfileData, DeleteProfileError, DeleteProfileResponse, DeleteProviderData, DeleteProviderError, DeleteProviderResponse, DeleteStoreData, DeleteStoreError, DeleteStoreResponse, DeleteTeamRoleData, DeleteTeamRoleError, DeleteTeamRoleResponse, DismissFindingData, DismissFindingError, DismissFindingResponse, ExportCaseData, ExportCaseError, ExportCaseResponse, GetAccessData, GetAccessError, GetAccessResponse, GetDiagnosticsData, GetDiagnosticsError, GetDiagnosticsResponse, GetGithubData, GetGithubError, GetGithubResponse, GetGuidanceData, GetGuidanceError, GetGuidanceResponse, GetMeData, GetMeError, GetMeResponse, GetRepositoryData, GetRepositoryError, GetRepositoryGuidanceData, GetRepositoryGuidanceError, GetRepositoryGuidanceResponse, GetRepositoryResponse, GetReviewData, GetReviewError, GetReviewResponse, GetRoundData, GetRoundError, GetRoundResponse, GetRunArtifactData, GetRunArtifactError, GetRunData, GetRunError, GetRunEventPayloadData, GetRunEventPayloadError, GetRunResponse, GetSettingHistoryData, GetSettingHistoryError, GetSettingHistoryResponse, GetSetupStateData, GetSetupStateError, GetSetupStateResponse, GetSkillsData, GetSkillsError, GetSkillsResponse, GetStatusData, GetStatusError, GetStatusResponse, GetUsageData, GetUsageError, GetUsageResponse, ListAgentImagesData, ListAgentImagesError, ListAgentImagesResponse, ListAuditActionsData, ListAuditActionsError, ListAuditActionsResponse, ListAuditData, ListAuditError, ListAuditResponse, ListExtensionsData, ListExtensionsError, ListExtensionsResponse, ListFeedsData, ListFeedsError, ListFeedsResponse, ListMcpServersData, ListMcpServersError, ListMcpServersResponse, ListProfilesData, ListProfilesError, ListProfilesResponse, ListProviderModelsData, ListProviderModelsError, ListProviderModelsResponse, ListProviderPresetsData, ListProviderPresetsError, ListProviderPresetsResponse, ListProvidersData, ListProvidersError, ListProvidersResponse, ListRepositoriesData, ListRepositoriesError, ListRepositoriesResponse, ListReviewsData, ListReviewsError, ListReviewsResponse, ListRunEventsData, ListRunEventsError, ListRunEventsResponse, ListSettingsData, ListSettingsError, ListSettingsResponse, ListStoresData, ListStoresError, ListStoresResponse, PreviewPromptData, PreviewPromptError, PreviewPromptResponse, PutAgentImageData, PutAgentImageError, PutAgentImageResponse, PutExtensionData, PutExtensionError, PutExtensionResponse, PutFeedData, PutFeedError, PutFeedResponse, PutGrantData, PutGrantError, PutGrantResponse, PutGuidanceData, PutGuidanceError, PutGuidanceResponse, PutProfileData, PutProfileError, PutProfileResponse, PutRepositoryGuidanceData, PutRepositoryGuidanceError, PutRepositoryGuidanceResponse, PutSettingData, PutSettingError, PutSettingResponse, PutSkaelData, PutSkaelError, PutSkaelResponse, PutStoreData, PutStoreError, PutStoreResponse, PutTeamRoleData, PutTeamRoleError, PutTeamRoleResponse, SaveSteeringReviewData, SaveSteeringReviewError, SaveSteeringReviewResponse, SetRepositoryFeedsData, SetRepositoryFeedsError, SetRepositoryFeedsResponse, SetRepositoryMcpData, SetRepositoryMcpError, SetRepositoryMcpResponse, SetRepositoryModeData, SetRepositoryModeError, SetRepositoryModeResponse, SetRepositoryProfilesData, SetRepositoryProfilesError, SetRepositoryProfilesResponse, SetRepositoryReviewData, SetRepositoryReviewError, SetRepositoryReviewResponse, SteeringQueueData, SteeringQueueError, SteeringQueueResponse, TestFeedData, TestFeedError, TestFeedResponse2, TestMcpServerData, TestMcpServerError, TestMcpServerResponse, TestProviderData, TestProviderError, TestProviderResponse, TestStoreData, TestStoreError, TestStoreResponse, UpdateMcpServerData, UpdateMcpServerError, UpdateMcpServerResponse, UpdateProviderData, UpdateProviderError, UpdateProviderResponse } from '../types.gen';
 
 export type QueryKey<TOptions extends Options> = [
     Pick<TOptions, 'baseUrl' | 'body' | 'headers' | 'path' | 'query'> & {
@@ -383,6 +383,35 @@ export const getGithubOptions = (options?: Options<GetGithubData>) => queryOptio
     queryKey: getGithubQueryKey(options)
 });
 
+export const getGuidanceQueryKey = (options?: Options<GetGuidanceData>) => createQueryKey('getGuidance', options);
+
+export const getGuidanceOptions = (options?: Options<GetGuidanceData>) => queryOptions<GetGuidanceResponse, GetGuidanceError, GetGuidanceResponse, ReturnType<typeof getGuidanceQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await getGuidance({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: getGuidanceQueryKey(options)
+});
+
+export const putGuidanceMutation = (options?: Partial<Options<PutGuidanceData>>): UseMutationOptions<PutGuidanceResponse, PutGuidanceError, Options<PutGuidanceData>> => {
+    const mutationOptions: UseMutationOptions<PutGuidanceResponse, PutGuidanceError, Options<PutGuidanceData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await putGuidance({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
 export const listMcpServersQueryKey = (options?: Options<ListMcpServersData>) => createQueryKey('listMcpServers', options);
 
 export const listMcpServersOptions = (options?: Options<ListMcpServersData>) => queryOptions<ListMcpServersResponse, ListMcpServersError, ListMcpServersResponse, ReturnType<typeof listMcpServersQueryKey>>({
@@ -657,6 +686,35 @@ export const setRepositoryFeedsMutation = (options?: Partial<Options<SetReposito
     return mutationOptions;
 };
 
+export const getRepositoryGuidanceQueryKey = (options: Options<GetRepositoryGuidanceData>) => createQueryKey('getRepositoryGuidance', options);
+
+export const getRepositoryGuidanceOptions = (options: Options<GetRepositoryGuidanceData>) => queryOptions<GetRepositoryGuidanceResponse, GetRepositoryGuidanceError, GetRepositoryGuidanceResponse, ReturnType<typeof getRepositoryGuidanceQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await getRepositoryGuidance({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: getRepositoryGuidanceQueryKey(options)
+});
+
+export const putRepositoryGuidanceMutation = (options?: Partial<Options<PutRepositoryGuidanceData>>): UseMutationOptions<PutRepositoryGuidanceResponse, PutRepositoryGuidanceError, Options<PutRepositoryGuidanceData>> => {
+    const mutationOptions: UseMutationOptions<PutRepositoryGuidanceResponse, PutRepositoryGuidanceError, Options<PutRepositoryGuidanceData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await putRepositoryGuidance({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
 export const setRepositoryMcpMutation = (options?: Partial<Options<SetRepositoryMcpData>>): UseMutationOptions<SetRepositoryMcpResponse, SetRepositoryMcpError, Options<SetRepositoryMcpData>> => {
     const mutationOptions: UseMutationOptions<SetRepositoryMcpResponse, SetRepositoryMcpError, Options<SetRepositoryMcpData>> = {
         mutationFn: async (fnOptions) => {
@@ -698,6 +756,21 @@ export const setRepositoryProfilesMutation = (options?: Partial<Options<SetRepos
     };
     return mutationOptions;
 };
+
+export const previewPromptQueryKey = (options: Options<PreviewPromptData>) => createQueryKey('previewPrompt', options);
+
+export const previewPromptOptions = (options: Options<PreviewPromptData>) => queryOptions<PreviewPromptResponse, PreviewPromptError, PreviewPromptResponse, ReturnType<typeof previewPromptQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await previewPrompt({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: previewPromptQueryKey(options)
+});
 
 export const setRepositoryReviewMutation = (options?: Partial<Options<SetRepositoryReviewData>>): UseMutationOptions<SetRepositoryReviewResponse, SetRepositoryReviewError, Options<SetRepositoryReviewData>> => {
     const mutationOptions: UseMutationOptions<SetRepositoryReviewResponse, SetRepositoryReviewError, Options<SetRepositoryReviewData>> = {

@@ -19,6 +19,7 @@ import (
 	"github.com/alternayte/sayso/internal/auth"
 	"github.com/alternayte/sayso/internal/feeds"
 	"github.com/alternayte/sayso/internal/github"
+	"github.com/alternayte/sayso/internal/guidance"
 	"github.com/alternayte/sayso/internal/mcpproxy"
 	"github.com/alternayte/sayso/internal/models"
 	"github.com/alternayte/sayso/internal/repos"
@@ -169,6 +170,9 @@ func registerOperations(api huma.API, d *Deps, f *Features) {
 	}
 	rv.Register(v1, auth.Op(auth.Viewer), auth.Op(auth.Maintainer), actor)
 	(&runner.RunsAPI{Pool: d.Pool, Stores: f.Stores}).Register(v1, auth.Op(auth.Viewer))
+	(&guidance.API{Store: &guidance.Store{Pool: d.Pool}, Inputs: func(ctx context.Context, repo string) (guidance.Inputs, error) {
+		return rv.Activities.PreviewInputs(ctx, repo)
+	}}).Register(v1, auth.Op(auth.Viewer), auth.Op(auth.Maintainer), auth.Op(auth.Admin), actor)
 	(&storage.API{Registry: f.Stores, Secrets: f.Secrets}).Register(v1, auth.Op(auth.Admin), actor)
 	(&steering.API{Pool: d.Pool}).Register(v1, auth.Op(auth.Viewer), auth.Op(auth.Maintainer), func(ctx context.Context) string {
 		u, _ := f.Settings.String(ctx, settings.GitHubWebURL)
