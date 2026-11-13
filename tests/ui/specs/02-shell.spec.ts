@@ -37,8 +37,10 @@ test("SCN-CFG-010 admins filter the audit log, and the API cannot change it", as
   await page.goto("/settings/general");
   const field = page.getByRole("textbox", { name: "debounce_seconds" });
   await field.fill("75");
+  // Earlier specs may have changed the setting, so wait for this save itself.
+  const before = Number(sql("SELECT count(*) FROM audit_log WHERE action = 'settings.update'"));
   await field.press("Enter");
-  await expect(page.getByRole("button", { name: /^History of debounce_seconds, revision 2$/ })).toBeVisible();
+  await expect.poll(() => Number(sql("SELECT count(*) FROM audit_log WHERE action = 'settings.update'"))).toBeGreaterThan(before);
 
   await page.goto("/audit");
   await page.getByLabel("Action").selectOption("settings.update");
