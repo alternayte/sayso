@@ -19,4 +19,6 @@ type StoreRow struct {
 	IsDefault     bool
 	RetentionDays int32
 	CreatedAt     time.Time
+	TestedAt      *time.Time
+	TestOk        bool
 }

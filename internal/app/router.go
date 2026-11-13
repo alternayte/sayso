@@ -28,6 +28,7 @@ import (
 	"github.com/alternayte/sayso/internal/runner"
 	"github.com/alternayte/sayso/internal/secrets"
 	"github.com/alternayte/sayso/internal/settings"
+	"github.com/alternayte/sayso/internal/setup"
 	"github.com/alternayte/sayso/internal/skills"
 	"github.com/alternayte/sayso/internal/steering"
 	"github.com/alternayte/sayso/internal/storage"
@@ -171,6 +172,7 @@ func registerOperations(api huma.API, d *Deps, f *Features) {
 	}
 	rv.Register(v1, auth.Op(auth.Viewer), auth.Op(auth.Maintainer), actor)
 	(&runner.RunsAPI{Pool: d.Pool, Stores: f.Stores}).Register(v1, auth.Op(auth.Viewer))
+	setup.Register(v1, d.Pool, auth.Op(auth.Admin))
 	(&config.Service{Pool: d.Pool, LearnEnv: f.Secrets.LearnEnv}).Register(v1, auth.Op(auth.Admin), actor)
 	(&guidance.API{Store: &guidance.Store{Pool: d.Pool}, Inputs: func(ctx context.Context, repo string) (guidance.Inputs, error) {
 		return rv.Activities.PreviewInputs(ctx, repo)

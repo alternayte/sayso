@@ -126,6 +126,11 @@ export type CheckResult = {
     ok: boolean;
 };
 
+export type ChecklistBody = {
+    complete: boolean;
+    steps: Array<Step>;
+};
+
 export type Comment = {
     body: string;
     finding_id: string;
@@ -863,6 +868,12 @@ export type SteeringReview = {
     created_at: string;
     note: string;
     tags: Array<string>;
+};
+
+export type Step = {
+    done: boolean;
+    key: 'app' | 'installed' | 'webhook' | 'provider' | 'profiles' | 'storage' | 'repository' | 'round';
+    link: string;
 };
 
 export type StoreBody = {
@@ -2713,6 +2724,31 @@ export type GetSettingHistoryResponses = {
 };
 
 export type GetSettingHistoryResponse = GetSettingHistoryResponses[keyof GetSettingHistoryResponses];
+
+export type GetSetupChecklistData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/setup/checklist';
+};
+
+export type GetSetupChecklistErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type GetSetupChecklistError = GetSetupChecklistErrors[keyof GetSetupChecklistErrors];
+
+export type GetSetupChecklistResponses = {
+    /**
+     * OK
+     */
+    200: ChecklistBody;
+};
+
+export type GetSetupChecklistResponse = GetSetupChecklistResponses[keyof GetSetupChecklistResponses];
 
 export type CreateAppManifestData = {
     body: ManifestBody;

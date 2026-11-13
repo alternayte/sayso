@@ -466,6 +466,25 @@
         ],
         "type": "object"
       },
+      "ChecklistBody": {
+        "additionalProperties": false,
+        "properties": {
+          "complete": {
+            "type": "boolean"
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/Step"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "steps",
+          "complete"
+        ],
+        "type": "object"
+      },
       "Comment": {
         "additionalProperties": false,
         "properties": {
@@ -2978,6 +2997,36 @@
           "note",
           "author",
           "created_at"
+        ],
+        "type": "object"
+      },
+      "Step": {
+        "additionalProperties": false,
+        "properties": {
+          "done": {
+            "type": "boolean"
+          },
+          "key": {
+            "enum": [
+              "app",
+              "installed",
+              "webhook",
+              "provider",
+              "profiles",
+              "storage",
+              "repository",
+              "round"
+            ],
+            "type": "string"
+          },
+          "link": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "done",
+          "link"
         ],
         "type": "object"
       },
@@ -6233,6 +6282,36 @@
         },
         "tags": [
           "settings"
+        ]
+      }
+    },
+    "/api/v1/setup/checklist": {
+      "get": {
+        "operationId": "get-setup-checklist",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChecklistBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "tags": [
+          "setup"
         ]
       }
     },

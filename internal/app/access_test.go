@@ -56,6 +56,7 @@ var required = map[string]string{
 	"dismiss-finding":         "maintainer",
 	"list-stores":             "admin",
 	"get-guidance":            "admin",
+	"get-setup-checklist":     "admin",
 	"get-effective-config":    "viewer",
 	"export-config":           "admin",
 	"plan-config":             "admin",
