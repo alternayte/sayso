@@ -144,7 +144,8 @@ test("SCN-LIFE-013 a maintainer cancels a round in the UI, and the Temporal CLI 
     "cancelled",
   );
   const summary = (await state(repo, pr.number)).issue_comments[0]?.Body ?? "";
-  expect(summary).toContain("Cancelled by `@dev-alice`");
+  // The login is in code formatting with a word joiner, so it notifies nobody.
+  expect(summary).toContain("Cancelled by `@\u2060dev-alice`");
 
   const next = await open(repo, "review-slow", "gate");
   const other = await waitRunning(repo, next.number);
