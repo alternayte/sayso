@@ -418,14 +418,20 @@ func (s *Service) Summary(ctx context.Context, runID uuid.UUID) error {
 }
 
 // plainPath reports whether no segment of p is "." or "..", also when
-// percent-encoded, and no segment holds an encoded slash or a backslash.
+// percent-encoded or inside a segment with an encoded slash (npm scopes
+// use @scope%2fname), and no segment holds a backslash.
 func plainPath(p string) bool {
 	for _, seg := range strings.Split(p, "/") {
 		if d, err := url.PathUnescape(seg); err == nil {
 			seg = d
 		}
-		if seg == "." || seg == ".." || strings.ContainsAny(seg, "/\\") {
+		if strings.Contains(seg, "\\") {
 			return false
+		}
+		for _, part := range strings.Split(seg, "/") {
+			if part == "." || part == ".." {
+				return false
+			}
 		}
 	}
 	return true
