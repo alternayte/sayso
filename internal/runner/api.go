@@ -276,9 +276,12 @@ func (a *API) storeEvents(ctx context.Context, run AgentRun, events []Event) err
 			if err != nil {
 				return huma.Error422UnprocessableEntity(fmt.Sprintf("event %d: payload is not gzip", e.Seq))
 			}
-			gz, err := gzipBytes([]byte(a.RedactRun(string(plain))))
-			if err != nil {
-				return err
+			// Compress again only when redaction changed the text.
+			gz := raw
+			if red := a.RedactRun(string(plain)); red != string(plain) {
+				if gz, err = gzipBytes([]byte(red)); err != nil {
+					return err
+				}
 			}
 			k := fmt.Sprintf("runs/%s/events/%d.json.gz", run.ID, e.Seq)
 			objs = append(objs, storage.Object{Key: k, Data: gz})
