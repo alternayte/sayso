@@ -23,6 +23,7 @@ import (
 	"github.com/alternayte/sayso/internal/runner"
 	"github.com/alternayte/sayso/internal/secrets"
 	"github.com/alternayte/sayso/internal/settings"
+	"github.com/alternayte/sayso/internal/skills"
 	"github.com/alternayte/sayso/internal/storage"
 )
 
@@ -41,6 +42,9 @@ type Features struct {
 	MCP          *mcpproxy.Service
 	MCPProxy     *mcpproxy.Proxy
 	Feeds        *feeds.Service
+	Skills       *skills.Resolver
+	Extensions   *skills.Extensions
+	Reporter     *skills.Reporter
 }
 
 // NewFeatures builds the feature services on the shared resources.
@@ -85,6 +89,9 @@ func NewFeatures(ctx context.Context, d *Deps) (*Features, error) {
 		Models: models.NewService(d.Pool, sec, hc, d.Redactor.Redact, d.Log), ProxyMetrics: models.NewProxyMetrics(d.Metrics),
 		MCP: mcpproxy.NewService(d.Pool, sec, hc, d.Log)}
 	f.MCPProxy = f.MCP.NewProxy(d.Redactor.Redact)
+	f.Skills = &skills.Resolver{Settings: st, Secrets: sec}
+	f.Extensions = &skills.Extensions{Pool: d.Pool, Secrets: sec, Baked: skills.BakedExtensions()}
+	f.Reporter = &skills.Reporter{Pool: d.Pool, Secrets: sec, Settings: st, Stores: &storage.Registry{Pool: d.Pool}, HTTP: hc, BaseURL: d.Config.BaseURL}
 	f.Feeds = feeds.NewService(d.Pool, sec, &storage.Registry{Pool: d.Pool}, hc, d.Log, d.Redactor.Redact, d.Config.RunnerAPIURL,
 		func(ctx context.Context, repos []string) (string, string, error) {
 			return feedGitHubToken(ctx, d, f, repos)
@@ -158,6 +165,9 @@ func registerOperations(api huma.API, d *Deps, f *Features) {
 	f.Models.Register(v1, models.Access{Admin: auth.Op(auth.Admin), Actor: actor})
 	f.MCP.Register(v1, mcpproxy.Access{Admin: auth.Op(auth.Admin), Actor: actor})
 	f.Feeds.Register(v1, feeds.Access{Admin: auth.Op(auth.Admin), Actor: actor})
+	f.Extensions.Register(v1, auth.Op(auth.Admin), actor)
+	(&skills.API{Pool: d.Pool, Settings: f.Settings, Secrets: f.Secrets}).Register(v1, auth.Op(auth.Admin), actor)
+	runner.RegisterImages(v1, d.Pool, auth.Op(auth.Admin), actor)
 	ingress := github.IngressInfo{Mode: "direct", Relay: f.Relay}
 	if d.Config != nil {
 		ingress.Mode, ingress.WebhookURL = d.Config.Ingress, d.Config.PublicWebhookURL
@@ -172,7 +182,7 @@ func registerOperations(api huma.API, d *Deps, f *Features) {
 // OpenAPI returns the OpenAPI document of the API as JSON.
 func OpenAPI() ([]byte, error) {
 	api := NewAPI(chi.NewRouter())
-	registerOperations(api, &Deps{}, &Features{Models: &models.Service{}, MCP: &mcpproxy.Service{}, Feeds: &feeds.Service{}})
+	registerOperations(api, &Deps{}, &Features{Models: &models.Service{}, MCP: &mcpproxy.Service{}, Feeds: &feeds.Service{}, Extensions: &skills.Extensions{}})
 	return json.MarshalIndent(api.OpenAPI(), "", "  ")
 }
 

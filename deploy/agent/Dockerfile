@@ -28,6 +28,10 @@ COPY agent/tsconfig.json agent/tsconfig.build.json ./
 COPY agent/src ./src
 RUN npx tsc -p tsconfig.build.json && npm prune --omit=dev --no-audit --no-fund
 COPY agent/prompts ./prompts
+WORKDIR /opt/sayso/extensions
+COPY deploy/agent/extensions.lock ./extensions.lock
+RUN specs="$(grep -v '^#' extensions.lock | xargs)"; \
+    if [ -n "$specs" ]; then npm install --no-audit --no-fund --ignore-scripts $specs; fi
 
 FROM node:22.23.5-bookworm-slim
 ARG MISE_VERSION=v2026.11.7
@@ -62,6 +66,7 @@ RUN mise install "go@${GO_VERSION}" "node@${NODE_LTS}" "dotnet@${DOTNET_SDK}" \
  && mkdir -p /opt/mise/default-config && cp /home/sayso/.config/mise/config.toml /opt/mise/default-config/config.toml \
  && rm -rf /home/sayso/.config /home/sayso/.cache
 COPY --from=runtime --chown=0:0 /opt/sayso/agent /opt/sayso/agent
+COPY --from=runtime --chown=0:0 /opt/sayso/extensions /opt/sayso/extensions
 COPY --from=build /out/sayso /usr/local/bin/sayso
 # The global mise defaults of the image; a repository's version files change them per run.
 ENV MISE_GLOBAL_CONFIG_FILE=/opt/mise/default-config/config.toml

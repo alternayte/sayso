@@ -13,6 +13,7 @@ import { join, relative } from "node:path";
 import { gzipSync } from "node:zlib";
 import { VERSION } from "@mariozechner/pi-coding-agent";
 import { EventStream, RunnerClient } from "./api.js";
+import { loadExtensions } from "./extensions.js";
 import { configureFeeds } from "./feeds.js";
 import { connectMcp, mcpToolName, mcpTools } from "./mcp.js";
 import { assemble, contractVersion, type Stage } from "./prompts.js";
@@ -251,6 +252,7 @@ async function stages(
     }),
   );
   const mcpNames = mcp.tools.map((t) => mcpToolName(t.server, t.name));
+  const extPaths = await loadExtensions(spec.extensions, (e) => events.emit(e));
   const promptRef: PromptRef = {
     contract: contractVersion,
     global: spec.prompts.global.version,
@@ -313,7 +315,7 @@ async function stages(
         }),
         mcpTools(mcp.tools),
       ],
-      extensionPaths: resolved.extension ? [resolved.extension] : [],
+      extensionPaths: [...(resolved.extension ? [resolved.extension] : []), ...extPaths],
       contextFiles,
       maxToolCalls: spec.limits.max_tool_calls_per_stage || 200,
       toolNames: [

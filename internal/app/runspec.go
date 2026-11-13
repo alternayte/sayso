@@ -9,6 +9,7 @@ import (
 	"github.com/alternayte/sayso/internal/repos"
 	"github.com/alternayte/sayso/internal/runner"
 	"github.com/alternayte/sayso/internal/settings"
+	"github.com/alternayte/sayso/internal/skills"
 )
 
 // enrichSpec adds what the stored spec must not hold: a read-only token for
@@ -33,6 +34,14 @@ func enrichSpec(d *Deps, f *Features) func(context.Context, runner.AgentRun, *ru
 		}
 		for i := range spec.MCP {
 			spec.MCP[i].URL = base + "/mcp/" + spec.MCP[i].Name
+		}
+		// The agent key is the only Skael credential in a run (§14.1).
+		if spec.Skael != nil {
+			key, err := f.Secrets.Value(ctx, skills.AgentKeySecret)
+			if err != nil {
+				return err
+			}
+			spec.Skael.AgentKey = key
 		}
 		if spec.Repository.FullName == "" || run.RepositoryID == nil {
 			return nil

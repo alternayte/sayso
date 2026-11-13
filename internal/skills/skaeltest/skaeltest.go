@@ -15,6 +15,7 @@ import (
 	"net/http/cookiejar"
 	neturl "net/url"
 	"regexp"
+	"strings"
 	"testing"
 	"time"
 
@@ -43,6 +44,7 @@ type Skael struct {
 	ReporterKey string // events:write, outcomes:write
 	ownerKey    string
 	container   testcontainers.Container
+	db          testcontainers.Container
 }
 
 var claimRe = regexp.MustCompile(`"claim_code":"([^"]+)"`)
@@ -83,7 +85,7 @@ func Start(t *testing.T) *Skael {
 	if err != nil {
 		t.Fatal(err)
 	}
-	s := &Skael{URL: fmt.Sprintf("http://%s:%s", host, port.Port()), Port: port.Port(), container: c}
+	s := &Skael{URL: fmt.Sprintf("http://%s:%s", host, port.Port()), Port: port.Port(), container: c, db: pg}
 	s.seed(t)
 	return s
 }
@@ -200,4 +202,25 @@ func (s *Skael) seed(t *testing.T) {
 func (s *Skael) Get(t *testing.T, path string, out any) {
 	t.Helper()
 	call(t, &http.Client{Timeout: 30 * time.Second}, http.MethodGet, s.URL+path, s.ownerKey, nil, out)
+}
+
+// Query runs a SQL query in Skael's database and returns the output of psql.
+func (s *Skael) Query(t *testing.T, sql string) string {
+	t.Helper()
+	code, out, err := s.db.Exec(context.Background(), []string{"psql", "-U", "skael", "-d", "skael", "-At", "-c", sql})
+	if err != nil || code != 0 {
+		t.Fatalf("skael query: %d %v", code, err)
+	}
+	b, _ := io.ReadAll(out)
+	// Exec output has an 8-byte stream header per frame.
+	clean := []byte{}
+	for len(b) >= 8 {
+		n := int(b[4])<<24 | int(b[5])<<16 | int(b[6])<<8 | int(b[7])
+		if 8+n > len(b) {
+			break
+		}
+		clean = append(clean, b[8:8+n]...)
+		b = b[8+n:]
+	}
+	return strings.TrimSpace(string(clean))
 }
