@@ -190,11 +190,13 @@ func TestSCN_LIFE_001_OneWorkflowPerPullRequest(t *testing.T) {
 func TestSCN_LIFE_002_DebounceAndSupersede(t *testing.T) {
 	hold := make(chan struct{})
 	held := true
+	holding := 0
 	var mu sync.Mutex
 	e := start(t, func(runner.Spec) runnertest.Answer {
 		mu.Lock()
 		defer mu.Unlock()
 		if held {
+			holding++
 			return runnertest.Answer{Result: lookGood(), Hold: hold}
 		}
 		return runnertest.Answer{Result: lookGood()}
@@ -222,6 +224,12 @@ func TestSCN_LIFE_002_DebounceAndSupersede(t *testing.T) {
 	}
 	waitFor(t, 30*time.Second, "the agent run", func() bool { return len(e.sr.Started()) == 1 })
 	first := e.sr.Started()[0]
+	// The script runs when the run fetches its spec, after Start returns.
+	waitFor(t, 30*time.Second, "the held agent run", func() bool {
+		mu.Lock()
+		defer mu.Unlock()
+		return holding == 1
+	})
 	// A push during the running round cancels it and starts a new one.
 	mu.Lock()
 	held = false
