@@ -1,0 +1,78 @@
+# Release pipeline (REQ-CORE-011): binaries, both multi-arch images, the Helm
+# chart, the Compose assets and checksums. `just release-snapshot` runs it
+# without publishing; a tag runs it in .github/workflows/release.yml.
+version: 2
+project_name: sayso
+
+before:
+  hooks:
+    - sh -c "cd ui && bun install --frozen-lockfile && bunx vite build"
+    - rm -rf tmp/release
+    - mkdir -p tmp/release
+    - cp deploy/compose/compose.yaml deploy/compose/.env.example tmp/release/
+    - sh -c 'docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/src" -w /src alpine/helm:3.19.0 package deploy/helm/sayso --destination tmp/release --version "{{ .Version }}" --app-version "{{ .Version }}"'
+
+builds:
+  - id: sayso
+    main: ./cmd/sayso
+    binary: sayso
+    env: [CGO_ENABLED=0]
+    flags: [-trimpath]
+    ldflags: ["-s -w -X main.version={{ .Version }}"]
+    goos: [linux, darwin]
+    goarch: [amd64, arm64]
+
+archives:
+  - id: sayso
+    ids: [sayso]
+    formats: [tar.gz]
+    files: [LICENSE, README.md]
+
+checksum:
+  name_template: checksums.txt
+  extra_files:
+    - glob: tmp/release/*
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-snapshot"
+
+dockers_v2:
+  - id: sayso
+    ids: [sayso]
+    dockerfile: deploy/docker/Dockerfile
+    images: ["ghcr.io/alternayte/sayso"]
+    tags: ["{{ .Version }}", "{{ if not .IsSnapshot }}latest{{ end }}"]
+    platforms: [linux/amd64, linux/arm64]
+    build_args:
+      SAYSO_BINARY: prebuilt
+      VERSION: "{{ .Version }}"
+    labels:
+      org.opencontainers.image.source: "{{ .GitURL }}"
+      org.opencontainers.image.licenses: MIT
+  - id: sayso-agent
+    ids: [sayso]
+    dockerfile: deploy/agent/Dockerfile
+    images: ["ghcr.io/alternayte/sayso-agent"]
+    tags: ["{{ .Version }}", "{{ if not .IsSnapshot }}latest{{ end }}"]
+    platforms: [linux/amd64, linux/arm64]
+    build_args:
+      SAYSO_BINARY: prebuilt
+      VERSION: "{{ .Version }}"
+    extra_files:
+      - agent/package.json
+      - agent/package-lock.json
+      - agent/tsconfig.json
+      - agent/tsconfig.build.json
+      - agent/src
+      - agent/prompts
+      - deploy/agent/extensions.lock
+    labels:
+      org.opencontainers.image.source: "{{ .GitURL }}"
+      org.opencontainers.image.licenses: MIT
+
+release:
+  extra_files:
+    - glob: tmp/release/*
+
+changelog:
+  sort: asc
