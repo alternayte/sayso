@@ -51,7 +51,7 @@ test("SCN-CFG-007 each checklist step turns done in order, then the home page is
   await expect.poll(() => sql(`SELECT count(*) FROM webhook_deliveries`)).not.toBe("0");
   await done(3);
 
-  sql(`INSERT INTO providers (name, api_type, base_url, auth_style) VALUES ('fake', 'openai-completions', 'http://fake:9002/v1', 'bearer') ON CONFLICT (name) DO NOTHING`);
+  sql(`INSERT INTO providers (name, api_type, base_url, auth_style, models) VALUES ('fake', 'openai-completions', 'http://fake:9002/v1', 'bearer', '{fake-large}') ON CONFLICT (name) DO NOTHING`);
   await list.nth(3).getByRole("link").click();
   const provider = page.getByRole("listitem").filter({ hasText: "fake" }).first();
   await provider.getByRole("button", { name: "Test" }).click();
