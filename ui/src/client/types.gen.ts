@@ -96,6 +96,58 @@ export type ErrorModel = {
     type?: string;
 };
 
+export type FeedBody = {
+    allowed_repositories: Array<string>;
+    auth_header: string;
+    auth_style: string;
+    cache_enabled: boolean;
+    cache_max_mb: number;
+    checked_at: string | null;
+    /**
+     * Inject mode: the credential reaches agent runs
+     */
+    credential_exposed: boolean;
+    inject_confirmed_by: string;
+    kind: string;
+    match_urls: Array<string>;
+    mode: string;
+    name: string;
+    proxy_url: string;
+    repos: Array<string>;
+    secret: Field;
+    upstream_url: string;
+    username: string;
+};
+
+export type FeedInput = {
+    /**
+     * Empty: all repositories
+     */
+    allowed_repositories?: Array<string>;
+    auth_header?: string;
+    auth_style?: 'basic' | 'bearer' | 'header';
+    cache_enabled?: boolean;
+    cache_max_mb?: number;
+    /**
+     * Inject mode gives the credential to agent runs; confirm it
+     */
+    confirm_inject?: boolean;
+    kind: 'npm' | 'nuget' | 'pypi' | 'maven' | 'goproxy' | 'github';
+    /**
+     * Upstream URLs as repository files write them
+     */
+    match_urls?: Array<string>;
+    mode?: 'proxy' | 'inject';
+    name: string;
+    /**
+     * Kind github: owner/name of the readable repositories
+     */
+    repos?: Array<string>;
+    secret?: Input;
+    upstream_url?: string;
+    username?: string;
+};
+
 export type Field = {
     env_name?: string;
     kind?: 'stored' | 'env_ref';
@@ -348,6 +400,11 @@ export type TeamRoleBody = {
     team_slug: string;
 };
 
+export type TestFeedResponse = {
+    detail: string;
+    ok: boolean;
+};
+
 export type TestProviderRequest = {
     /**
      * Model to test. Default: the first model of the provider.
@@ -583,6 +640,112 @@ export type GetDiagnosticsResponses = {
 };
 
 export type GetDiagnosticsResponse = GetDiagnosticsResponses[keyof GetDiagnosticsResponses];
+
+export type ListFeedsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/feeds';
+};
+
+export type ListFeedsErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type ListFeedsError = ListFeedsErrors[keyof ListFeedsErrors];
+
+export type ListFeedsResponses = {
+    /**
+     * OK
+     */
+    200: Array<FeedBody>;
+};
+
+export type ListFeedsResponse = ListFeedsResponses[keyof ListFeedsResponses];
+
+export type DeleteFeedData = {
+    body?: never;
+    path: {
+        name: string;
+    };
+    query?: never;
+    url: '/api/v1/feeds/{name}';
+};
+
+export type DeleteFeedErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type DeleteFeedError = DeleteFeedErrors[keyof DeleteFeedErrors];
+
+export type DeleteFeedResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type DeleteFeedResponse = DeleteFeedResponses[keyof DeleteFeedResponses];
+
+export type PutFeedData = {
+    body: FeedInput;
+    path: {
+        name: string;
+    };
+    query?: never;
+    url: '/api/v1/feeds/{name}';
+};
+
+export type PutFeedErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type PutFeedError = PutFeedErrors[keyof PutFeedErrors];
+
+export type PutFeedResponses = {
+    /**
+     * OK
+     */
+    200: FeedBody;
+};
+
+export type PutFeedResponse = PutFeedResponses[keyof PutFeedResponses];
+
+export type TestFeedData = {
+    body?: never;
+    path: {
+        name: string;
+    };
+    query?: never;
+    url: '/api/v1/feeds/{name}/test';
+};
+
+export type TestFeedErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type TestFeedError = TestFeedErrors[keyof TestFeedErrors];
+
+export type TestFeedResponses = {
+    /**
+     * OK
+     */
+    200: TestFeedResponse;
+};
+
+export type TestFeedResponse2 = TestFeedResponses[keyof TestFeedResponses];
 
 export type GetGithubData = {
     body?: never;

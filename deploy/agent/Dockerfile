@@ -34,6 +34,9 @@ ARG MISE_VERSION=v2026.11.7
 ARG GO_VERSION=1.26.11
 ARG NODE_LTS=24.22.3
 ARG DOTNET_SDK=10.0.404
+ARG SKAEL_VERSION=0.21.4
+ARG SKAEL_SHA256_AMD64=2d1d7334a454422333c04942a5e63567698b213600a32341aa4d4b85eb1cc2eb
+ARG SKAEL_SHA256_ARM64=9b36c27467675404dafb0bc04da682785cbcca6dcb1e2b1bc6800ccc5b72bf2b
 ARG TARGETARCH
 ENV MISE_DATA_DIR=/opt/mise \
     MISE_YES=1 \
@@ -47,6 +50,10 @@ RUN apt-get update \
  && case "$TARGETARCH" in amd64) a=x64 ;; arm64) a=arm64 ;; *) echo "unsupported arch $TARGETARCH" >&2; exit 1 ;; esac \
  && curl -fsSL -o /usr/local/bin/mise "https://github.com/jdx/mise/releases/download/${MISE_VERSION}/mise-${MISE_VERSION}-linux-${a}" \
  && chmod 0755 /usr/local/bin/mise \
+ && case "$TARGETARCH" in amd64) sum="$SKAEL_SHA256_AMD64" ;; arm64) sum="$SKAEL_SHA256_ARM64" ;; esac \
+ && curl -fsSL -o /tmp/skael.tgz "https://github.com/skael-dev/skael/releases/download/v${SKAEL_VERSION}/skael_${SKAEL_VERSION}_linux_${TARGETARCH}.tar.gz" \
+ && echo "${sum}  /tmp/skael.tgz" | sha256sum -c - \
+ && tar -xzf /tmp/skael.tgz -C /usr/local/bin skael && chmod 0755 /usr/local/bin/skael && rm /tmp/skael.tgz \
  && useradd --uid 10001 --create-home --shell /usr/sbin/nologin sayso \
  && mkdir -p /opt/mise && chown 10001:10001 /opt/mise
 USER 10001:10001

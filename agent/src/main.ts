@@ -13,6 +13,7 @@ import { join, relative } from "node:path";
 import { gzipSync } from "node:zlib";
 import { VERSION } from "@mariozechner/pi-coding-agent";
 import { EventStream, RunnerClient } from "./api.js";
+import { configureFeeds } from "./feeds.js";
 import { connectMcp, mcpToolName, mcpTools } from "./mcp.js";
 import { assemble, contractVersion, type Stage } from "./prompts.js";
 import type {
@@ -21,9 +22,13 @@ import type {
   Finding,
   PromptRef,
   Result,
+  SkaelManifest,
+  SkillLoaded,
+  SkillRef,
   Spec,
   SpecModel,
 } from "./protocol/index.js";
+import { pullSkael } from "./skael.js";
 import { runStage, sessionsDir } from "./session.js";
 import {
   applyChallenge,
@@ -69,38 +74,72 @@ function env(name: string): string {
   return v;
 }
 
-/** skillText returns the text and the SHA-256 of the resolved skill folder. */
-function skillText(
-  spec: Spec,
-  baseDir: string | undefined,
-): { text: string; sha256: string } {
+/** skillFolder returns the text of SKILL.md and the SHA-256 of its folder. */
+function skillFolder(file: string): { text: string; sha256: string } {
+  const h = createHash("sha256");
+  const folder = join(file, "..");
+  const files: string[] = [];
+  const walk = (d: string) => {
+    for (const n of readdirSync(d).sort()) {
+      const p = join(d, n);
+      if (statSync(p).isDirectory()) walk(p);
+      else files.push(p);
+    }
+  };
+  if (existsSync(folder)) walk(folder);
+  for (const f of files) h.update(relative(folder, f) + "\0" + readFileSync(f, "utf8") + "\0");
+  return { text: existsSync(file) ? readFileSync(file, "utf8") : "", sha256: h.digest("hex") };
+}
+
+/** builtinText returns the text and the SHA-256 of the skill files in the spec. */
+function builtinText(files: Record<string, string>): { text: string; sha256: string } {
   const h = createHash("sha256");
   let text = "";
-  if (spec.skill.source === "repository" && baseDir && spec.skill.path) {
-    const file = join(baseDir, spec.skill.path);
-    const folder = join(file, "..");
-    const files: string[] = [];
-    const walk = (d: string) => {
-      for (const n of readdirSync(d).sort()) {
-        const p = join(d, n);
-        if (statSync(p).isDirectory()) walk(p);
-        else files.push(p);
-      }
-    };
-    if (existsSync(folder)) walk(folder);
-    for (const f of files) {
-      h.update(relative(folder, f) + "\0" + readFileSync(f, "utf8") + "\0");
-    }
-    text = existsSync(file) ? readFileSync(file, "utf8") : "";
-  } else {
-    for (const [p, content] of Object.entries(spec.skill.files ?? {}).sort(
-      ([a], [b]) => a.localeCompare(b),
-    )) {
-      h.update(p + "\0" + content + "\0");
-      if (p.endsWith("SKILL.md")) text = content;
-    }
+  for (const [p, content] of Object.entries(files).sort(([a], [b]) => a.localeCompare(b))) {
+    h.update(p + "\0" + content + "\0");
+    if (p.endsWith("SKILL.md")) text = content;
   }
   return { text, sha256: h.digest("hex") };
+}
+
+interface ResolvedSkill {
+  skill: { text: string; sha256: string };
+  ref: SkillRef;
+  manifest?: SkaelManifest;
+  loaded?: SkillLoaded[];
+  extension?: string;
+}
+
+/**
+ * resolveSkill loads the skill of the spec (§8.4). A Skael skill comes from
+ * `skael pull`; when the pull fails, the run uses the built-in skill that the
+ * spec carries and records an error event (REQ-SKL-003).
+ */
+async function resolveSkill(spec: Spec, ws: Workspace, events: EventStream): Promise<ResolvedSkill> {
+  if (spec.skill.source === "repository" && spec.skill.path) {
+    const sk = skillFolder(join(ws.base, spec.skill.path));
+    return { skill: sk, ref: { source: "repository", name: spec.skill.name, version: spec.skill.commit, sha256: sk.sha256 } };
+  }
+  if (spec.skill.source === "skael" && spec.skael) {
+    const pulled = await pullSkael(spec.skael, join(ws.root, "skills"), (e) => events.emit(e));
+    const entry = pulled?.manifest.skills.find((s) => s.name === spec.skael!.skill_name);
+    if (pulled && entry) {
+      const file = join(pulled.skillsDir, entry.name, "SKILL.md");
+      const sk = skillFolder(file);
+      // The agent reads the skill file, so the Skael hook records the activation.
+      sk.text = `The review skill is in ${file}. Read it with the read tool before you start.\n\n${sk.text}`;
+      return {
+        skill: sk,
+        ref: { source: "skael", name: entry.name, version: String(entry.version), sha256: sk.sha256 },
+        manifest: pulled.manifest,
+        loaded: pulled.manifest.skills.map((s) => ({ name: s.name, version: s.version, stage: "review" })),
+        extension: pulled.extension,
+      };
+    }
+    if (pulled && !entry) events.emit({ type: "error", name: "skael skill", status: "failed", preview: `The set ${spec.skael.set} has no skill ${spec.skael.skill_name}; the run uses the built-in skill.` });
+  }
+  const sk = builtinText(spec.skill.files ?? {});
+  return { skill: sk, ref: { source: "builtin", name: "pr-review", sha256: sk.sha256 } };
 }
 
 function targetsOf(spec: Spec, stage: Stage): SpecModel[] {
@@ -167,6 +206,7 @@ export async function run(): Promise<number> {
     const outcome = await stages(spec, ws, token, events, abort.signal);
     clearTimeout(deadline);
     await uploadArtifacts(api, ws.head, work);
+    if (outcome.result?.skael_manifest) await api.artifact("manifest.json", JSON.stringify(outcome.result.skael_manifest, null, 2), "application/json");
     if (cancelled) {
       await finish({ exit_status: "cancelled" });
       return 0;
@@ -192,7 +232,8 @@ async function stages(
   signal: AbortSignal,
 ): Promise<Complete> {
   const collector = new Collector();
-  const skill = skillText(spec, ws.base);
+  const resolved = await resolveSkill(spec, ws, events);
+  const skill = resolved.skill;
   const head = headFiles(ws.head);
   const agentDir = join(homedir(), ".pi", "agent");
   const contextFiles = ["AGENTS.md", "CLAUDE.md"]
@@ -224,20 +265,17 @@ async function stages(
     run_id: spec.run_id,
     kind: spec.kind,
     harness,
-    skill_ref: {
-      source: spec.skill.source,
-      name: spec.skill.name,
-      version: spec.skill.version || spec.skill.commit || undefined,
-      sha256: skill.sha256,
-    },
+    skill_ref: resolved.ref,
+    skael_manifest: resolved.manifest,
+    skills_loaded: resolved.loaded,
     usage: { tokens_in: 0, tokens_out: 0 },
     prompt_ref: promptRef,
   };
   events.emit({
     type: "skill_load",
-    name: spec.skill.name,
-    status: spec.skill.source,
-    preview: `${spec.skill.source} ${spec.skill.name} ${skill.sha256.slice(0, 12)}`,
+    name: resolved.ref.name,
+    status: resolved.ref.source,
+    preview: `${resolved.ref.source} ${resolved.ref.name} ${skill.sha256.slice(0, 12)}`,
   });
 
   const runOne = async (
@@ -275,7 +313,7 @@ async function stages(
         }),
         mcpTools(mcp.tools),
       ],
-      extensionPaths: [],
+      extensionPaths: resolved.extension ? [resolved.extension] : [],
       contextFiles,
       maxToolCalls: spec.limits.max_tool_calls_per_stage || 200,
       toolNames: [
@@ -302,6 +340,7 @@ async function stages(
     if (spec.kind === "round") {
       let note: string | undefined;
       if (spec.execution) {
+        Object.assign(process.env, await configureFeeds(spec.feeds, token, ws.head, (e) => events.emit(e)));
         const prepared = await prepareEnvironment(
           ws.head,
           spec.overlay,

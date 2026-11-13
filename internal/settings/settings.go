@@ -35,6 +35,11 @@ const (
 	RegisterTemporalNS       = "register_temporal_namespace"
 	GitHubWebURL             = "github_web_url"
 	GitHubAPIURL             = "github_api_url"
+	SkaelURL                 = "skael_url"
+	SkaelDefaultSet          = "skael_default_set"
+	SkaelAllowedSets         = "skael_allowed_sets"
+	SkaelReviewSkill         = "skael_review_skill"
+	SkaelActivationHook      = "skael_activation_hook"
 )
 
 // Defaults holds every known key with its default value. The JSON type of
@@ -58,6 +63,11 @@ var Defaults = map[string]json.RawMessage{
 	RegisterTemporalNS:       json.RawMessage(`true`),
 	GitHubWebURL:             json.RawMessage(`"https://github.com"`),
 	GitHubAPIURL:             json.RawMessage(`"https://api.github.com"`),
+	SkaelURL:                 json.RawMessage(`""`),
+	SkaelDefaultSet:          json.RawMessage(`""`),
+	SkaelAllowedSets:         json.RawMessage(`[]`),
+	SkaelReviewSkill:         json.RawMessage(`"pr-review"`),
+	SkaelActivationHook:      json.RawMessage(`true`),
 }
 
 // ErrUnknownKey is returned for a key that is not in Defaults.
@@ -205,4 +215,19 @@ func kind(v json.RawMessage) string {
 	default:
 		return "number"
 	}
+}
+
+// Decode reads a setting of any JSON type into out, or its default when the
+// row is missing.
+func (s *Store) Decode(ctx context.Context, key string, out any) error {
+	raw := Defaults[key]
+	if row, err := s.Get(ctx, key); err == nil {
+		raw = row.Value
+	} else if !errors.Is(err, pgx.ErrNoRows) {
+		return err
+	}
+	if err := json.Unmarshal(raw, out); err != nil {
+		return fmt.Errorf("setting %s: %w", key, err)
+	}
+	return nil
 }

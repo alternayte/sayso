@@ -999,6 +999,12 @@
             },
             "type": "array"
           },
+          "feeds": {
+            "items": {
+              "$ref": "#/components/schemas/SpecFeed"
+            },
+            "type": "array"
+          },
           "fix": {
             "$ref": "#/components/schemas/FixInput"
           },
@@ -1089,6 +1095,7 @@
           "models",
           "mcp",
           "extensions",
+          "feeds",
           "limits",
           "prompts",
           "execution"
@@ -1114,6 +1121,65 @@
         "required": [
           "name",
           "package"
+        ],
+        "type": "object"
+      },
+      "SpecFeed": {
+        "additionalProperties": false,
+        "properties": {
+          "auth_style": {
+            "type": "string"
+          },
+          "credential": {
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "npm",
+              "nuget",
+              "pypi",
+              "maven",
+              "goproxy",
+              "github"
+            ],
+            "type": "string"
+          },
+          "match_urls": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "mode": {
+            "enum": [
+              "proxy",
+              "inject"
+            ],
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "repos": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "url": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "kind",
+          "mode",
+          "url",
+          "match_urls",
+          "repos"
         ],
         "type": "object"
       },
