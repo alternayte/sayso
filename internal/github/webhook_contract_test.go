@@ -242,7 +242,9 @@ func TestSCN_GH_006_EventsMapToSignals(t *testing.T) {
 		{signals.SignalCommand, func(s signals.Signal) bool { return s.CommentID == 602 && s.CommentSource == "review" }},
 		{signals.SignalHumanComment, func(s signals.Signal) bool { return s.CommentID == 603 }},
 		{signals.SignalThreadState, func(s signals.Signal) bool { return s.ThreadNodeID == "PRRT_1" && s.Resolved }},
-		{signals.SignalHeadUpdated, func(s signals.Signal) bool { return s.Trigger == signals.TriggerCheckRerequest && s.HeadSHA == "abc123" }},
+		{signals.SignalHeadUpdated, func(s signals.Signal) bool {
+			return s.Trigger == signals.TriggerCheckRerequest && s.HeadSHA == "abc123"
+		}},
 		{signals.SignalClosed, func(s signals.Signal) bool { return s.Merged }},
 	}
 	if len(got) != len(want) {

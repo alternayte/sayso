@@ -99,7 +99,9 @@ func SortFindings(fs []findings.Finding) {
 	})
 }
 
-func cell(s string) string { return strings.ReplaceAll(strings.ReplaceAll(Safe(s), "|", "\\|"), "\n", " ") }
+func cell(s string) string {
+	return strings.ReplaceAll(strings.ReplaceAll(Safe(s), "|", "\\|"), "\n", " ")
+}
 
 // RenderSummary renders the summary comment in the order of §10.2.
 func RenderSummary(s Summary) string {
