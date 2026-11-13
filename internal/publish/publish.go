@@ -246,7 +246,7 @@ func plan(r *round, ledger []findings.Finding, diff map[string]map[int]bool, lim
 	}
 	for _, x := range r.Outcome.Reopened {
 		if f := byID[x.FindingID]; f.CommentID != nil {
-			body := fmt.Sprintf("**%s** is open again. A new test shows the issue: `%s`.\n\n%s", f.Label(), strings.ReplaceAll(x.Evidence.TestPath, "`", ""), Safe(x.Evidence.Detail))
+			body := fmt.Sprintf("**%s** is open again. A new test shows the issue: %s.\n\n%s", f.Label(), Code(x.Evidence.TestPath), Safe(x.Evidence.Detail))
 			replies = append(replies, Reply{Key: "reopened:" + x.FindingID.String(), FindingID: x.FindingID.String(), Body: body})
 		}
 	}

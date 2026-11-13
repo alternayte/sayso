@@ -4,7 +4,6 @@ import {
   AuthStorage,
   createAgentSession,
   DefaultResourceLoader,
-  isToolCallEventType,
   ModelRegistry,
   SessionManager,
   SettingsManager,
@@ -12,6 +11,7 @@ import {
   type ExtensionFactory,
 } from "@mariozechner/pi-coding-agent";
 import type { NewEvent } from "./api.js";
+import { inside } from "./paths.js";
 import type { SpecModel } from "./protocol/index.js";
 
 export interface StageSession {
@@ -57,6 +57,67 @@ function piModel(t: SpecModel) {
 }
 
 /**
+ * confine refuses a file tool call whose path, with symlinks resolved, is
+ * outside the work root: the head checkout can hold a symlink to any file
+ * of the runner (SI-05, SI-21). Bash, when execution is on, is not a file
+ * tool and is not confined here.
+ */
+export function confine(
+  event: { toolName: string; input: unknown },
+  cwd: string,
+  workRoot: string,
+): { block: true; reason: string } | undefined {
+  if (!["read", "write", "edit", "grep", "find", "ls"].includes(event.toolName))
+    return undefined;
+  const input = (event.input ?? {}) as { path?: unknown };
+  const path =
+    typeof input.path === "string" && input.path !== "" ? input.path : ".";
+  if (!inside(resolve(cwd, path), workRoot))
+    return {
+      block: true,
+      reason: `${event.toolName}: paths outside /work are refused`,
+    };
+  return undefined;
+}
+
+/**
+ * resourceLoader loads only what the spec gives (§8.5, SI-06): the system
+ * prompt, the context files from the base commit and the run extensions.
+ * Nothing comes from the head worktree, also not .pi/SYSTEM.md or
+ * .pi/APPEND_SYSTEM.md.
+ */
+export function resourceLoader(
+  s: Pick<
+    StageSession,
+    | "cwd"
+    | "agentDir"
+    | "extensionPaths"
+    | "extensions"
+    | "contextFiles"
+    | "systemPrompt"
+  >,
+  settings: SettingsManager,
+  guard: ExtensionFactory,
+): DefaultResourceLoader {
+  return new DefaultResourceLoader({
+    cwd: s.cwd,
+    agentDir: s.agentDir,
+    settingsManager: settings,
+    noExtensions: true,
+    noSkills: true,
+    noPromptTemplates: true,
+    noThemes: true,
+    noContextFiles: true,
+    additionalExtensionPaths: s.extensionPaths,
+    extensionFactories: [guard, ...s.extensions],
+    agentsFilesOverride: () => ({ agentsFiles: s.contextFiles }),
+    systemPromptOverride: () => s.systemPrompt,
+    appendSystemPrompt: [],
+    appendSystemPromptOverride: () => [],
+  });
+}
+
+/**
  * runStage runs one pi session with explicit resources only (§8.5): no
  * project extensions, settings, skills or context files from the head
  * worktree. Models go through the model proxy with the run token.
@@ -93,31 +154,10 @@ export async function runStage(
           block: true,
           reason: `limit_reached: ${s.maxToolCalls} tool calls in this stage`,
         };
-      if (
-        isToolCallEventType("write", event) ||
-        isToolCallEventType("edit", event)
-      ) {
-        const p = resolve(s.cwd, event.input.path);
-        if (p !== s.workRoot && !p.startsWith(s.workRoot + "/"))
-          return { block: true, reason: "writes outside /work are refused" };
-      }
-      return undefined;
+      return confine(event, s.cwd, s.workRoot);
     });
   };
-  const loader = new DefaultResourceLoader({
-    cwd: s.cwd,
-    agentDir: s.agentDir,
-    settingsManager: settings,
-    noExtensions: true,
-    noSkills: true,
-    noPromptTemplates: true,
-    noThemes: true,
-    noContextFiles: true,
-    additionalExtensionPaths: s.extensionPaths,
-    extensionFactories: [guard, ...s.extensions],
-    agentsFilesOverride: () => ({ agentsFiles: s.contextFiles }),
-    systemPromptOverride: () => s.systemPrompt,
-  });
+  const loader = resourceLoader(s, settings, guard);
   await loader.reload();
   for (const x of loader.getExtensions().errors)
     s.emit({

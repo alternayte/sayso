@@ -106,6 +106,13 @@ func (a *Activities) PrepareWork(ctx context.Context, id uuid.UUID) error {
 		entry.LastHumanReply = thread[n-1].Body
 	}
 	spec := cfg.Spec
+	// Execution off now wins over the round snapshot (SI-21).
+	var execNow bool
+	if err := a.Pool.QueryRow(ctx, `SELECT rp.execution FROM reviews rv JOIN repositories rp ON rp.id = rv.repository_id WHERE rv.id = $1`, w.reviewID).Scan(&execNow); err != nil {
+		return err
+	}
+	spec.Execution = spec.Execution && execNow
+	cfg.Effective.Execution = spec.Execution
 	spec.Kind, spec.HeadSHA = w.kind, p.head
 	spec.Stages = []string{w.kind}
 	spec.Profiles = map[string]string{w.kind: profile}
@@ -229,23 +236,37 @@ func (a *Activities) applyFix(ctx context.Context, w work, p *prRef, f *findings
 	if err != nil {
 		return err
 	}
+	// Check every path before Sayso writes anything.
+	paths := make([]string, len(files))
+	for i, fd := range files {
+		if fd.IsDelete || fd.IsBinary || fd.IsRename || fd.IsCopy {
+			return a.finishWork(ctx, w.id, "failed", "the patch deletes, renames, copies or changes a binary file; Sayso commits only text changes", nil)
+		}
+		path, ok := patchPath(fd.NewName)
+		if !ok {
+			return a.finishWork(ctx, w.id, "failed", "the patch has a file path outside the repository", nil)
+		}
+		paths[i] = path
+	}
 	branch := fmt.Sprintf("sayso/fix/%d-%d", p.number, f.Seq)
-	// A retry after the branch exists reuses it.
-	if err := p.gh.Client.CreateBranch(ctx, p.gh.Token, p.gh.Inst, p.full, branch, pr.Head.SHA); err != nil && !strings.Contains(err.Error(), "already exists") {
+	// Sayso commits only to a branch it created (SI-07). A retry reuses the
+	// branch when this work recorded that it created it.
+	if err := p.gh.Client.CreateBranch(ctx, p.gh.Token, p.gh.Inst, p.full, branch, pr.Head.SHA); err != nil {
+		if !strings.Contains(err.Error(), "already exists") {
+			return err
+		}
+		var created bool
+		if err := a.Pool.QueryRow(ctx, `SELECT branch_created FROM agent_work WHERE id = $1`, w.id).Scan(&created); err != nil {
+			return err
+		}
+		if !created {
+			return a.finishWork(ctx, w.id, "failed", "the branch "+branch+" exists and Sayso did not create it", nil)
+		}
+	} else if _, err := a.Pool.Exec(ctx, `UPDATE agent_work SET branch_created = true WHERE id = $1`, w.id); err != nil {
 		return err
 	}
-	for _, fd := range files {
-		if fd.IsDelete || fd.IsBinary {
-			return a.finishWork(ctx, w.id, "failed", "the patch deletes or changes a binary file; Sayso commits only text changes", nil)
-		}
-		// Like git apply -p1, which the runtime checks the patch with.
-		path := fd.NewName
-		for _, pre := range []string{"b/", "a/"} {
-			if p, ok := strings.CutPrefix(path, pre); ok {
-				path = p
-				break
-			}
-		}
+	for i, fd := range files {
+		path := paths[i]
 		old, sha, _, err := p.gh.Client.FileWithSHA(ctx, p.gh.Token, p.gh.Inst, p.full, path, branch)
 		if err != nil {
 			return err
@@ -258,7 +279,7 @@ func (a *Activities) applyFix(ctx context.Context, w work, p *prRef, f *findings
 			}
 			return a.finishWork(ctx, w.id, "failed", "the patch does not apply to "+path+": "+err.Error(), nil)
 		}
-		msg := fmt.Sprintf("Fix %s: %s", f.Label(), patch.Title)
+		msg := fmt.Sprintf("Fix %s: %s", f.Label(), publish.Safe(patch.Title))
 		if err := p.gh.Client.PutFile(ctx, p.gh.Token, p.gh.Inst, p.full, branch, path, msg, out.Bytes(), sha); err != nil {
 			return err
 		}
@@ -281,4 +302,24 @@ func (a *Activities) applyFix(ctx context.Context, w work, p *prRef, f *findings
 // FailWork records a work item that did not finish.
 func (a *Activities) FailWork(ctx context.Context, id uuid.UUID, reason string) error {
 	return a.finishWork(ctx, id, "failed", reason, nil)
+}
+
+// patchPath strips the a/ or b/ prefix like git apply -p1, which the runtime
+// checks the patch with, and accepts only a plain path inside the repository.
+func patchPath(name string) (string, bool) {
+	for _, pre := range []string{"b/", "a/"} {
+		if p, ok := strings.CutPrefix(name, pre); ok {
+			name = p
+			break
+		}
+	}
+	if name == "" || strings.HasPrefix(name, "/") || strings.ContainsAny(name, "\\\x00") {
+		return "", false
+	}
+	for _, seg := range strings.Split(name, "/") {
+		if seg == "" || seg == "." || seg == ".." || seg == ".git" {
+			return "", false
+		}
+	}
+	return name, true
 }

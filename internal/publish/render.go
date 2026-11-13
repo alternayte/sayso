@@ -22,14 +22,31 @@ const (
 // FindingMarker is the marker at the end of an inline comment.
 func FindingMarker(id string) string { return fmt.Sprintf(findingMarker, id) }
 
-var mention = regexp.MustCompile(`(^|[^\w` + "`" + `])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,38})(?:/[A-Za-z0-9_-]+)?)`)
+var (
+	mention = regexp.MustCompile(`(^|[^\w` + "`" + `])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,38})(?:/[A-Za-z0-9_-]+)?)`)
+	// at is any @ before a login character, whatever comes before it.
+	at = regexp.MustCompile(`@([A-Za-z0-9])`)
+)
+
+// wordJoiner after an @ stops GitHub from reading a mention. Code formatting
+// alone does not: a stray backtick in agent text can end the code span.
+const wordJoiner = "\u2060"
 
 // Safe makes agent text safe to post (SI-16): HTML is escaped, so no raw
-// HTML or comment marker reaches GitHub, and each @mention is in code
-// formatting, so it notifies nobody.
+// HTML or comment marker reaches GitHub; every @ before a login character
+// gets a word joiner, so it notifies nobody, and a mention that stands
+// alone is in code formatting.
 func Safe(s string) string {
 	s = strings.NewReplacer("&", "&amp;", "<", "&lt;", ">", "&gt;").Replace(s)
-	return mention.ReplaceAllString(s, "$1`@$2`")
+	s = mention.ReplaceAllString(s, "$1`@$2`")
+	return at.ReplaceAllString(s, "@"+wordJoiner+"$1")
+}
+
+// Code is agent text as one inline code span: no backtick and no line
+// break can end the span, and no mention notifies (SI-16).
+func Code(s string) string {
+	s = strings.Join(strings.Fields(strings.ReplaceAll(s, "`", "")), " ")
+	return "`" + at.ReplaceAllString(s, "@"+wordJoiner+"$1") + "`"
 }
 
 // sha7 is the short form of a commit SHA.
@@ -118,14 +135,14 @@ func RenderSummary(s Summary) string {
 		if len(s.Assessment.WhereToLook) > 0 {
 			b.WriteString("**Where to look**\n\n")
 			for _, w := range s.Assessment.WhereToLook[:min(6, len(s.Assessment.WhereToLook))] {
-				fmt.Fprintf(&b, "- `%s`: %s\n", strings.ReplaceAll(w.Target, "`", ""), Safe(w.Why))
+				fmt.Fprintf(&b, "- %s: %s\n", Code(w.Target), Safe(w.Why))
 			}
 			b.WriteString("\n")
 		}
 		if len(s.Assessment.Impact) > 0 {
 			b.WriteString("**Impact**\n\n")
 			for _, i := range s.Assessment.Impact[:min(6, len(s.Assessment.Impact))] {
-				fmt.Fprintf(&b, "- `%s`: %s\n", strings.ReplaceAll(i.Area, "`", ""), Safe(i.Why))
+				fmt.Fprintf(&b, "- %s: %s\n", Code(i.Area), Safe(i.Why))
 			}
 			b.WriteString("\n")
 		}
@@ -205,7 +222,7 @@ func RenderFinding(f findings.Finding) string {
 	}
 	ev := "Evidence (" + f.Evidence.Kind + ")"
 	if f.Evidence.TestPath != "" {
-		ev += ", `" + strings.ReplaceAll(f.Evidence.TestPath, "`", "") + "`"
+		ev += ", " + Code(f.Evidence.TestPath)
 	}
 	b.WriteString("_" + ev + ":_ " + Safe(f.Evidence.Detail) + "\n\n")
 	if f.Suggestion != "" {
@@ -255,7 +272,7 @@ func RenderCheck(mode, status, verdict, reason string, a *runner.Assessment, ope
 		var blocking []string
 		for _, f := range open {
 			if f.Blocking {
-				blocking = append(blocking, fmt.Sprintf("- **%s** %s (`%s:%d`)", f.Label(), Safe(f.Title), strings.ReplaceAll(f.Path, "`", ""), f.StartLine))
+				blocking = append(blocking, fmt.Sprintf("- **%s** %s (%s)", f.Label(), Safe(f.Title), Code(fmt.Sprintf("%s:%d", f.Path, f.StartLine))))
 			}
 		}
 		if len(blocking) > 0 {

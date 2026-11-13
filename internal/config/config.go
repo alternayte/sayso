@@ -100,16 +100,18 @@ type Profiles struct {
 }
 
 type Repository struct {
-	FullName             string   `yaml:"full_name"`
-	Mode                 string   `yaml:"mode"`
-	Profiles             Profiles `yaml:"profiles"`
-	SkaelSet             string   `yaml:"skael_set"`
-	AgentImage           string   `yaml:"agent_image"`
-	MCPServers           []string `yaml:"mcp_servers"`
-	Feeds                []string `yaml:"feeds"`
-	MaxConcurrentRounds  *int     `yaml:"max_concurrent_rounds,omitempty"`
-	Execution            bool     `yaml:"execution"`
-	ChallengeMinSeverity string   `yaml:"challenge_min_severity"`
+	FullName            string   `yaml:"full_name"`
+	Mode                string   `yaml:"mode"`
+	Profiles            Profiles `yaml:"profiles"`
+	SkaelSet            string   `yaml:"skael_set"`
+	AgentImage          string   `yaml:"agent_image"`
+	MCPServers          []string `yaml:"mcp_servers"`
+	Feeds               []string `yaml:"feeds"`
+	MaxConcurrentRounds *int     `yaml:"max_concurrent_rounds,omitempty"`
+	// Execution is a pointer so that a missing key keeps the default, on,
+	// and does not turn execution off without a word.
+	Execution            *bool  `yaml:"execution"`
+	ChallengeMinSeverity string `yaml:"challenge_min_severity"`
 }
 
 type TeamRole struct {
@@ -157,6 +159,12 @@ func Parse(b []byte) (Doc, error) {
 	dec.KnownFields(true)
 	if err := dec.Decode(&d); err != nil {
 		return d, fmt.Errorf("config: %w", err)
+	}
+	on := true
+	for i := range d.Repositories {
+		if d.Repositories[i].Execution == nil {
+			d.Repositories[i].Execution = &on
+		}
 	}
 	if d.Version != Version {
 		return d, fmt.Errorf("config: version %d is not supported; use version %d", d.Version, Version)
@@ -367,14 +375,16 @@ func Export(ctx context.Context, db DB) (Doc, error) {
 			max_concurrent_rounds, execution, challenge_min_severity FROM repositories WHERE removed_at IS NULL ORDER BY lower(full_name)`, func(r pgx.Rows) error {
 		var x Repository
 		var max *int32
+		var exec bool
 		if err := r.Scan(&x.FullName, &x.Mode, &x.Profiles.Review, &x.Profiles.Challenge, &x.Profiles.Reply, &x.Profiles.Fix, &x.SkaelSet, &x.AgentImage,
-			&x.MCPServers, &x.Feeds, &max, &x.Execution, &x.ChallengeMinSeverity); err != nil {
+			&x.MCPServers, &x.Feeds, &max, &exec, &x.ChallengeMinSeverity); err != nil {
 			return err
 		}
 		if max != nil {
 			n := int(*max)
 			x.MaxConcurrentRounds = &n
 		}
+		x.Execution = &exec
 		x.MCPServers, x.Feeds = list(x.MCPServers), list(x.Feeds)
 		d.Repositories = append(d.Repositories, x)
 		return nil

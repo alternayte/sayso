@@ -75,7 +75,7 @@ func (c *Client) FileWithSHA(ctx context.Context, token string, inst int64, full
 		Encoding string `json:"encoding"`
 		SHA      string `json:"sha"`
 	}
-	p := fmt.Sprintf("/repos/%s/contents/%s?ref=%s", fullName, strings.TrimLeft(path, "/"), url.QueryEscape(ref))
+	p := contentsPath(fullName, path) + "?ref=" + url.QueryEscape(ref)
 	if err := c.call(ctx, call{method: http.MethodGet, path: p, auth: "Bearer " + token, out: &out, inst: inst, prio: High}); err != nil {
 		if err == ErrNotFound {
 			return nil, "", false, nil
@@ -96,7 +96,7 @@ func (c *Client) PutFile(ctx context.Context, token string, inst int64, fullName
 	if sha != "" {
 		in["sha"] = sha
 	}
-	return c.call(ctx, call{method: http.MethodPut, path: fmt.Sprintf("/repos/%s/contents/%s", fullName, strings.TrimLeft(path, "/")), auth: "Bearer " + token,
+	return c.call(ctx, call{method: http.MethodPut, path: contentsPath(fullName, path), auth: "Bearer " + token,
 		in: in, inst: inst, prio: High})
 }
 
@@ -109,4 +109,14 @@ func (c *Client) CreatePull(ctx context.Context, token string, inst int64, fullN
 	err := c.call(ctx, call{method: http.MethodPost, path: fmt.Sprintf("/repos/%s/pulls", fullName), auth: "Bearer " + token,
 		in: map[string]string{"title": title, "body": body, "head": head, "base": base}, out: &out, inst: inst, prio: High})
 	return out, err
+}
+
+// contentsPath is the contents API path of a file, with each path segment
+// escaped, so a file name cannot reach another endpoint.
+func contentsPath(fullName, path string) string {
+	segs := strings.Split(strings.TrimLeft(path, "/"), "/")
+	for i, s := range segs {
+		segs[i] = url.PathEscape(s)
+	}
+	return fmt.Sprintf("/repos/%s/contents/%s", fullName, strings.Join(segs, "/"))
 }

@@ -31,6 +31,10 @@ type Kubernetes struct {
 	Poll time.Duration
 }
 
+// MaxStatusFailures is the count of status calls in a row that may fail
+// before Wait gives up on a Job.
+const MaxStatusFailures = 5
+
 // JobGrace is added to the run timeout for activeDeadlineSeconds.
 const JobGrace = 5 * time.Minute
 
@@ -142,12 +146,25 @@ func (h *kubeJob) Wait(ctx context.Context) (string, error) {
 	}
 	t := time.NewTicker(poll)
 	defer t.Stop()
+	// A failed status call can be a short API server outage: the run goes
+	// on, and only repeated failures end it, with the Job deleted.
+	fails := 0
 	for {
-		if reason, done, err := h.status(ctx); err != nil || done {
-			if done && reason == ExitImagePullFailed {
+		reason, done, err := h.status(ctx)
+		switch {
+		case done:
+			if reason == ExitImagePullFailed {
 				_ = h.Stop(context.WithoutCancel(ctx))
 			}
 			return reason, err
+		case err != nil && ctx.Err() == nil:
+			if fails++; fails >= MaxStatusFailures {
+				_ = h.Stop(context.WithoutCancel(ctx))
+				return ExitFailed, err
+			}
+		case err != nil:
+		default:
+			fails = 0
 		}
 		select {
 		case <-ctx.Done():

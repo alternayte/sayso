@@ -56,12 +56,18 @@ var tokenPatterns = []struct {
 	{regexp.MustCompile(`github_pat_[A-Za-z0-9_]{20,}`), "github_token"},
 }
 
-// RedactRun removes run tokens, GitHub tokens and the known secrets from
-// text written by a run (§15.1).
-func (a *API) RedactRun(s string) string {
+// RedactTokens replaces run tokens and GitHub tokens by their pattern.
+func RedactTokens(s string) string {
 	for _, p := range tokenPatterns {
 		s = p.re.ReplaceAllString(s, "[redacted:"+p.name+"]")
 	}
+	return s
+}
+
+// RedactRun removes run tokens, GitHub tokens and the known secrets from
+// text written by a run (§15.1).
+func (a *API) RedactRun(s string) string {
+	s = RedactTokens(s)
 	if a.Redact != nil {
 		s = a.Redact(s)
 	}
@@ -97,11 +103,12 @@ func (a *API) putArtifact(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "artifact is larger than 64 MB", http.StatusRequestEntityTooLarge)
 		return
 	}
-	ct := r.Header.Get("Content-Type")
-	if ct == "" {
-		ct = "application/octet-stream"
-	}
-	if err := a.PutArtifact(r.Context(), runFrom(r.Context()).ID, name, ct, data); err != nil {
+	// The name decides the content type; the run cannot choose one (SI-05).
+	if err := a.PutArtifact(r.Context(), runFrom(r.Context()).ID, name, ArtifactType(name), data); err != nil {
+		if errors.Is(err, errNotGzip) {
+			http.Error(w, err.Error(), http.StatusUnprocessableEntity)
+			return
+		}
 		http.Error(w, "artifact not stored", http.StatusInternalServerError)
 		return
 	}
@@ -326,16 +333,33 @@ func (a *API) storeEvents(ctx context.Context, run AgentRun, events []Event) err
 	})
 }
 
-// PutArtifact stores an artifact in the default store, redacted when it is
-// text or gzip text.
+// ArtifactType is the content type of an artifact by its name. Test
+// output is plain text whatever its bytes are.
+func ArtifactType(name string) string {
+	switch {
+	case strings.HasSuffix(name, ".gz"):
+		return "application/gzip"
+	case strings.HasSuffix(name, ".json") && !strings.HasPrefix(name, "tests/"):
+		return "application/json"
+	default:
+		return "text/plain; charset=utf-8"
+	}
+}
+
+var errNotGzip = errors.New("artifact: a .gz artifact must be gzip data")
+
+// PutArtifact stores an artifact in the default store, redacted. Binary
+// data is redacted too: a secret value is the same bytes in any file.
 func (a *API) PutArtifact(ctx context.Context, runID uuid.UUID, name, contentType string, data []byte) error {
 	if strings.HasSuffix(name, ".gz") {
-		if plain, err := gunzip(data); err == nil {
-			if data, err = gzipBytes([]byte(a.RedactRun(string(plain)))); err != nil {
-				return err
-			}
+		plain, err := gunzip(data)
+		if err != nil {
+			return errNotGzip
 		}
-	} else if isText(data) {
+		if data, err = gzipBytes([]byte(a.RedactRun(string(plain)))); err != nil {
+			return err
+		}
+	} else {
 		data = []byte(a.RedactRun(string(data)))
 	}
 	storeID, store, err := a.Stores.Default(ctx)
@@ -349,11 +373,6 @@ func (a *API) PutArtifact(ctx context.Context, runID uuid.UUID, name, contentTyp
 	sum := sha256.Sum256(data)
 	return New(a.Pool).PutArtifact(ctx, PutArtifactParams{RunID: runID, Name: name, StoreID: storeID, Key: key, Size: int64(len(data)),
 		Sha256: hex.EncodeToString(sum[:]), ContentType: contentType})
-}
-
-func isText(b []byte) bool {
-	n := min(len(b), 8000)
-	return !bytes.ContainsRune(b[:n], 0)
 }
 
 func gunzip(b []byte) ([]byte, error) {

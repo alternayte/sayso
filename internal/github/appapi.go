@@ -285,7 +285,7 @@ func (c *Client) FileAt(ctx context.Context, token string, inst int64, fullName,
 		Content  string `json:"content"`
 		Encoding string `json:"encoding"`
 	}
-	p := fmt.Sprintf("/repos/%s/contents/%s?ref=%s", fullName, strings.TrimLeft(path, "/"), url.QueryEscape(ref))
+	p := contentsPath(fullName, path) + "?ref=" + url.QueryEscape(ref)
 	if err := c.call(ctx, call{method: http.MethodGet, path: p, auth: "Bearer " + token, out: &out, inst: inst}); err != nil {
 		return nil, err
 	}

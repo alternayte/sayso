@@ -94,7 +94,7 @@ test("SCN-PUB-008 the UI renders agent text with no script and no active link", 
   expect(await page.locator("main script").count()).toBe(0);
   expect(await page.locator('main a[href^="javascript"]').count()).toBe(0);
   await expect(
-    out.locator("code", { hasText: "@octo-admin" }).first(),
+    out.locator("code", { hasText: /@\u2060?octo-admin/ }).first(),
   ).toBeVisible();
   await expect(out.getByRole("link", { name: "the guide" })).toHaveCount(0);
   expect(errors).toEqual([]);

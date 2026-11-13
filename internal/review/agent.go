@@ -66,21 +66,9 @@ func (a *AgentActivities) RunAgent(ctx context.Context, in RunAgentInput) (strin
 			return "", err
 		}
 	}
+	// The stored spec holds extension names and feeds without credentials;
+	// GET /spec adds the secrets when the runtime calls it (SI-05).
 	spec := cfg.Spec
-	names := make([]string, 0, len(spec.Extensions))
-	for _, e := range spec.Extensions {
-		names = append(names, e.Name)
-	}
-	if spec.Extensions, err = a.Extensions.Spec(ctx, names); err != nil {
-		return "", err
-	}
-	feedNames := make([]string, 0, len(spec.Feeds))
-	for _, f := range spec.Feeds {
-		feedNames = append(feedNames, f.Name)
-	}
-	if spec.Feeds, err = a.Feeds.SpecFeeds(ctx, spec.Repository.FullName, feedNames); err != nil {
-		return "", err
-	}
 	if spec.Feeds == nil {
 		spec.Feeds = []runner.SpecFeed{}
 	}

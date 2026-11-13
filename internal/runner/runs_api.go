@@ -181,7 +181,7 @@ func (a *RunsAPI) Register(api huma.API, view map[string]any) {
 			if err != nil {
 				return nil, err
 			}
-			return a.serve(ctx, store, key, ct, false)
+			return a.serve(ctx, store, key, ArtifactType(in.Name), false)
 		})
 
 	sse.Register(api, huma.Operation{OperationID: "stream-run", Method: http.MethodGet, Path: "/runs/{id}/stream", Tags: tags, Metadata: view},
@@ -277,8 +277,12 @@ func (a *RunsAPI) serve(ctx context.Context, storeID uuid.UUID, key, contentType
 				r = gz
 			}
 		}
+		// Run output is data from the pull request: never render it as a page.
 		hctx.SetHeader("Content-Type", contentType)
 		hctx.SetHeader("Cache-Control", "private, no-store")
+		hctx.SetHeader("X-Content-Type-Options", "nosniff")
+		hctx.SetHeader("Content-Disposition", "attachment")
+		hctx.SetHeader("Content-Security-Policy", "sandbox; default-src 'none'")
 		_, _ = io.Copy(hctx.BodyWriter(), r)
 	}}, nil
 }

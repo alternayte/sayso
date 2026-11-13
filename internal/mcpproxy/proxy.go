@@ -137,7 +137,7 @@ func (p *Proxy) server(runID uuid.UUID, srv McpServer) *mcp.Server {
 				b, _ := json.Marshal(res.Content)
 				preview = string(b)
 			}
-			p.event(runID, srv.Name, name, status, time.Since(start), p.redact(clip(string(mustJSON(req.Params.Arguments))+" → "+preview, 500)))
+			p.event(runID, srv.Name, name, status, time.Since(start), clip(p.redact(string(mustJSON(req.Params.Arguments))+" → "+preview), 500))
 			return res, err
 		})
 	}

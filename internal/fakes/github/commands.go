@@ -275,3 +275,32 @@ func (f *Fake) Pulls(repo string) []Pull {
 	}
 	return out
 }
+
+// UserBranch creates a branch from main as a user would push it, outside
+// the App.
+func (f *Fake) UserBranch(repo, branch string, files map[string]string) error {
+	f.mu.Lock()
+	r := f.repos[repo]
+	f.mu.Unlock()
+	if r == nil {
+		return fmt.Errorf("fake: no repository %s", repo)
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if _, err := f.git(r.dir, "branch", branch, "main"); err != nil {
+		return err
+	}
+	_, err := f.commit(r, branch, branch, files, "user commit")
+	return err
+}
+
+// ContentWrites counts the contents API writes to a repository.
+func (f *Fake) ContentWrites(repo string) int {
+	n := 0
+	for _, q := range f.Requests() {
+		if q.Method == http.MethodPut && strings.HasPrefix(q.Path, "/repos/"+repo+"/contents/") {
+			n++
+		}
+	}
+	return n
+}

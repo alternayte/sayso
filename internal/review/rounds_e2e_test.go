@@ -281,7 +281,7 @@ func TestSCN_PUB_008_AgentTextIsSafeOnGitHub(t *testing.T) {
 		t.Fatalf("comments: %d", len(cs))
 	}
 	for _, body := range []string{cs[0].Body, e.summary(t, pr.Number).Body} {
-		if !strings.Contains(body, "`@octo-admin`") || strings.Contains(body, " @octo-admin") || strings.Contains(body, "<script>") {
+		if !strings.Contains(body, "`@\u2060octo-admin`") || strings.Contains(body, "@octo-admin") || strings.Contains(body, "<script>") {
 			t.Fatalf("unsafe text:\n%s", body)
 		}
 	}
