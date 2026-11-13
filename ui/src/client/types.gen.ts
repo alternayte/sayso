@@ -23,6 +23,17 @@ export type ArtifactBody = {
     size: number;
 };
 
+export type Assembled = {
+    layers: Array<AssembledLayer>;
+    sha256: string;
+    text: string;
+};
+
+export type AssembledLayer = {
+    name: 'contract' | 'global' | 'repository' | 'file' | 'skill';
+    text: string;
+};
+
 export type Assessment = {
     impact: Array<Impact>;
     risk: 'low' | 'medium' | 'high' | 'critical';
@@ -341,6 +352,11 @@ export type GrantBody = {
     role: 'admin' | 'maintainer' | 'viewer';
 };
 
+export type GuidanceBody = {
+    current?: Version;
+    history: Array<Version>;
+};
+
 export type HistoryBody = {
     new_value: unknown;
     old_value: unknown;
@@ -420,6 +436,18 @@ export type Preview = {
     comments: Array<Comment>;
     replies: Array<Reply>;
     summary: string;
+};
+
+export type PreviewBody = {
+    prompt: Assembled;
+    repository: string;
+    stage: string;
+    versions: PreviewBodyVersionsStruct;
+};
+
+export type PreviewBodyVersionsStruct = {
+    global: string;
+    repository: string;
 };
 
 export type ProfileBody = {
@@ -844,6 +872,10 @@ export type TestResult = {
     ok: boolean;
 };
 
+export type TextInput = {
+    text: string;
+};
+
 export type ToolInfo = {
     allowed: boolean;
     description: string;
@@ -870,6 +902,13 @@ export type UserBody = {
     role: string;
     role_source: string;
     status: string;
+};
+
+export type Version = {
+    author: string;
+    created_at: string;
+    text: string;
+    version: number;
 };
 
 export type WhereToLook = {
@@ -1405,6 +1444,56 @@ export type GetGithubResponses = {
 
 export type GetGithubResponse = GetGithubResponses[keyof GetGithubResponses];
 
+export type GetGuidanceData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/guidance';
+};
+
+export type GetGuidanceErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type GetGuidanceError = GetGuidanceErrors[keyof GetGuidanceErrors];
+
+export type GetGuidanceResponses = {
+    /**
+     * OK
+     */
+    200: GuidanceBody;
+};
+
+export type GetGuidanceResponse = GetGuidanceResponses[keyof GetGuidanceResponses];
+
+export type PutGuidanceData = {
+    body: TextInput;
+    path?: never;
+    query?: never;
+    url: '/api/v1/guidance';
+};
+
+export type PutGuidanceErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type PutGuidanceError = PutGuidanceErrors[keyof PutGuidanceErrors];
+
+export type PutGuidanceResponses = {
+    /**
+     * OK
+     */
+    200: GuidanceBody;
+};
+
+export type PutGuidanceResponse = PutGuidanceResponses[keyof PutGuidanceResponses];
+
 export type ListMcpServersData = {
     body?: never;
     path?: never;
@@ -1904,6 +1993,62 @@ export type SetRepositoryFeedsResponses = {
 
 export type SetRepositoryFeedsResponse = SetRepositoryFeedsResponses[keyof SetRepositoryFeedsResponses];
 
+export type GetRepositoryGuidanceData = {
+    body?: never;
+    path: {
+        owner: string;
+        name: string;
+    };
+    query?: never;
+    url: '/api/v1/repositories/{owner}/{name}/guidance';
+};
+
+export type GetRepositoryGuidanceErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type GetRepositoryGuidanceError = GetRepositoryGuidanceErrors[keyof GetRepositoryGuidanceErrors];
+
+export type GetRepositoryGuidanceResponses = {
+    /**
+     * OK
+     */
+    200: GuidanceBody;
+};
+
+export type GetRepositoryGuidanceResponse = GetRepositoryGuidanceResponses[keyof GetRepositoryGuidanceResponses];
+
+export type PutRepositoryGuidanceData = {
+    body: TextInput;
+    path: {
+        owner: string;
+        name: string;
+    };
+    query?: never;
+    url: '/api/v1/repositories/{owner}/{name}/guidance';
+};
+
+export type PutRepositoryGuidanceErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type PutRepositoryGuidanceError = PutRepositoryGuidanceErrors[keyof PutRepositoryGuidanceErrors];
+
+export type PutRepositoryGuidanceResponses = {
+    /**
+     * OK
+     */
+    200: GuidanceBody;
+};
+
+export type PutRepositoryGuidanceResponse = PutRepositoryGuidanceResponses[keyof PutRepositoryGuidanceResponses];
+
 export type SetRepositoryMcpData = {
     body: SetRepositoryMcpRequest;
     path: {
@@ -1987,6 +2132,36 @@ export type SetRepositoryProfilesResponses = {
 };
 
 export type SetRepositoryProfilesResponse = SetRepositoryProfilesResponses[keyof SetRepositoryProfilesResponses];
+
+export type PreviewPromptData = {
+    body?: never;
+    path: {
+        owner: string;
+        name: string;
+    };
+    query?: {
+        stage?: 'review' | 'challenge' | 'reply' | 'fix';
+    };
+    url: '/api/v1/repositories/{owner}/{name}/prompt-preview';
+};
+
+export type PreviewPromptErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type PreviewPromptError = PreviewPromptErrors[keyof PreviewPromptErrors];
+
+export type PreviewPromptResponses = {
+    /**
+     * OK
+     */
+    200: PreviewBody;
+};
+
+export type PreviewPromptResponse = PreviewPromptResponses[keyof PreviewPromptResponses];
 
 export type SetRepositoryReviewData = {
     body: SetRepositoryReviewRequest;

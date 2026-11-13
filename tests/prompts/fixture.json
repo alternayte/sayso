@@ -1,0 +1,2 @@
+{"execution": false, "skill": "Check money paths first.", "overlay_instructions": "Review the ledger first.",
+ "prompts": {"global": {"version": "2", "text": "Prefer small findings."}, "repository": {"version": "1", "text": "Money is in cents."}, "file": {}}}

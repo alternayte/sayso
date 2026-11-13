@@ -15,6 +15,7 @@ import (
 	"github.com/alternayte/sayso/internal/feeds"
 	"github.com/alternayte/sayso/internal/findings"
 	"github.com/alternayte/sayso/internal/github"
+	"github.com/alternayte/sayso/internal/guidance"
 	"github.com/alternayte/sayso/internal/publish"
 	"github.com/alternayte/sayso/internal/repos"
 	"github.com/alternayte/sayso/internal/review/signals"
@@ -38,6 +39,7 @@ type Activities struct {
 	Feeds      *feeds.Service
 	Reporter   *skills.Reporter
 	Stores     *storage.Registry
+	Guidance   *guidance.Store
 	// AppLogin is the login of the App bot, for REQ-LIFE-011.
 	AppLogin func(ctx context.Context) string
 }
@@ -196,50 +198,15 @@ func (a *Activities) ResolveConfig(ctx context.Context, roundID uuid.UUID) error
 	if err != nil {
 		return err
 	}
-	read := func(ctx context.Context, path, ref string) ([]byte, bool, error) {
-		b, err := gh.Client.FileAt(ctx, gh.Token, gh.Inst, repo.FullName, path, ref)
-		if errors.Is(err, github.ErrNotFound) {
-			return nil, false, nil
-		}
-		return b, err == nil, err
-	}
-	var ov repos.Overlay
-	var warnings []string
-	if b, found, err := read(ctx, ".sayso.yml", base); err != nil {
-		return err
-	} else if found {
-		if ov, warnings, err = repos.ParseOverlay(b); err != nil {
-			warnings = append(warnings, ".sayso.yml: "+err.Error())
-		}
-	}
-	var allowed []string
-	_ = a.Settings.Decode(ctx, settings.AllowedProfiles, &allowed)
-	enabled, err := a.Extensions.Enabled(ctx, repo.FullName)
+	eff, skill, skael, err := a.repoConfig(ctx, gh, repo, base)
 	if err != nil {
 		return err
 	}
-	var images []string
-	rows, err := a.Pool.Query(ctx, `SELECT name FROM agent_images ORDER BY name`)
+	promptGlobal, err := a.Guidance.Layer(ctx, nil)
 	if err != nil {
 		return err
 	}
-	for rows.Next() {
-		var n string
-		if err := rows.Scan(&n); err != nil {
-			rows.Close()
-			return err
-		}
-		images = append(images, n)
-	}
-	rows.Close()
-	eff := repos.Resolve(repo, ov, warnings, repos.Limits{AllowedProfiles: allowed, MaxInlineComments: a.intSetting(ctx, settings.MaxInlineComments, 10),
-		Extensions: enabled, Images: images})
-
-	skillPath := eff.Skill
-	if skillPath == "" {
-		skillPath = repos.DefaultSkillPath
-	}
-	skill, skael, err := a.Skills.Resolve(ctx, read, skillPath, base, repo.SkaelSet)
+	promptRepo, err := a.Guidance.Layer(ctx, &repo.ID)
 	if err != nil {
 		return err
 	}
@@ -365,7 +332,7 @@ func (a *Activities) ResolveConfig(ctx context.Context, roundID uuid.UUID) error
 		Feeds:       sf,
 		Limits: runner.Limits{MaxFindings: a.intSetting(ctx, settings.MaxFindingsPerRound, 25), MaxToolCallsPerStage: a.intSetting(ctx, settings.MaxToolCallsPerStage, 200),
 			TimeoutSeconds: timeout * 60, SetupTimeoutSeconds: a.intSetting(ctx, settings.SetupTimeoutMinutes, 10) * 60, ChallengeMinSeverity: eff.ChallengeMin},
-		Prompts:   runner.Prompts{File: runner.PromptLayer{Version: base, Text: eff.Instructions}},
+		Prompts:   runner.Prompts{Global: promptGlobal, Repository: promptRepo, File: runner.PromptLayer{Version: base, Text: eff.Instructions}},
 		Execution: eff.Execution,
 	}
 	// Extension secrets stay out of the stored snapshot; RunAgent reads them again.
@@ -383,6 +350,95 @@ func (a *Activities) ResolveConfig(ctx context.Context, roundID uuid.UUID) error
 	raw, _ := json.Marshal(cfg)
 	_, err = a.Pool.Exec(ctx, `UPDATE rounds SET config_snapshot = $2 WHERE id = $1`, roundID, raw)
 	return err
+}
+
+// repoConfig reads .sayso.yml at ref and resolves the effective config
+// and the review skill (§8.3, §8.4).
+func (a *Activities) repoConfig(ctx context.Context, gh publish.Session, repo repos.Repository, ref string) (repos.Effective, runner.Skill, *runner.Skael, error) {
+	read := a.reader(gh, repo.FullName)
+	var ov repos.Overlay
+	var warnings []string
+	if b, found, err := read(ctx, ".sayso.yml", ref); err != nil {
+		return repos.Effective{}, runner.Skill{}, nil, err
+	} else if found {
+		if ov, warnings, err = repos.ParseOverlay(b); err != nil {
+			warnings = append(warnings, ".sayso.yml: "+err.Error())
+		}
+	}
+	var allowed []string
+	_ = a.Settings.Decode(ctx, settings.AllowedProfiles, &allowed)
+	enabled, err := a.Extensions.Enabled(ctx, repo.FullName)
+	if err != nil {
+		return repos.Effective{}, runner.Skill{}, nil, err
+	}
+	var images []string
+	rows, err := a.Pool.Query(ctx, `SELECT name FROM agent_images ORDER BY name`)
+	if err != nil {
+		return repos.Effective{}, runner.Skill{}, nil, err
+	}
+	for rows.Next() {
+		var n string
+		if err := rows.Scan(&n); err != nil {
+			rows.Close()
+			return repos.Effective{}, runner.Skill{}, nil, err
+		}
+		images = append(images, n)
+	}
+	rows.Close()
+	eff := repos.Resolve(repo, ov, warnings, repos.Limits{AllowedProfiles: allowed, MaxInlineComments: a.intSetting(ctx, settings.MaxInlineComments, 10),
+		Extensions: enabled, Images: images})
+	skillPath := eff.Skill
+	if skillPath == "" {
+		skillPath = repos.DefaultSkillPath
+	}
+	skill, skael, err := a.Skills.Resolve(ctx, read, skillPath, ref, repo.SkaelSet)
+	return eff, skill, skael, err
+}
+
+func (a *Activities) reader(gh publish.Session, fullName string) skills.FileReader {
+	return func(ctx context.Context, path, ref string) ([]byte, bool, error) {
+		b, err := gh.Client.FileAt(ctx, gh.Token, gh.Inst, fullName, path, ref)
+		if errors.Is(err, github.ErrNotFound) {
+			return nil, false, nil
+		}
+		return b, err == nil, err
+	}
+}
+
+// PreviewInputs returns the repository parts of the prompt preview at the
+// head of the default branch (REQ-CFG-011).
+func (a *Activities) PreviewInputs(ctx context.Context, fullName string) (guidance.Inputs, error) {
+	repo, err := repos.New(a.Pool).ByFullName(ctx, fullName)
+	if err != nil {
+		return guidance.Inputs{}, err
+	}
+	gh, err := a.GitHub(ctx, repo.InstallationID, repo.FullName)
+	if err != nil {
+		return guidance.Inputs{}, err
+	}
+	eff, skill, skael, err := a.repoConfig(ctx, gh, repo, repo.DefaultBranch)
+	if err != nil {
+		return guidance.Inputs{}, err
+	}
+	in := guidance.Inputs{Instructions: eff.Instructions, Execution: eff.Execution}
+	switch skill.Source {
+	case "repository":
+		b, _, err := a.reader(gh, repo.FullName)(ctx, skill.Path, repo.DefaultBranch)
+		if err != nil {
+			return in, err
+		}
+		in.Skill = string(b)
+	case "skael":
+		// The runtime pulls a Skael skill at run time; the preview names it.
+		in.Skill = fmt.Sprintf("The review skill is %s from the Skael set %s. The runtime pulls it at the start of the run.", skael.SkillName, skael.Set)
+	default:
+		for p, c := range skill.Files {
+			if strings.HasSuffix(p, "SKILL.md") {
+				in.Skill = c
+			}
+		}
+	}
+	return in, nil
 }
 
 // MarkStarted sets the round running and shows it on GitHub (§7.2 step 2).

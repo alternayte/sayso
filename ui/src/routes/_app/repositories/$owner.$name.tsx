@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import {
+  getRepositoryGuidanceOptions,
   getRepositoryOptions,
   listRepositoriesQueryKey,
   setRepositoryFeedsMutation,
@@ -9,7 +10,9 @@ import {
   setRepositoryReviewMutation,
   setRepositoryModeMutation,
 } from "@/client/@tanstack/react-query.gen";
+import { putRepositoryGuidance } from "@/client/sdk.gen";
 import type { RepositoryBody } from "@/client/types.gen";
+import { GuidanceEditor, PromptPreview } from "@/components/guidance";
 import { Button, ErrorAlert, PageHead, Segmented } from "@/components/app-ui";
 import { Alert } from "@/components/ui/alert";
 import { Switch } from "@/components/ui/switch";
@@ -55,9 +58,52 @@ function Repository() {
             queryKey={opts.queryKey}
           />
           <FeedsCard key={repo.data.feeds.join(",")} repo={repo.data} canEdit={atLeast(me.role, "maintainer")} queryKey={opts.queryKey} />
+          <GuidanceCard owner={owner} name={name} canEdit={atLeast(me.role, "maintainer")} />
         </div>
       )}
     </>
+  );
+}
+
+/** GuidanceCard edits the repository guidance and shows the assembled prompt (REQ-CFG-011). */
+function GuidanceCard({ owner, name, canEdit }: { owner: string; name: string; canEdit: boolean }) {
+  const opts = getRepositoryGuidanceOptions({ path: { owner, name } });
+  const q = useQuery(opts);
+  const [preview, setPreview] = useState(false);
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{t("guidance.repository")}</CardTitle>
+      </CardHeader>
+      <div className="grid gap-4 p-4">
+        <p className="t-hint max-w-[640px]">{t("guidance.repository.hint")}</p>
+        {q.isPending ? (
+          <Skeleton className="h-40 w-full" />
+        ) : q.error ? (
+          <ErrorAlert error={q.error} onRetry={() => void q.refetch()} />
+        ) : (
+          <GuidanceEditor
+            id="guidance-repository"
+            limit={4000}
+            queryKey={opts.queryKey}
+            data={q.data}
+            canEdit={canEdit}
+            save={async (text) => (await putRepositoryGuidance({ path: { owner, name }, body: { text }, throwOnError: true })).data}
+          />
+        )}
+        {canEdit ? (
+          preview ? (
+            <PromptPreview repository={`${owner}/${name}`} />
+          ) : (
+            <div>
+              <Button size="sm" onClick={() => setPreview(true)}>
+                {t("guidance.preview.show")}
+              </Button>
+            </div>
+          )
+        ) : null}
+      </div>
+    </Card>
   );
 }
 
