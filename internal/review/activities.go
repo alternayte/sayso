@@ -152,13 +152,8 @@ func (a *Activities) Decide(ctx context.Context, in DecideInput) (Decision, erro
 // MonthlyBudgetSpent compares the model cost of this month with the
 // monthly budget setting (§7.3). Zero means no budget.
 func (a *Activities) MonthlyBudgetSpent(ctx context.Context) (bool, error) {
-	var budget float64
-	if err := a.Settings.Decode(ctx, settings.MonthlyBudgetUSD, &budget); err != nil || budget <= 0 {
-		return false, err
-	}
-	var spent float64
-	err := a.Pool.QueryRow(ctx, `SELECT coalesce(sum(cost_usd), 0) FROM agent_runs WHERE created_at >= date_trunc('month', now())`).Scan(&spent)
-	return spent >= budget, err
+	spent, budget, err := MonthlySpend(ctx, a.Pool, a.Settings)
+	return budget > 0 && spent >= budget, err
 }
 
 // SetReviewState sets open, paused, closed or merged.
@@ -445,6 +440,15 @@ func (a *Activities) ReconcileLedger(ctx context.Context, roundID uuid.UUID) (Re
 	if err := a.Pool.QueryRow(ctx, `SELECT status, exit_reason FROM agent_runs WHERE id = $1`, *runID).Scan(&status, &exit); err != nil {
 		return Reconciled{}, err
 	}
+	// The model proxy refuses a request over the round budget; the run then
+	// fails, and its events show why (§7.3).
+	var refused bool
+	if err := a.Pool.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM run_events WHERE run_id = $1 AND type = 'error' AND name = 'budget_exceeded')`, *runID).Scan(&refused); err != nil {
+		return Reconciled{}, err
+	}
+	if refused {
+		status = "budget_exceeded"
+	}
 	switch status {
 	case "budget_exceeded":
 		return Reconciled{Status: "budget_exceeded", Reason: "the round budget is spent"}, nil
@@ -504,10 +508,10 @@ func (a *Activities) ReconcileLedger(ctx context.Context, roundID uuid.UUID) (Re
 
 // Publish posts the round and sets it done (§7.2 step 5).
 func (a *Activities) Publish(ctx context.Context, roundID uuid.UUID) error {
-	if _, err := a.Pool.Exec(ctx, `UPDATE rounds SET status = 'done', finished_at = coalesce(finished_at, now()) WHERE id = $1 AND status = 'publishing'`, roundID); err != nil {
+	if _, err := a.Publisher.Publish(ctx, roundID); err != nil {
 		return err
 	}
-	_, err := a.Publisher.Publish(ctx, roundID)
+	_, err := a.Pool.Exec(ctx, `UPDATE rounds SET status = 'done', finished_at = coalesce(finished_at, now()) WHERE id = $1 AND status = 'publishing'`, roundID)
 	return err
 }
 
