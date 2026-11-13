@@ -295,10 +295,19 @@ func (a *API) storeEvents(ctx context.Context, run AgentRun, events []Event) err
 			clip(a.RedactRun(e.Preview), 500), key, sid})
 	}
 	// Payloads go to the store before the index rows that point at them.
-	if err := storage.PutAll(ctx, store, objs); err != nil {
-		return err
+	// The postgres store writes them in the same transaction.
+	_, inDB := store.(storage.Postgres)
+	if !inDB {
+		if err := storage.PutAll(ctx, store, nil, objs); err != nil {
+			return err
+		}
 	}
 	return pgx.BeginFunc(ctx, a.Pool, func(tx pgx.Tx) error {
+		if inDB {
+			if err := storage.PutAll(ctx, store, tx, objs); err != nil {
+				return err
+			}
+		}
 		// A retried batch has the same sequence numbers; keep the first copy.
 		if _, err := tx.Exec(ctx, `CREATE TEMP TABLE incoming (LIKE run_events) ON COMMIT DROP`); err != nil {
 			return err

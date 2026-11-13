@@ -118,8 +118,9 @@ type Object struct {
 }
 
 // PutAll stores a batch of objects. The postgres driver writes them in one
-// round trip; other drivers write up to 8 at a time.
-func PutAll(ctx context.Context, s Store, objs []Object) error {
+// round trip, inside tx when it is not nil, so the batch commits once;
+// other drivers write up to 8 at a time.
+func PutAll(ctx context.Context, s Store, tx pgx.Tx, objs []Object) error {
 	if len(objs) == 0 {
 		return nil
 	}
@@ -130,6 +131,9 @@ func PutAll(ctx context.Context, s Store, objs []Object) error {
 				return errors.New("object is larger than the postgres store allows")
 			}
 			b.Queue(`INSERT INTO blobs (key, data) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET data = EXCLUDED.data, created_at = now()`, o.Key, o.Data)
+		}
+		if tx != nil {
+			return tx.SendBatch(ctx, b).Close()
 		}
 		return p.Pool.SendBatch(ctx, b).Close()
 	}
