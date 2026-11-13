@@ -57,8 +57,9 @@ jobs:
           else
             just ${{ matrix.recipe }}
           fi
+      # The reports of every run, for the requirement trace (just verify-ci).
       - name: Keep the test reports
-        if: failure()
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: reports-${{ matrix.recipe }}
