@@ -17,10 +17,14 @@ import { Route as AppAuditRouteImport } from './routes/_app/audit'
 import { Route as AppDiagnosticsRouteImport } from './routes/_app/diagnostics'
 import { Route as AppRepositoriesIndexRouteImport } from './routes/_app/repositories/index'
 import { Route as AppSettingsAccessRouteImport } from './routes/_app/settings/access'
+import { Route as AppSettingsExtensionsRouteImport } from './routes/_app/settings/extensions'
+import { Route as AppSettingsFeedsRouteImport } from './routes/_app/settings/feeds'
 import { Route as AppSettingsGeneralRouteImport } from './routes/_app/settings/general'
 import { Route as AppSettingsGithubRouteImport } from './routes/_app/settings/github'
+import { Route as AppSettingsImagesRouteImport } from './routes/_app/settings/images'
 import { Route as AppSettingsMcpRouteImport } from './routes/_app/settings/mcp'
 import { Route as AppSettingsModelsRouteImport } from './routes/_app/settings/models'
+import { Route as AppSettingsSkillsRouteImport } from './routes/_app/settings/skills'
 import { Route as AppRepositoriesOwnerNameRouteImport } from './routes/_app/repositories/$owner.$name'
 
 const AppRoute = AppRouteImport.update({
@@ -62,6 +66,16 @@ const AppSettingsAccessRoute = AppSettingsAccessRouteImport.update({
   path: '/settings/access',
   getParentRoute: () => AppRoute,
 } as any)
+const AppSettingsExtensionsRoute = AppSettingsExtensionsRouteImport.update({
+  id: '/settings/extensions',
+  path: '/settings/extensions',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSettingsFeedsRoute = AppSettingsFeedsRouteImport.update({
+  id: '/settings/feeds',
+  path: '/settings/feeds',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppSettingsGeneralRoute = AppSettingsGeneralRouteImport.update({
   id: '/settings/general',
   path: '/settings/general',
@@ -72,6 +86,11 @@ const AppSettingsGithubRoute = AppSettingsGithubRouteImport.update({
   path: '/settings/github',
   getParentRoute: () => AppRoute,
 } as any)
+const AppSettingsImagesRoute = AppSettingsImagesRouteImport.update({
+  id: '/settings/images',
+  path: '/settings/images',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppSettingsMcpRoute = AppSettingsMcpRouteImport.update({
   id: '/settings/mcp',
   path: '/settings/mcp',
@@ -80,6 +99,11 @@ const AppSettingsMcpRoute = AppSettingsMcpRouteImport.update({
 const AppSettingsModelsRoute = AppSettingsModelsRouteImport.update({
   id: '/settings/models',
   path: '/settings/models',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSettingsSkillsRoute = AppSettingsSkillsRouteImport.update({
+  id: '/settings/skills',
+  path: '/settings/skills',
   getParentRoute: () => AppRoute,
 } as any)
 const AppRepositoriesOwnerNameRoute =
@@ -96,10 +120,14 @@ export interface FileRoutesByFullPath {
   '/audit': typeof AppAuditRoute
   '/diagnostics': typeof AppDiagnosticsRoute
   '/settings/access': typeof AppSettingsAccessRoute
+  '/settings/extensions': typeof AppSettingsExtensionsRoute
+  '/settings/feeds': typeof AppSettingsFeedsRoute
   '/settings/general': typeof AppSettingsGeneralRoute
   '/settings/github': typeof AppSettingsGithubRoute
+  '/settings/images': typeof AppSettingsImagesRoute
   '/settings/mcp': typeof AppSettingsMcpRoute
   '/settings/models': typeof AppSettingsModelsRoute
+  '/settings/skills': typeof AppSettingsSkillsRoute
   '/repositories/': typeof AppRepositoriesIndexRoute
   '/repositories/$owner/$name': typeof AppRepositoriesOwnerNameRoute
 }
@@ -110,10 +138,14 @@ export interface FileRoutesByTo {
   '/diagnostics': typeof AppDiagnosticsRoute
   '/': typeof AppIndexRoute
   '/settings/access': typeof AppSettingsAccessRoute
+  '/settings/extensions': typeof AppSettingsExtensionsRoute
+  '/settings/feeds': typeof AppSettingsFeedsRoute
   '/settings/general': typeof AppSettingsGeneralRoute
   '/settings/github': typeof AppSettingsGithubRoute
+  '/settings/images': typeof AppSettingsImagesRoute
   '/settings/mcp': typeof AppSettingsMcpRoute
   '/settings/models': typeof AppSettingsModelsRoute
+  '/settings/skills': typeof AppSettingsSkillsRoute
   '/repositories': typeof AppRepositoriesIndexRoute
   '/repositories/$owner/$name': typeof AppRepositoriesOwnerNameRoute
 }
@@ -126,10 +158,14 @@ export interface FileRoutesById {
   '/_app/diagnostics': typeof AppDiagnosticsRoute
   '/_app/': typeof AppIndexRoute
   '/_app/settings/access': typeof AppSettingsAccessRoute
+  '/_app/settings/extensions': typeof AppSettingsExtensionsRoute
+  '/_app/settings/feeds': typeof AppSettingsFeedsRoute
   '/_app/settings/general': typeof AppSettingsGeneralRoute
   '/_app/settings/github': typeof AppSettingsGithubRoute
+  '/_app/settings/images': typeof AppSettingsImagesRoute
   '/_app/settings/mcp': typeof AppSettingsMcpRoute
   '/_app/settings/models': typeof AppSettingsModelsRoute
+  '/_app/settings/skills': typeof AppSettingsSkillsRoute
   '/_app/repositories/': typeof AppRepositoriesIndexRoute
   '/_app/repositories/$owner/$name': typeof AppRepositoriesOwnerNameRoute
 }
@@ -142,10 +178,14 @@ export interface FileRouteTypes {
     | '/audit'
     | '/diagnostics'
     | '/settings/access'
+    | '/settings/extensions'
+    | '/settings/feeds'
     | '/settings/general'
     | '/settings/github'
+    | '/settings/images'
     | '/settings/mcp'
     | '/settings/models'
+    | '/settings/skills'
     | '/repositories/'
     | '/repositories/$owner/$name'
   fileRoutesByTo: FileRoutesByTo
@@ -156,10 +196,14 @@ export interface FileRouteTypes {
     | '/diagnostics'
     | '/'
     | '/settings/access'
+    | '/settings/extensions'
+    | '/settings/feeds'
     | '/settings/general'
     | '/settings/github'
+    | '/settings/images'
     | '/settings/mcp'
     | '/settings/models'
+    | '/settings/skills'
     | '/repositories'
     | '/repositories/$owner/$name'
   id:
@@ -171,10 +215,14 @@ export interface FileRouteTypes {
     | '/_app/diagnostics'
     | '/_app/'
     | '/_app/settings/access'
+    | '/_app/settings/extensions'
+    | '/_app/settings/feeds'
     | '/_app/settings/general'
     | '/_app/settings/github'
+    | '/_app/settings/images'
     | '/_app/settings/mcp'
     | '/_app/settings/models'
+    | '/_app/settings/skills'
     | '/_app/repositories/'
     | '/_app/repositories/$owner/$name'
   fileRoutesById: FileRoutesById
@@ -243,6 +291,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSettingsAccessRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/settings/extensions': {
+      id: '/_app/settings/extensions'
+      path: '/settings/extensions'
+      fullPath: '/settings/extensions'
+      preLoaderRoute: typeof AppSettingsExtensionsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/settings/feeds': {
+      id: '/_app/settings/feeds'
+      path: '/settings/feeds'
+      fullPath: '/settings/feeds'
+      preLoaderRoute: typeof AppSettingsFeedsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/settings/general': {
       id: '/_app/settings/general'
       path: '/settings/general'
@@ -257,6 +319,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSettingsGithubRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/settings/images': {
+      id: '/_app/settings/images'
+      path: '/settings/images'
+      fullPath: '/settings/images'
+      preLoaderRoute: typeof AppSettingsImagesRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/settings/mcp': {
       id: '/_app/settings/mcp'
       path: '/settings/mcp'
@@ -269,6 +338,13 @@ declare module '@tanstack/react-router' {
       path: '/settings/models'
       fullPath: '/settings/models'
       preLoaderRoute: typeof AppSettingsModelsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/settings/skills': {
+      id: '/_app/settings/skills'
+      path: '/settings/skills'
+      fullPath: '/settings/skills'
+      preLoaderRoute: typeof AppSettingsSkillsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/repositories/$owner/$name': {
@@ -286,10 +362,14 @@ interface AppRouteChildren {
   AppDiagnosticsRoute: typeof AppDiagnosticsRoute
   AppIndexRoute: typeof AppIndexRoute
   AppSettingsAccessRoute: typeof AppSettingsAccessRoute
+  AppSettingsExtensionsRoute: typeof AppSettingsExtensionsRoute
+  AppSettingsFeedsRoute: typeof AppSettingsFeedsRoute
   AppSettingsGeneralRoute: typeof AppSettingsGeneralRoute
   AppSettingsGithubRoute: typeof AppSettingsGithubRoute
+  AppSettingsImagesRoute: typeof AppSettingsImagesRoute
   AppSettingsMcpRoute: typeof AppSettingsMcpRoute
   AppSettingsModelsRoute: typeof AppSettingsModelsRoute
+  AppSettingsSkillsRoute: typeof AppSettingsSkillsRoute
   AppRepositoriesIndexRoute: typeof AppRepositoriesIndexRoute
   AppRepositoriesOwnerNameRoute: typeof AppRepositoriesOwnerNameRoute
 }
@@ -299,10 +379,14 @@ const AppRouteChildren: AppRouteChildren = {
   AppDiagnosticsRoute: AppDiagnosticsRoute,
   AppIndexRoute: AppIndexRoute,
   AppSettingsAccessRoute: AppSettingsAccessRoute,
+  AppSettingsExtensionsRoute: AppSettingsExtensionsRoute,
+  AppSettingsFeedsRoute: AppSettingsFeedsRoute,
   AppSettingsGeneralRoute: AppSettingsGeneralRoute,
   AppSettingsGithubRoute: AppSettingsGithubRoute,
+  AppSettingsImagesRoute: AppSettingsImagesRoute,
   AppSettingsMcpRoute: AppSettingsMcpRoute,
   AppSettingsModelsRoute: AppSettingsModelsRoute,
+  AppSettingsSkillsRoute: AppSettingsSkillsRoute,
   AppRepositoriesIndexRoute: AppRepositoriesIndexRoute,
   AppRepositoriesOwnerNameRoute: AppRepositoriesOwnerNameRoute,
 }

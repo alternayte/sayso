@@ -1,0 +1,18 @@
+marker: '[script:review-gomod]'
+stages:
+  review:
+  - tools:
+    - name: bash
+      args:
+        command: |-
+          ls $(go env GOMODCACHE)/github.com/acme/ 2>&1; U=$(git config --global --get-regexp 'url\..*\.insteadof' | head -1 | sed 's/^url\.\(.*\)\.insteadof .*/\1/'); echo DENIED=$(git ls-remote "${U%shared-go}web" 2>&1 | grep -c 'returned error: 403')
+  - tools:
+    - name: set_assessment
+      args:
+        tldr: The change is small.
+        risk: low
+        risk_reasons:
+        - small change
+        where_to_look: []
+        impact: []
+  - text: Done.

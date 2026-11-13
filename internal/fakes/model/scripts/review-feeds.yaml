@@ -1,0 +1,17 @@
+marker: '[script:review-feeds]'
+stages:
+  review:
+  - tools:
+    - name: bash
+      args:
+        command: T=s3cr3t-feed-; T=${T}token; echo STATUS=$(git status --porcelain | wc -l) MONEY=$(test -f node_modules/@acme/money/index.js && echo yes) CRED=$( (grep -rl "$T" ~ /home/sayso/work 2>/dev/null; env | grep "$T") | wc -l); grep -rl "$T" ~ /home/sayso/work 2>/dev/null | head -5
+  - tools:
+    - name: set_assessment
+      args:
+        tldr: The change is small.
+        risk: low
+        risk_reasons:
+        - small change
+        where_to_look: []
+        impact: []
+  - text: Done.

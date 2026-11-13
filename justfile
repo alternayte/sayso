@@ -7,7 +7,6 @@ default:
 # Install pinned tool versions and packages
 setup:
     go mod download
-    go install github.com/sqlc-dev/sqlc/cmd/sqlc@v1.31.1
     cd ui && bun install --frozen-lockfile
     cd agent && npm ci --no-audit --no-fund
     cd tests/ui && bun install --frozen-lockfile && bunx playwright install chromium
@@ -50,7 +49,7 @@ contract:
 
 # Generate sqlc code, the OpenAPI documents, the TypeScript clients and the result schema
 gen:
-    sqlc generate
+    go run github.com/sqlc-dev/sqlc/cmd/sqlc@v1.31.1 generate
     go run ./cmd/sayso openapi > ui/openapi.json
     go run ./cmd/sayso openapi --doc runner > schemas/runner.openapi.json
     go run ./cmd/sayso openapi --doc result > schemas/result.schema.json

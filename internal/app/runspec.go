@@ -42,6 +42,9 @@ func enrichSpec(d *Deps, f *Features) func(context.Context, runner.AgentRun, *ru
 				return err
 			}
 			spec.Skael.AgentKey = key
+			if run.RoundID != nil {
+				spec.Skael.ExternalRunID = run.RoundID.String()
+			}
 		}
 		if spec.Repository.FullName == "" || run.RepositoryID == nil {
 			return nil

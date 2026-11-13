@@ -152,7 +152,12 @@ func TestSCN_RUN_003_KubernetesJob(t *testing.T) {
 	defer cancel()
 	reason, err := h.Wait(wctx)
 	if err != nil || reason != runner.ExitImagePullFailed {
-		t.Fatalf("exit reason %q, %v", reason, err)
+		_, out, _ := k.c.Exec(ctx, []string{"sh", "-c", `kubectl get jobs -o yaml | grep -A25 "^    status:"; kubectl get events -A --sort-by=.lastTimestamp | tail -25`})
+		b := new(bytes.Buffer)
+		if out != nil {
+			_, _ = b.ReadFrom(out)
+		}
+		t.Fatalf("exit reason %q, %v\n%s", reason, err, b)
 	}
 	if _, err := k.client.BatchV1().Jobs("default").Get(ctx, strings.TrimPrefix(h.Ref(), "default/"), metav1.GetOptions{}); err == nil {
 		// Deletion is in the background; the Job must go soon.

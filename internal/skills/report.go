@@ -107,6 +107,9 @@ func (r *Reporter) ReportRound(ctx context.Context, roundID uuid.UUID) error {
 	m := result.SkaelManifest
 	var events []runEvent
 	for _, s := range result.SkillsLoaded {
+		if s.Reported {
+			continue
+		}
 		role := "reviewer"
 		if s.Stage == runner.StageChallenge {
 			role = "challenger"
@@ -121,11 +124,12 @@ func (r *Reporter) ReportRound(ctx context.Context, roundID uuid.UUID) error {
 	}
 	attempts, err := r.retry(ctx, func() error {
 		if len(events) > 0 {
-			if err := r.post(ctx, url+"/api/events/batch", key, map[string]any{"events": events}); err != nil {
+			// Skael keeps every event; the key makes a repeat report store nothing.
+			if err := r.post(ctx, url+"/api/events/batch", key, map[string]any{"events": events}, "sayso-"+roundID.String()+"-"+result.RunID); err != nil {
 				return err
 			}
 		}
-		return r.post(ctx, url+"/api/outcomes", key, out)
+		return r.post(ctx, url+"/api/outcomes", key, out, "")
 	})
 	msg := ""
 	if err != nil {
@@ -197,7 +201,7 @@ func (r *Reporter) retry(ctx context.Context, f func() error) (int, error) {
 	return ReportAttempts, fmt.Errorf("skael report failed after %d attempts: %w", ReportAttempts, err)
 }
 
-func (r *Reporter) post(ctx context.Context, url, key string, body any) error {
+func (r *Reporter) post(ctx context.Context, url, key string, body any, idempotency string) error {
 	b, err := json.Marshal(body)
 	if err != nil {
 		return err
@@ -208,6 +212,9 @@ func (r *Reporter) post(ctx context.Context, url, key string, body any) error {
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+key)
+	if idempotency != "" {
+		req.Header.Set("Idempotency-Key", idempotency)
+	}
 	resp, err := r.HTTP.Do(req)
 	if err != nil {
 		return err

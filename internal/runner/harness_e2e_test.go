@@ -4,6 +4,7 @@ package runner_test
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -18,6 +19,8 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/alternayte/sayso/internal/app/apptest"
+	"github.com/alternayte/sayso/internal/audit"
+	fakefeeds "github.com/alternayte/sayso/internal/fakes/feeds"
 	fakegh "github.com/alternayte/sayso/internal/fakes/github"
 	fakemcp "github.com/alternayte/sayso/internal/fakes/mcp"
 	fakemodel "github.com/alternayte/sayso/internal/fakes/model"
@@ -37,8 +40,12 @@ type harness struct {
 	e     *apptest.Env
 	model *fakemodel.Fake
 	mcp   *fakemcp.Fake
+	feeds *fakefeeds.Fake
 	ghURL string
 }
+
+// feedSecret is the credential of the fake feeds.
+const feedSecret = "s3cr3t-feed-token"
 
 func newHarness(t *testing.T) *harness {
 	t.Helper()
@@ -57,7 +64,17 @@ func newHarness(t *testing.T) *harness {
 	e.SQL(t, `INSERT INTO providers (name, api_type, base_url, auth_style) VALUES ('fake', 'openai-completions', $1, 'bearer')`, ms.URL+"/v1")
 	e.SQL(t, `INSERT INTO mcp_servers (name, url) VALUES ('catalog', $1)`, mcpSrv.URL)
 	e.SQL(t, `UPDATE repositories SET mcp_servers = '{catalog}'`)
-	return &harness{e: e, model: fm, mcp: fmcp, ghURL: e.ContainerURL(containerHost, e.GHServer)}
+	ff := fakefeeds.New("Basic " + base64.StdEncoding.EncodeToString([]byte("feed:"+feedSecret)))
+	feedSrv := httptest.NewServer(ff.Handler())
+	t.Cleanup(feedSrv.Close)
+	if _, err := e.F.Secrets.Put(context.Background(), audit.System, "feed.acme-npm.secret", feedSecret); err != nil {
+		t.Fatal(err)
+	}
+	e.SQL(t, `INSERT INTO package_feeds (name, kind, upstream_url, auth_style, username, secret_id, match_urls)
+		SELECT 'acme-npm', 'npm', $1, 'basic', 'feed', id, '{http://github.fake.localhost:9003/npm/}' FROM secrets WHERE name = 'feed.acme-npm.secret'`, feedSrv.URL+"/npm/")
+	e.SQL(t, `INSERT INTO package_feeds (name, kind, repos) VALUES ('acme-git', 'github', '{acme/shared-go}')`)
+	e.GitHub.Install("acme/shared-go")
+	return &harness{e: e, model: fm, mcp: fmcp, feeds: ff, ghURL: e.ContainerURL(containerHost, e.GHServer)}
 }
 
 // runOpts shape one agent run.
@@ -75,6 +92,8 @@ type runOpts struct {
 	timeout    time.Duration
 	proxy      string
 	beforeHead func()
+	feeds      []string
+	skael      *runner.Skael
 }
 
 type outcome struct {
@@ -82,6 +101,8 @@ type outcome struct {
 	reason string
 	logs   string
 	pull   *fakegh.Pull
+	// round is set for runs with a Skael set, which report under the round ID.
+	round uuid.UUID
 }
 
 func (h *harness) start(t *testing.T, o runOpts) outcome {
@@ -124,6 +145,10 @@ func (h *harness) start(t *testing.T, o runOpts) outcome {
 	if err := h.e.Deps.Pool.QueryRow(ctx, `SELECT id FROM repositories WHERE full_name = $1`, o.repo).Scan(&repoID); err != nil {
 		t.Fatal(err)
 	}
+	sf, err := h.e.F.Feeds.SpecFeeds(ctx, o.repo, o.feeds)
+	if err != nil {
+		t.Fatal(err)
+	}
 	var mcp []runner.SpecMCP
 	for _, m := range o.mcp {
 		mcp = append(mcp, runner.SpecMCP{Name: m})
@@ -140,11 +165,22 @@ func (h *harness) start(t *testing.T, o runOpts) outcome {
 		Profiles:    map[string]string{"review": "review", "challenge": "challenge"},
 		MCP:         mcp,
 		Extensions:  []runner.SpecExtension{},
+		Feeds:       sf,
+		Skael:       o.skael,
 		Limits:      runner.Limits{MaxFindings: o.maxFind, MaxToolCallsPerStage: 200, TimeoutSeconds: int(o.timeout.Seconds()), SetupTimeoutSeconds: 300, ChallengeMinSeverity: o.threshold},
 		Prompts:     runner.Prompts{Repository: runner.PromptLayer{Version: "1", Text: "Use the script " + o.script + "."}},
 		Execution:   o.execution,
 	}
-	run, tok, err := runner.Create(ctx, h.e.Deps.Pool, runner.NewRun{Kind: "round", RepositoryID: &repoID, Models: o.models, Spec: spec}, time.Now())
+	nr := runner.NewRun{Kind: "round", RepositoryID: &repoID, Models: o.models, Spec: spec}
+	var round uuid.UUID
+	if o.skael != nil {
+		round = uuid.Must(uuid.NewV7())
+		review := uuid.Must(uuid.NewV7())
+		h.e.SQL(t, `INSERT INTO reviews (id, repository_id, pr_number, workflow_id) VALUES ($1, $2, $3, $4)`, review, repoID, pr.Number, fmt.Sprintf("pr/e2e/%s/%d", o.repo, pr.Number))
+		h.e.SQL(t, `INSERT INTO rounds (id, review_id, head_sha, base_sha, trigger, status) VALUES ($1, $2, $3, $4, 'opened', 'running')`, round, review, pr.HeadSHA, pr.BaseSHA)
+		nr.RoundID = &round
+	}
+	run, tok, err := runner.Create(ctx, h.e.Deps.Pool, nr, time.Now())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -183,7 +219,7 @@ func (h *harness) start(t *testing.T, o runOpts) outcome {
 			logsText += fmt.Sprintf("\nevent %s %s %s: %s", e.Type, e.Name, e.Status, e.Preview)
 		}
 	}
-	return outcome{run: got, reason: reason, logs: logsText, pull: pr}
+	return outcome{run: got, reason: reason, logs: logsText, pull: pr, round: round}
 }
 
 func quote(args []string) []string {

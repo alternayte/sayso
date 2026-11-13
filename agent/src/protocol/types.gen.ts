@@ -245,6 +245,7 @@ export type Result = {
 
 export type Skael = {
     agent_key?: string;
+    external_run_id?: string;
     hook: boolean;
     set: string;
     skill_name: string;
@@ -276,6 +277,7 @@ export type Skill = {
 
 export type SkillLoaded = {
     name: string;
+    reported?: boolean;
     stage: string;
     version?: number;
 };

@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { CreateAppManifestData, CreateAppManifestErrors, CreateAppManifestResponses, CreateMcpServerData, CreateMcpServerErrors, CreateMcpServerResponses, CreateProviderData, CreateProviderErrors, CreateProviderResponses, CreateSetupSessionData, CreateSetupSessionErrors, CreateSetupSessionResponses, DeleteFeedData, DeleteFeedErrors, DeleteFeedResponses, DeleteGrantData, DeleteGrantErrors, DeleteGrantResponses, DeleteMcpServerData, DeleteMcpServerErrors, DeleteMcpServerResponses, DeleteProfileData, DeleteProfileErrors, DeleteProfileResponses, DeleteProviderData, DeleteProviderErrors, DeleteProviderResponses, DeleteTeamRoleData, DeleteTeamRoleErrors, DeleteTeamRoleResponses, GetAccessData, GetAccessErrors, GetAccessResponses, GetDiagnosticsData, GetDiagnosticsErrors, GetDiagnosticsResponses, GetGithubData, GetGithubErrors, GetGithubResponses, GetMeData, GetMeErrors, GetMeResponses, GetRepositoryData, GetRepositoryErrors, GetRepositoryResponses, GetSettingHistoryData, GetSettingHistoryErrors, GetSettingHistoryResponses, GetSetupStateData, GetSetupStateErrors, GetSetupStateResponses, ListAuditActionsData, ListAuditActionsErrors, ListAuditActionsResponses, ListAuditData, ListAuditErrors, ListAuditResponses, ListFeedsData, ListFeedsErrors, ListFeedsResponses, ListMcpServersData, ListMcpServersErrors, ListMcpServersResponses, ListProfilesData, ListProfilesErrors, ListProfilesResponses, ListProviderModelsData, ListProviderModelsErrors, ListProviderModelsResponses, ListProviderPresetsData, ListProviderPresetsErrors, ListProviderPresetsResponses, ListProvidersData, ListProvidersErrors, ListProvidersResponses, ListRepositoriesData, ListRepositoriesErrors, ListRepositoriesResponses, ListSettingsData, ListSettingsErrors, ListSettingsResponses, PutFeedData, PutFeedErrors, PutFeedResponses, PutGrantData, PutGrantErrors, PutGrantResponses, PutProfileData, PutProfileErrors, PutProfileResponses, PutSettingData, PutSettingErrors, PutSettingResponses, PutTeamRoleData, PutTeamRoleErrors, PutTeamRoleResponses, SetRepositoryMcpData, SetRepositoryMcpErrors, SetRepositoryMcpResponses, SetRepositoryModeData, SetRepositoryModeErrors, SetRepositoryModeResponses, SetRepositoryProfilesData, SetRepositoryProfilesErrors, SetRepositoryProfilesResponses, TestFeedData, TestFeedErrors, TestFeedResponses, TestMcpServerData, TestMcpServerErrors, TestMcpServerResponses, TestProviderData, TestProviderErrors, TestProviderResponses, UpdateMcpServerData, UpdateMcpServerErrors, UpdateMcpServerResponses, UpdateProviderData, UpdateProviderErrors, UpdateProviderResponses } from './types.gen';
+import type { CreateAppManifestData, CreateAppManifestErrors, CreateAppManifestResponses, CreateMcpServerData, CreateMcpServerErrors, CreateMcpServerResponses, CreateProviderData, CreateProviderErrors, CreateProviderResponses, CreateSetupSessionData, CreateSetupSessionErrors, CreateSetupSessionResponses, DeleteAgentImageData, DeleteAgentImageErrors, DeleteAgentImageResponses, DeleteExtensionData, DeleteExtensionErrors, DeleteExtensionResponses, DeleteFeedData, DeleteFeedErrors, DeleteFeedResponses, DeleteGrantData, DeleteGrantErrors, DeleteGrantResponses, DeleteMcpServerData, DeleteMcpServerErrors, DeleteMcpServerResponses, DeleteProfileData, DeleteProfileErrors, DeleteProfileResponses, DeleteProviderData, DeleteProviderErrors, DeleteProviderResponses, DeleteTeamRoleData, DeleteTeamRoleErrors, DeleteTeamRoleResponses, GetAccessData, GetAccessErrors, GetAccessResponses, GetDiagnosticsData, GetDiagnosticsErrors, GetDiagnosticsResponses, GetGithubData, GetGithubErrors, GetGithubResponses, GetMeData, GetMeErrors, GetMeResponses, GetRepositoryData, GetRepositoryErrors, GetRepositoryResponses, GetSettingHistoryData, GetSettingHistoryErrors, GetSettingHistoryResponses, GetSetupStateData, GetSetupStateErrors, GetSetupStateResponses, GetSkillsData, GetSkillsErrors, GetSkillsResponses, ListAgentImagesData, ListAgentImagesErrors, ListAgentImagesResponses, ListAuditActionsData, ListAuditActionsErrors, ListAuditActionsResponses, ListAuditData, ListAuditErrors, ListAuditResponses, ListExtensionsData, ListExtensionsErrors, ListExtensionsResponses, ListFeedsData, ListFeedsErrors, ListFeedsResponses, ListMcpServersData, ListMcpServersErrors, ListMcpServersResponses, ListProfilesData, ListProfilesErrors, ListProfilesResponses, ListProviderModelsData, ListProviderModelsErrors, ListProviderModelsResponses, ListProviderPresetsData, ListProviderPresetsErrors, ListProviderPresetsResponses, ListProvidersData, ListProvidersErrors, ListProvidersResponses, ListRepositoriesData, ListRepositoriesErrors, ListRepositoriesResponses, ListSettingsData, ListSettingsErrors, ListSettingsResponses, PutAgentImageData, PutAgentImageErrors, PutAgentImageResponses, PutExtensionData, PutExtensionErrors, PutExtensionResponses, PutFeedData, PutFeedErrors, PutFeedResponses, PutGrantData, PutGrantErrors, PutGrantResponses, PutProfileData, PutProfileErrors, PutProfileResponses, PutSettingData, PutSettingErrors, PutSettingResponses, PutSkaelData, PutSkaelErrors, PutSkaelResponses, PutTeamRoleData, PutTeamRoleErrors, PutTeamRoleResponses, SetRepositoryFeedsData, SetRepositoryFeedsErrors, SetRepositoryFeedsResponses, SetRepositoryMcpData, SetRepositoryMcpErrors, SetRepositoryMcpResponses, SetRepositoryModeData, SetRepositoryModeErrors, SetRepositoryModeResponses, SetRepositoryProfilesData, SetRepositoryProfilesErrors, SetRepositoryProfilesResponses, TestFeedData, TestFeedErrors, TestFeedResponses, TestMcpServerData, TestMcpServerErrors, TestMcpServerResponses, TestProviderData, TestProviderErrors, TestProviderResponses, UpdateMcpServerData, UpdateMcpServerErrors, UpdateMcpServerResponses, UpdateProviderData, UpdateProviderErrors, UpdateProviderResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -42,11 +42,37 @@ export const putTeamRole = <ThrowOnError extends boolean = false>(options: Optio
     }
 });
 
+export const listAgentImages = <ThrowOnError extends boolean = false>(options?: Options<ListAgentImagesData, ThrowOnError>): RequestResult<ListAgentImagesResponses, ListAgentImagesErrors, ThrowOnError> => (options?.client ?? client).get<ListAgentImagesResponses, ListAgentImagesErrors, ThrowOnError>({ url: '/api/v1/agent-images', ...options });
+
+export const deleteAgentImage = <ThrowOnError extends boolean = false>(options: Options<DeleteAgentImageData, ThrowOnError>): RequestResult<DeleteAgentImageResponses, DeleteAgentImageErrors, ThrowOnError> => (options.client ?? client).delete<DeleteAgentImageResponses, DeleteAgentImageErrors, ThrowOnError>({ url: '/api/v1/agent-images/{name}', ...options });
+
+export const putAgentImage = <ThrowOnError extends boolean = false>(options: Options<PutAgentImageData, ThrowOnError>): RequestResult<PutAgentImageResponses, PutAgentImageErrors, ThrowOnError> => (options.client ?? client).put<PutAgentImageResponses, PutAgentImageErrors, ThrowOnError>({
+    url: '/api/v1/agent-images/{name}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
 export const listAudit = <ThrowOnError extends boolean = false>(options?: Options<ListAuditData, ThrowOnError>): RequestResult<ListAuditResponses, ListAuditErrors, ThrowOnError> => (options?.client ?? client).get<ListAuditResponses, ListAuditErrors, ThrowOnError>({ url: '/api/v1/audit', ...options });
 
 export const listAuditActions = <ThrowOnError extends boolean = false>(options?: Options<ListAuditActionsData, ThrowOnError>): RequestResult<ListAuditActionsResponses, ListAuditActionsErrors, ThrowOnError> => (options?.client ?? client).get<ListAuditActionsResponses, ListAuditActionsErrors, ThrowOnError>({ url: '/api/v1/audit/actions', ...options });
 
 export const getDiagnostics = <ThrowOnError extends boolean = false>(options?: Options<GetDiagnosticsData, ThrowOnError>): RequestResult<GetDiagnosticsResponses, GetDiagnosticsErrors, ThrowOnError> => (options?.client ?? client).get<GetDiagnosticsResponses, GetDiagnosticsErrors, ThrowOnError>({ url: '/api/v1/diagnostics', ...options });
+
+export const listExtensions = <ThrowOnError extends boolean = false>(options?: Options<ListExtensionsData, ThrowOnError>): RequestResult<ListExtensionsResponses, ListExtensionsErrors, ThrowOnError> => (options?.client ?? client).get<ListExtensionsResponses, ListExtensionsErrors, ThrowOnError>({ url: '/api/v1/extensions', ...options });
+
+export const deleteExtension = <ThrowOnError extends boolean = false>(options: Options<DeleteExtensionData, ThrowOnError>): RequestResult<DeleteExtensionResponses, DeleteExtensionErrors, ThrowOnError> => (options.client ?? client).delete<DeleteExtensionResponses, DeleteExtensionErrors, ThrowOnError>({ url: '/api/v1/extensions/{name}', ...options });
+
+export const putExtension = <ThrowOnError extends boolean = false>(options: Options<PutExtensionData, ThrowOnError>): RequestResult<PutExtensionResponses, PutExtensionErrors, ThrowOnError> => (options.client ?? client).put<PutExtensionResponses, PutExtensionErrors, ThrowOnError>({
+    url: '/api/v1/extensions/{name}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 export const listFeeds = <ThrowOnError extends boolean = false>(options?: Options<ListFeedsData, ThrowOnError>): RequestResult<ListFeedsResponses, ListFeedsErrors, ThrowOnError> => (options?.client ?? client).get<ListFeedsResponses, ListFeedsErrors, ThrowOnError>({ url: '/api/v1/feeds', ...options });
 
@@ -143,6 +169,15 @@ export const listRepositories = <ThrowOnError extends boolean = false>(options?:
 
 export const getRepository = <ThrowOnError extends boolean = false>(options: Options<GetRepositoryData, ThrowOnError>): RequestResult<GetRepositoryResponses, GetRepositoryErrors, ThrowOnError> => (options.client ?? client).get<GetRepositoryResponses, GetRepositoryErrors, ThrowOnError>({ url: '/api/v1/repositories/{owner}/{name}', ...options });
 
+export const setRepositoryFeeds = <ThrowOnError extends boolean = false>(options: Options<SetRepositoryFeedsData, ThrowOnError>): RequestResult<SetRepositoryFeedsResponses, SetRepositoryFeedsErrors, ThrowOnError> => (options.client ?? client).put<SetRepositoryFeedsResponses, SetRepositoryFeedsErrors, ThrowOnError>({
+    url: '/api/v1/repositories/{owner}/{name}/feeds',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
 export const setRepositoryMcp = <ThrowOnError extends boolean = false>(options: Options<SetRepositoryMcpData, ThrowOnError>): RequestResult<SetRepositoryMcpResponses, SetRepositoryMcpErrors, ThrowOnError> => (options.client ?? client).put<SetRepositoryMcpResponses, SetRepositoryMcpErrors, ThrowOnError>({
     url: '/api/v1/repositories/{owner}/{name}/mcp',
     ...options,
@@ -202,3 +237,14 @@ export const createSetupSession = <ThrowOnError extends boolean = false>(options
 });
 
 export const getSetupState = <ThrowOnError extends boolean = false>(options?: Options<GetSetupStateData, ThrowOnError>): RequestResult<GetSetupStateResponses, GetSetupStateErrors, ThrowOnError> => (options?.client ?? client).get<GetSetupStateResponses, GetSetupStateErrors, ThrowOnError>({ url: '/api/v1/setup/state', ...options });
+
+export const getSkills = <ThrowOnError extends boolean = false>(options?: Options<GetSkillsData, ThrowOnError>): RequestResult<GetSkillsResponses, GetSkillsErrors, ThrowOnError> => (options?.client ?? client).get<GetSkillsResponses, GetSkillsErrors, ThrowOnError>({ url: '/api/v1/skills', ...options });
+
+export const putSkael = <ThrowOnError extends boolean = false>(options: Options<PutSkaelData, ThrowOnError>): RequestResult<PutSkaelResponses, PutSkaelErrors, ThrowOnError> => (options.client ?? client).put<PutSkaelResponses, PutSkaelErrors, ThrowOnError>({
+    url: '/api/v1/skills/skael',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});

@@ -25,6 +25,14 @@ type Redactor interface {
 	Add(name, value string)
 }
 
+// Learn registers a value that is derived from a secret, for example a
+// Basic credential, so stored text hides it too.
+func (s *Store) Learn(name, value string) {
+	if s.red != nil {
+		s.red.Add(name, value)
+	}
+}
+
 // ErrWrongKey means the configured key did not encrypt this value.
 var ErrWrongKey = errors.New("secret was encrypted with another key: check SAYSO_SECRET_KEY")
 

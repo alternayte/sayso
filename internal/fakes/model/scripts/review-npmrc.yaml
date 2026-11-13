@@ -1,0 +1,17 @@
+marker: '[script:review-npmrc]'
+stages:
+  review:
+  - tools:
+    - name: bash
+      args:
+        command: cat ~/.npmrc
+  - tools:
+    - name: set_assessment
+      args:
+        tldr: The change is small.
+        risk: low
+        risk_reasons:
+        - small change
+        where_to_look: []
+        impact: []
+  - text: Done.

@@ -105,6 +105,10 @@ func TestSCN_SKL_004_ReportsToSkael(t *testing.T) {
 	if got := read(); got != "succeeded 1 changes_suggested; none" {
 		t.Fatalf("second report: %q", got)
 	}
+	// The repeat stores no second copy of the run events.
+	if n := sk.Query(t, `SELECT count(*) FROM skill_events WHERE consumer = 'sayso'`); n != "2" {
+		t.Fatalf("skill events after two reports: %s", n)
+	}
 	// A failure is retried 5 times, then shows on the Diagnostics page.
 	sk.Stop(t)
 	if err := rep.ReportRound(ctx, roundID); err == nil {

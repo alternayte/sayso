@@ -1,0 +1,17 @@
+marker: '[script:review-skael]'
+stages:
+  review:
+  - tools:
+    - name: read
+      args:
+        path: /home/sayso/work/skills/.agents/skills/pr-review/SKILL.md
+  - tools:
+    - name: set_assessment
+      args:
+        tldr: The change is small.
+        risk: low
+        risk_reasons:
+        - small change
+        where_to_look: []
+        impact: []
+  - text: Done.
