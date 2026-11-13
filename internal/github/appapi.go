@@ -193,6 +193,8 @@ func nextCursor(link string) string {
 type PullRequest struct {
 	Number int    `json:"number"`
 	NodeID string `json:"node_id"`
+	Title  string `json:"title"`
+	Body   string `json:"body"`
 	Draft  bool   `json:"draft"`
 	State  string `json:"state"`
 	User   User   `json:"user"`
