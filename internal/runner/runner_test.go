@@ -175,7 +175,9 @@ func TestSCN_RUN_008_EventsAndResultSchema(t *testing.T) {
 	if n := e.Count(t, `SELECT count(*) FROM run_events WHERE run_id = $1 AND seq > 100 AND payload_key IS NOT NULL`, run.ID); n != perSecond*seconds {
 		t.Fatalf("stored %d of %d events", n, perSecond*seconds)
 	}
-	if elapsed > time.Duration(seconds+5)*time.Second {
+	// NFR-006 holds for the normal build; just test runs this test once
+	// without the race detector for the timing.
+	if !raceEnabled && elapsed > time.Duration(seconds+5)*time.Second {
 		t.Fatalf("ingestion fell behind: %s for %d s of events", elapsed, seconds)
 	}
 	// A retried batch is stored once.
