@@ -3,6 +3,7 @@ import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { listReviewsOptions } from "@/client/@tanstack/react-query.gen";
 import { ErrorAlert, PageHead, Segmented } from "@/components/app-ui";
+import { ChecklistGate } from "@/components/checklist";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -15,6 +16,16 @@ export const Route = createFileRoute("/_app/")({ component: Home });
 type State = "" | "open" | "paused" | "closed" | "merged";
 
 function Home() {
+  const { me } = Route.useRouteContext();
+  const admin = me.role === "admin";
+  return (
+    <ChecklistGate admin={admin}>
+      <Reviews />
+    </ChecklistGate>
+  );
+}
+
+function Reviews() {
   const [state, setState] = useState<State>("");
   const [repo, setRepo] = useState("");
   const list = useQuery({

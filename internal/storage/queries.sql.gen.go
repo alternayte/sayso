@@ -13,7 +13,7 @@ import (
 )
 
 const defaultStore = `-- name: DefaultStore :one
-SELECT id, name, driver, config, secret_id, is_default, retention_days, created_at FROM stores WHERE is_default
+SELECT id, name, driver, config, secret_id, is_default, retention_days, created_at, tested_at, test_ok FROM stores WHERE is_default
 `
 
 func (q *Queries) DefaultStore(ctx context.Context) (StoreRow, error) {
@@ -28,6 +28,8 @@ func (q *Queries) DefaultStore(ctx context.Context) (StoreRow, error) {
 		&i.IsDefault,
 		&i.RetentionDays,
 		&i.CreatedAt,
+		&i.TestedAt,
+		&i.TestOk,
 	)
 	return i, err
 }
@@ -77,7 +79,7 @@ func (q *Queries) ListBlobs(ctx context.Context, prefix string) ([]string, error
 }
 
 const listStores = `-- name: ListStores :many
-SELECT id, name, driver, config, secret_id, is_default, retention_days, created_at FROM stores ORDER BY is_default DESC, name
+SELECT id, name, driver, config, secret_id, is_default, retention_days, created_at, tested_at, test_ok FROM stores ORDER BY is_default DESC, name
 `
 
 func (q *Queries) ListStores(ctx context.Context) ([]StoreRow, error) {
@@ -98,6 +100,8 @@ func (q *Queries) ListStores(ctx context.Context) ([]StoreRow, error) {
 			&i.IsDefault,
 			&i.RetentionDays,
 			&i.CreatedAt,
+			&i.TestedAt,
+			&i.TestOk,
 		); err != nil {
 			return nil, err
 		}
@@ -141,7 +145,7 @@ func (q *Queries) StatBlob(ctx context.Context, key string) (StatBlobRow, error)
 }
 
 const storeByID = `-- name: StoreByID :one
-SELECT id, name, driver, config, secret_id, is_default, retention_days, created_at FROM stores WHERE id = $1
+SELECT id, name, driver, config, secret_id, is_default, retention_days, created_at, tested_at, test_ok FROM stores WHERE id = $1
 `
 
 func (q *Queries) StoreByID(ctx context.Context, id uuid.UUID) (StoreRow, error) {
@@ -156,12 +160,14 @@ func (q *Queries) StoreByID(ctx context.Context, id uuid.UUID) (StoreRow, error)
 		&i.IsDefault,
 		&i.RetentionDays,
 		&i.CreatedAt,
+		&i.TestedAt,
+		&i.TestOk,
 	)
 	return i, err
 }
 
 const storeByName = `-- name: StoreByName :one
-SELECT id, name, driver, config, secret_id, is_default, retention_days, created_at FROM stores WHERE name = $1
+SELECT id, name, driver, config, secret_id, is_default, retention_days, created_at, tested_at, test_ok FROM stores WHERE name = $1
 `
 
 func (q *Queries) StoreByName(ctx context.Context, name string) (StoreRow, error) {
@@ -176,6 +182,8 @@ func (q *Queries) StoreByName(ctx context.Context, name string) (StoreRow, error
 		&i.IsDefault,
 		&i.RetentionDays,
 		&i.CreatedAt,
+		&i.TestedAt,
+		&i.TestOk,
 	)
 	return i, err
 }

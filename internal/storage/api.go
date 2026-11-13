@@ -221,8 +221,13 @@ func (a *API) Register(api huma.API, admin map[string]any, actor func(context.Co
 			}
 			s, err := a.Registry.ByID(ctx, row.ID)
 			if err != nil {
+				_, _ = a.Registry.Pool.Exec(ctx, `UPDATE stores SET tested_at = now(), test_ok = false WHERE id = $1`, row.ID)
 				return &struct{ Body TestResult }{TestResult{Detail: "open: " + err.Error()}}, nil
 			}
-			return &struct{ Body TestResult }{Probe(ctx, s)}, nil
+			res := Probe(ctx, s)
+			if _, err := a.Registry.Pool.Exec(ctx, `UPDATE stores SET tested_at = now(), test_ok = $2 WHERE id = $1`, row.ID, res.OK); err != nil {
+				return nil, err
+			}
+			return &struct{ Body TestResult }{res}, nil
 		})
 }
