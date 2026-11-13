@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
   Activity,
@@ -18,6 +18,8 @@ import {
 } from "lucide-react";
 import { useId, type ReactNode } from "react";
 import { Brand } from "@/app/brand";
+import { getStatusOptions } from "@/client/@tanstack/react-query.gen";
+import { Alert } from "@/components/ui/alert";
 import { Button, ErrorAlert } from "@/components/app-ui";
 import { Skeleton } from "@/components/ui/skeleton";
 import { t, type CopyKey } from "@/lib/copy";
@@ -60,9 +62,23 @@ export function Frame({ nav: items, account, children }: { nav: ReactNode; accou
         </nav>
       </aside>
       <main className="vt-main min-w-0 px-5 py-5 sm:px-8 sm:py-7">
-        <div className="mx-auto w-full max-w-[1440px] min-w-0">{children}</div>
+        <div className="mx-auto w-full max-w-[1440px] min-w-0">
+          {account ? <BudgetBanner /> : null}
+          {children}
+        </div>
       </main>
     </div>
+  );
+}
+
+/** BudgetBanner shows that the monthly budget is spent and no new round starts (§7.3). */
+function BudgetBanner() {
+  const status = useQuery({ ...getStatusOptions(), refetchInterval: 60_000 });
+  if (!status.data?.budget_spent) return null;
+  return (
+    <Alert tone="warning" className="mb-5">
+      {t("budget.banner", { spent: status.data.month_spent_usd.toFixed(2), budget: status.data.monthly_budget_usd.toFixed(2) })}
+    </Alert>
   );
 }
 

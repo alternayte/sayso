@@ -20,6 +20,8 @@ x-sayso-env: &sayso-env
   SAYSO_TEMPORAL_NAMESPACE: default
   SAYSO_TEMPORAL_UI_URL: http://temporal-ui:8080
   SAYSO_RUNNER: process
+  # Agent runs start in the worker container and call the API on the Compose network.
+  SAYSO_RUNNER_API_URL: http://sayso:8080
   SAYSO_LOG_LEVEL: ${SAYSO_LOG_LEVEL:-info}
 
 services:

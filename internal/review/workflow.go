@@ -195,7 +195,7 @@ func PRReview(ctx workflow.Context, st State) error {
 			WorkflowID: "round/" + d.RoundID.String(), TaskQueue: signals.TaskQueue,
 			WaitForCancellation: true,
 		})
-		f := workflow.ExecuteChildWorkflow(cctx, RoundWorkflowType, RoundInput{RoundID: *d.RoundID, RepositoryID: st.Start.RepositoryID})
+		f := workflow.ExecuteChildWorkflow(cctx, RoundWorkflowType, RoundInput{RoundID: *d.RoundID, RepositoryID: st.RepositoryID})
 		current = &running{id: *d.RoundID, future: f, cancel: cancel}
 	}
 	if st.Pending != nil {

@@ -110,9 +110,9 @@ func setDump(e *apptest.Env) {
 			var id, st string
 			_ = rv.Scan(&id, &st)
 			out += "review " + id + " " + st + "\n"
-			if d, err := e.Temporal.DescribeWorkflowExecution(ctx, id, ""); err == nil {
-				out += "  workflow " + d.WorkflowExecutionInfo.Status.String() + "\n"
-				for _, p := range d.PendingActivities {
+			if d, err := e.Temporal.DescribeWorkflow(ctx, id, ""); err == nil {
+				out += "  workflow " + d.RawResponse.WorkflowExecutionInfo.Status.String() + "\n"
+				for _, p := range d.RawResponse.PendingActivities {
 					out += "  pending " + p.ActivityType.GetName() + " attempt " + fmt.Sprint(p.Attempt) + ": " + p.GetLastFailure().GetMessage() + "\n"
 				}
 			}
@@ -175,12 +175,12 @@ func TestSCN_LIFE_001_OneWorkflowPerPullRequest(t *testing.T) {
 	if n := e.Count(t, `SELECT count(*) FROM reviews WHERE workflow_id = $1`, e.wfID("acme/payments", pr.Number)); n != 1 {
 		t.Fatalf("reviews: %d", n)
 	}
-	d, err := e.Temporal.DescribeWorkflowExecution(context.Background(), e.wfID("acme/payments", pr.Number), "")
+	d, err := e.Temporal.DescribeWorkflow(context.Background(), e.wfID("acme/payments", pr.Number), "")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if d.WorkflowExecutionInfo.Status != enums.WORKFLOW_EXECUTION_STATUS_RUNNING {
-		t.Fatalf("workflow status %v", d.WorkflowExecutionInfo.Status)
+	if d.RawResponse.WorkflowExecutionInfo.Status != enums.WORKFLOW_EXECUTION_STATUS_RUNNING {
+		t.Fatalf("workflow status %v", d.RawResponse.WorkflowExecutionInfo.Status)
 	}
 	if n := e.rounds(t, "acme/payments", pr.Number, ""); n != 1 {
 		t.Fatalf("rounds: %d", n)
@@ -248,7 +248,7 @@ func TestSCN_LIFE_007_ContinueAsNew(t *testing.T) {
 	}
 	id := e.wfID("acme/payments", pr.Number)
 	ctx := context.Background()
-	before, err := e.Temporal.DescribeWorkflowExecution(ctx, id, "")
+	before, err := e.Temporal.DescribeWorkflow(ctx, id, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -258,8 +258,8 @@ func TestSCN_LIFE_007_ContinueAsNew(t *testing.T) {
 		}
 	}
 	waitFor(t, 60*time.Second, "continue-as-new", func() bool {
-		d, err := e.Temporal.DescribeWorkflowExecution(ctx, id, "")
-		return err == nil && d.WorkflowExecutionInfo.Execution.RunId != before.WorkflowExecutionInfo.Execution.RunId
+		d, err := e.Temporal.DescribeWorkflow(ctx, id, "")
+		return err == nil && d.RawResponse.WorkflowExecutionInfo.Execution.RunId != before.RawResponse.WorkflowExecutionInfo.Execution.RunId
 	})
 	// The new run keeps working: a push while paused starts no round,
 	// ready_for_review starts one.
@@ -268,7 +268,7 @@ func TestSCN_LIFE_007_ContinueAsNew(t *testing.T) {
 		t.Fatal(code)
 	}
 	waitFor(t, 60*time.Second, "a second done round", func() bool { return e.rounds(t, "acme/payments", pr.Number, "done") == 2 })
-	it := e.Temporal.GetWorkflowHistory(ctx, id, before.WorkflowExecutionInfo.Execution.RunId, false, enums.HISTORY_EVENT_FILTER_TYPE_CLOSE_EVENT)
+	it := e.Temporal.GetWorkflowHistory(ctx, id, before.RawResponse.WorkflowExecutionInfo.Execution.RunId, false, enums.HISTORY_EVENT_FILTER_TYPE_CLOSE_EVENT)
 	ev, err := it.Next()
 	if err != nil || ev.GetWorkflowExecutionContinuedAsNewEventAttributes() == nil {
 		t.Fatalf("the first run did not continue as new: %v %v", ev, err)

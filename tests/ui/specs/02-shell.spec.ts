@@ -28,7 +28,7 @@ test("SCN-UI-001 a viewer reaches no settings route, an admin loads every route"
   for (const r of adminRoutes) {
     await admin.goto(r);
     await expect(admin.locator("main h1")).toBeVisible();
-    await expect(admin.getByRole("heading", { name: "Page not found" })).toHaveCount(0);
+    await expect(admin.getByRole("heading", { name: "Page not found" }), r).toHaveCount(0);
   }
 });
 

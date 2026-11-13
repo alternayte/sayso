@@ -118,8 +118,9 @@ func (a *AgentActivities) RunAgent(ctx context.Context, in RunAgentInput) (strin
 		return runner.ExitCancelled, ctx.Err()
 	}
 	// The runtime calls complete before it exits; a run that ended without
-	// it failed.
-	if _, err := a.Pool.Exec(ctx, `UPDATE agent_runs SET status = 'failed', exit_reason = $2, finished_at = now() WHERE id = $1 AND status IN ('queued', 'running')`,
+	// it failed, unless Sayso asked it to stop.
+	if _, err := a.Pool.Exec(ctx, `UPDATE agent_runs SET status = CASE WHEN cancel_requested THEN 'cancelled' ELSE 'failed' END,
+		exit_reason = CASE WHEN cancel_requested THEN 'cancelled' ELSE $2 END, finished_at = now() WHERE id = $1 AND status IN ('queued', 'running')`,
 		run.ID, exitText(reason, werr)); err != nil {
 		return "", err
 	}

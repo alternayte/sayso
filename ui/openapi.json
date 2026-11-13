@@ -59,6 +59,96 @@
         ],
         "type": "object"
       },
+      "Assessment": {
+        "additionalProperties": false,
+        "properties": {
+          "impact": {
+            "items": {
+              "$ref": "#/components/schemas/Impact"
+            },
+            "maxItems": 6,
+            "type": "array"
+          },
+          "risk": {
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              "critical"
+            ],
+            "type": "string"
+          },
+          "risk_reasons": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "tldr": {
+            "maxLength": 1200,
+            "type": "string"
+          },
+          "where_to_look": {
+            "items": {
+              "$ref": "#/components/schemas/WhereToLook"
+            },
+            "maxItems": 6,
+            "type": "array"
+          }
+        },
+        "required": [
+          "tldr",
+          "risk",
+          "risk_reasons",
+          "where_to_look",
+          "impact"
+        ],
+        "type": "object"
+      },
+      "Challenge": {
+        "additionalProperties": false,
+        "properties": {
+          "outcome": {
+            "enum": [
+              "confirmed",
+              "refuted",
+              "downgraded"
+            ],
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "outcome",
+          "reason"
+        ],
+        "type": "object"
+      },
+      "Check": {
+        "additionalProperties": false,
+        "properties": {
+          "conclusion": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "title",
+          "summary"
+        ],
+        "type": "object"
+      },
       "CheckResult": {
         "additionalProperties": false,
         "properties": {
@@ -81,6 +171,35 @@
           "ok",
           "detail",
           "ms"
+        ],
+        "type": "object"
+      },
+      "Comment": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "type": "string"
+          },
+          "finding_id": {
+            "type": "string"
+          },
+          "line": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "path": {
+            "type": "string"
+          },
+          "start_line": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "finding_id",
+          "path",
+          "line",
+          "body"
         ],
         "type": "object"
       },
@@ -259,6 +378,31 @@
             "type": "string"
           }
         },
+        "type": "object"
+      },
+      "Evidence": {
+        "additionalProperties": false,
+        "properties": {
+          "detail": {
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "test",
+              "trace",
+              "call_path",
+              "reasoning"
+            ],
+            "type": "string"
+          },
+          "test_path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "detail"
+        ],
         "type": "object"
       },
       "ExtensionBody": {
@@ -576,6 +720,67 @@
         ],
         "type": "object"
       },
+      "FindingBody": {
+        "additionalProperties": false,
+        "properties": {
+          "blocking": {
+            "type": "boolean"
+          },
+          "body": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "challenge": {
+            "$ref": "#/components/schemas/Challenge"
+          },
+          "end_line": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "evidence": {
+            "$ref": "#/components/schemas/Evidence"
+          },
+          "id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "severity": {
+            "type": "string"
+          },
+          "start_line": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "status": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "severity",
+          "category",
+          "title",
+          "body",
+          "path",
+          "start_line",
+          "end_line",
+          "status",
+          "blocking",
+          "evidence"
+        ],
+        "type": "object"
+      },
       "GitHubBody": {
         "additionalProperties": false,
         "properties": {
@@ -675,6 +880,22 @@
           "name",
           "image",
           "default"
+        ],
+        "type": "object"
+      },
+      "Impact": {
+        "additionalProperties": false,
+        "properties": {
+          "area": {
+            "type": "string"
+          },
+          "why": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "area",
+          "why"
         ],
         "type": "object"
       },
@@ -832,6 +1053,35 @@
           "api_type",
           "base_url",
           "auth_style"
+        ],
+        "type": "object"
+      },
+      "Preview": {
+        "additionalProperties": false,
+        "properties": {
+          "check": {
+            "$ref": "#/components/schemas/Check"
+          },
+          "comments": {
+            "items": {
+              "$ref": "#/components/schemas/Comment"
+            },
+            "type": "array"
+          },
+          "replies": {
+            "items": {
+              "$ref": "#/components/schemas/Reply"
+            },
+            "type": "array"
+          },
+          "summary": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "summary",
+          "comments",
+          "replies"
         ],
         "type": "object"
       },
@@ -1106,9 +1356,41 @@
         ],
         "type": "object"
       },
+      "Reply": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "type": "string"
+          },
+          "finding_id": {
+            "type": "string"
+          },
+          "key": {
+            "type": "string"
+          },
+          "resolve": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "key",
+          "finding_id",
+          "body"
+        ],
+        "type": "object"
+      },
       "RepositoryBody": {
         "additionalProperties": false,
         "properties": {
+          "challenge_min_severity": {
+            "enum": [
+              "blocker",
+              "major",
+              "minor",
+              "nit"
+            ],
+            "type": "string"
+          },
           "default_branch": {
             "type": "string"
           },
@@ -1118,6 +1400,10 @@
               "string",
               "null"
             ]
+          },
+          "execution": {
+            "description": "Off: no stage runs a command or writes a file",
+            "type": "boolean"
           },
           "feeds": {
             "items": {
@@ -1174,6 +1460,8 @@
           "enabled_at",
           "profiles",
           "mcp_servers",
+          "execution",
+          "challenge_min_severity",
           "feeds"
         ],
         "type": "object"
@@ -1200,6 +1488,238 @@
           "ok",
           "detail",
           "ms"
+        ],
+        "type": "object"
+      },
+      "ReviewBody": {
+        "additionalProperties": false,
+        "properties": {
+          "author": {
+            "type": "string"
+          },
+          "findings": {
+            "items": {
+              "$ref": "#/components/schemas/FindingBody"
+            },
+            "type": "array"
+          },
+          "id": {
+            "type": "string"
+          },
+          "last_round": {
+            "$ref": "#/components/schemas/RoundSummary"
+          },
+          "mode": {
+            "type": "string"
+          },
+          "number": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "repository": {
+            "type": "string"
+          },
+          "rounds": {
+            "items": {
+              "$ref": "#/components/schemas/RoundSummary"
+            },
+            "type": "array"
+          },
+          "signals": {
+            "items": {
+              "$ref": "#/components/schemas/SignalBody"
+            },
+            "type": "array"
+          },
+          "state": {
+            "type": "string"
+          },
+          "temporal_url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "rounds",
+          "findings",
+          "signals",
+          "id",
+          "repository",
+          "number",
+          "author",
+          "state",
+          "mode",
+          "last_round"
+        ],
+        "type": "object"
+      },
+      "ReviewItem": {
+        "additionalProperties": false,
+        "properties": {
+          "author": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "last_round": {
+            "$ref": "#/components/schemas/RoundSummary"
+          },
+          "mode": {
+            "type": "string"
+          },
+          "number": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "repository": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "repository",
+          "number",
+          "author",
+          "state",
+          "mode",
+          "last_round"
+        ],
+        "type": "object"
+      },
+      "RoundBody": {
+        "additionalProperties": false,
+        "properties": {
+          "agent_run_id": {
+            "type": "string"
+          },
+          "assessment": {
+            "$ref": "#/components/schemas/Assessment"
+          },
+          "can_cancel": {
+            "type": "boolean"
+          },
+          "config": {},
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "findings": {
+            "items": {
+              "$ref": "#/components/schemas/FindingBody"
+            },
+            "type": "array"
+          },
+          "finished_at": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "head_sha": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "mode": {
+            "type": "string"
+          },
+          "number": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "preview": {
+            "$ref": "#/components/schemas/Preview",
+            "description": "What Sayso posts, rendered as Markdown; shadow mode posts nothing"
+          },
+          "prompt_ref": {},
+          "reason": {
+            "type": "string"
+          },
+          "repository": {
+            "type": "string"
+          },
+          "risk": {
+            "type": "string"
+          },
+          "skill_ref": {
+            "$ref": "#/components/schemas/SkillRef"
+          },
+          "status": {
+            "type": "string"
+          },
+          "temporal_url": {
+            "type": "string"
+          },
+          "trigger": {
+            "type": "string"
+          },
+          "verdict": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "repository",
+          "number",
+          "mode",
+          "findings",
+          "can_cancel",
+          "id",
+          "head_sha",
+          "trigger",
+          "status",
+          "created_at",
+          "finished_at"
+        ],
+        "type": "object"
+      },
+      "RoundSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "finished_at": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "head_sha": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "risk": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "trigger": {
+            "type": "string"
+          },
+          "verdict": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "head_sha",
+          "trigger",
+          "status",
+          "created_at",
+          "finished_at"
         ],
         "type": "object"
       },
@@ -1340,6 +1860,28 @@
         ],
         "type": "object"
       },
+      "Set-repository-reviewRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "challenge_min_severity": {
+            "enum": [
+              "blocker",
+              "major",
+              "minor",
+              "nit"
+            ],
+            "type": "string"
+          },
+          "execution": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "execution",
+          "challenge_min_severity"
+        ],
+        "type": "object"
+      },
       "SettingBody": {
         "additionalProperties": false,
         "properties": {
@@ -1391,6 +1933,30 @@
           "setup_session",
           "signed_in",
           "install_url"
+        ],
+        "type": "object"
+      },
+      "SignalBody": {
+        "additionalProperties": false,
+        "properties": {
+          "actor": {
+            "type": "string"
+          },
+          "at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "finding": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "actor",
+          "at"
         ],
         "type": "object"
       },
@@ -1472,6 +2038,34 @@
         ],
         "type": "object"
       },
+      "SkillRef": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "source": {
+            "enum": [
+              "repository",
+              "skael",
+              "builtin"
+            ],
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "name",
+          "sha256"
+        ],
+        "type": "object"
+      },
       "SkillsBody": {
         "additionalProperties": false,
         "properties": {
@@ -1517,6 +2111,29 @@
           "response_model",
           "checks",
           "at"
+        ],
+        "type": "object"
+      },
+      "StatusBody": {
+        "additionalProperties": false,
+        "properties": {
+          "budget_spent": {
+            "description": "The monthly budget is spent; no new round starts",
+            "type": "boolean"
+          },
+          "month_spent_usd": {
+            "format": "double",
+            "type": "number"
+          },
+          "monthly_budget_usd": {
+            "format": "double",
+            "type": "number"
+          }
+        },
+        "required": [
+          "budget_spent",
+          "monthly_budget_usd",
+          "month_spent_usd"
         ],
         "type": "object"
       },
@@ -1685,6 +2302,22 @@
           "role_source",
           "status",
           "last_login_at"
+        ],
+        "type": "object"
+      },
+      "WhereToLook": {
+        "additionalProperties": false,
+        "properties": {
+          "target": {
+            "type": "string"
+          },
+          "why": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "target",
+          "why"
         ],
         "type": "object"
       }
@@ -3343,6 +3976,256 @@
         ]
       }
     },
+    "/api/v1/repositories/{owner}/{name}/review": {
+      "put": {
+        "operationId": "set-repository-review",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "owner",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Set-repository-reviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RepositoryBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "tags": [
+          "repositories"
+        ]
+      }
+    },
+    "/api/v1/reviews": {
+      "get": {
+        "operationId": "list-reviews",
+        "parameters": [
+          {
+            "description": "owner/name",
+            "explode": false,
+            "in": "query",
+            "name": "repository",
+            "schema": {
+              "description": "owner/name",
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "state",
+            "schema": {
+              "enum": [
+                "",
+                "open",
+                "paused",
+                "closed",
+                "merged"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ReviewItem"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "tags": [
+          "reviews"
+        ]
+      }
+    },
+    "/api/v1/reviews/{owner}/{name}/{number}": {
+      "get": {
+        "operationId": "get-review",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "owner",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "tags": [
+          "reviews"
+        ]
+      }
+    },
+    "/api/v1/rounds/{id}": {
+      "get": {
+        "operationId": "get-round",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoundBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "tags": [
+          "reviews"
+        ]
+      }
+    },
+    "/api/v1/rounds/{id}/cancel": {
+      "post": {
+        "operationId": "cancel-round",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Accepted"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "tags": [
+          "reviews"
+        ]
+      }
+    },
     "/api/v1/settings": {
       "get": {
         "operationId": "list-settings",
@@ -3653,6 +4536,36 @@
         },
         "tags": [
           "skills"
+        ]
+      }
+    },
+    "/api/v1/status": {
+      "get": {
+        "operationId": "get-status",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "tags": [
+          "status"
         ]
       }
     }
