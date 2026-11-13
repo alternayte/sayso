@@ -1,0 +1,55 @@
+marker: '[script:e2e-caller]'
+stages:
+  review:
+  - tools:
+    - name: record_finding
+      args:
+        severity: blocker
+        category: correctness
+        title: Post no longer rejects negative amounts
+        body: Charge in api/handler.go relies on Post to reject a negative amount. Refunds now raise the balance.
+        path: ledger/ledger.go
+        start_line: 15
+        end_line: 18
+        evidence:
+          kind: call_path
+          detail: api/handler.go Charge -> ledger.Post; the negative check is gone.
+  - tools:
+    - name: set_assessment
+      args:
+        tldr: The change removes the negative check from Post.
+        risk: high
+        risk_reasons:
+        - money path
+        where_to_look:
+        - path_or_area: ledger/ledger.go
+          why: the amount check
+        impact:
+        - area: api/handler.go
+          why: Charge calls Post with the request amount
+  - text: Review done.
+  challenge:
+  - tools:
+    - name: challenge_result
+      args:
+        candidate_id: c1
+        outcome: confirmed
+        reason: Charge passes the amount unchanged.
+  - text: Challenge done.
+  review+ledger:
+  - tools:
+    - name: update_finding
+      args:
+        finding_id: S-1
+        status: fixed
+        reason: The negative check is back.
+  - tools:
+    - name: set_assessment
+      args:
+        tldr: The negative check is back in Post.
+        risk: low
+        risk_reasons:
+        - small change
+        where_to_look: []
+        impact: []
+  - text: Review done.

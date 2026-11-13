@@ -211,21 +211,20 @@ func Reconcile(ctx context.Context, tx pgx.Tx, in Input) (Outcome, error) {
 	}
 
 	for _, c := range in.Result.Findings {
-		// A refuted candidate, and a downgraded nit, is stored withdrawn and
-		// not posted; a downgrade drops one severity level.
-		sev, withdrawn := ApplyChallenge(c.Severity, c.Challenge)
-		if withdrawn {
+		// A refuted candidate is stored withdrawn and not posted. The runtime
+		// already applied a downgrade to the severity, and turned a downgraded
+		// nit into refuted (the execution and challenge spec).
+		if c.Challenge != nil && c.Challenge.Outcome == "refuted" {
 			f, err := insert(c, StatusWithdrawn, false, nil)
 			if err != nil {
 				return out, err
 			}
-			if err := Event(ctx, tx, f.ID, round, agent, "withdrawn", "challenge "+c.Challenge.Outcome+": "+c.Challenge.Reason); err != nil {
+			if err := Event(ctx, tx, f.ID, round, agent, "withdrawn", "challenge refuted: "+c.Challenge.Reason); err != nil {
 				return out, err
 			}
 			out.Withdrawn = append(out.Withdrawn, f.ID)
 			continue
 		}
-		c.Severity = sev
 		blocking := Blocking(c.Severity, c.Evidence.Kind, c.Challenge, in.Block)
 		target := match(ledger, c, in.Threshold)
 		if target == nil {

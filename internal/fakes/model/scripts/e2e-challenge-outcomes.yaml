@@ -1,0 +1,51 @@
+marker: '[script:e2e-challenge-outcomes]'
+stages:
+  review:
+  - tools:
+    - name: record_finding
+      args:
+        severity: blocker
+        category: correctness
+        title: Overflow on large amounts
+        body: Post can overflow the balance.
+        path: ledger/ledger.go
+        start_line: 19
+        end_line: 19
+        evidence:
+          kind: trace
+          detail: balance += amount has no bound.
+    - name: record_finding
+      args:
+        severity: blocker
+        category: correctness
+        title: Negative amounts pass
+        body: Post no longer rejects a negative amount.
+        path: ledger/ledger.go
+        start_line: 15
+        end_line: 18
+        evidence:
+          kind: trace
+          detail: The check is gone.
+  - tools:
+    - name: set_assessment
+      args:
+        tldr: The change touches Post.
+        risk: medium
+        risk_reasons:
+        - money path
+        where_to_look: []
+        impact: []
+  - text: Review done.
+  challenge:
+  - tools:
+    - name: challenge_result
+      args:
+        candidate_id: c1
+        outcome: refuted
+        reason: Amounts are bounded by the API.
+    - name: challenge_result
+      args:
+        candidate_id: c2
+        outcome: downgraded
+        reason: Only refunds reach this path.
+  - text: Challenge done.

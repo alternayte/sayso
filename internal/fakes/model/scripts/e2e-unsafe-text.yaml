@@ -1,0 +1,34 @@
+marker: '[script:e2e-unsafe-text]'
+stages:
+  review:
+  - tools:
+    - name: record_finding
+      args:
+        severity: major
+        category: security
+        title: Ask @octo-admin about the check
+        body: 'Ask @octo-admin first. <script>alert(1)</script> See [the guide](javascript:alert(1)).'
+        path: ledger/ledger.go
+        start_line: 15
+        end_line: 18
+        evidence:
+          kind: reasoning
+          detail: The check is gone.
+  - tools:
+    - name: set_assessment
+      args:
+        tldr: 'Ping @octo-admin. <script>alert(2)</script>'
+        risk: medium
+        risk_reasons:
+        - money path
+        where_to_look: []
+        impact: []
+  - text: Review done.
+  challenge:
+  - tools:
+    - name: challenge_result
+      args:
+        candidate_id: c1
+        outcome: confirmed
+        reason: The check is gone.
+  - text: Challenge done.

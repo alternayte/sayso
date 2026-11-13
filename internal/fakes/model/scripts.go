@@ -13,7 +13,9 @@ import (
 // Scripts are YAML files in scripts/. A script answers when its marker is
 // in the system prompt or a message, for example "[script:review-blocker]"
 // in the repository guidance. Each stage has its own list of steps; the step
-// of a request is the number of assistant turns that came before it.
+// of a request is the number of assistant turns that came before it. A
+// stage key "<stage>+ledger" answers instead when the prompt has the ledger
+// section, which only rounds after the first have.
 //
 //go:embed scripts/*.yaml
 var scriptFS embed.FS
@@ -41,12 +43,15 @@ var stageRe = regexp.MustCompile(`## Stage: (\w+)`)
 
 // step returns the step of a stage and turn. A finished script answers with
 // a final text.
-func (s *Script) step(system string, turns int) Step {
+func (s *Script) step(system, prompt string, turns int) Step {
 	stage := "review"
 	if m := stageRe.FindStringSubmatch(system); m != nil {
 		stage = m[1]
 	}
 	steps := s.Stages[stage]
+	if alt, ok := s.Stages[stage+"+ledger"]; ok && strings.Contains(prompt, "## Ledger of this pull request") {
+		steps = alt
+	}
 	if turns < len(steps) {
 		return steps[turns]
 	}

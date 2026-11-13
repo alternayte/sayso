@@ -78,6 +78,13 @@ func start(t *testing.T, script func(runner.Spec) runnertest.Answer, set map[str
 		since := time.Now()
 		t.Cleanup(func() { record(t, e, dir, since) })
 	}
+	setDump(e)
+	return &env{Env: e, sr: sr}
+}
+
+// setDump makes failed waits print the rounds, runs and workflows.
+func setDump(e *apptest.Env) {
+	ctx := context.Background()
 	dump = func() string {
 		var out string
 		rows, err := e.Deps.Pool.Query(ctx, `SELECT ro.status, ro.failure_reason, coalesce(ar.status, '-'), coalesce(ar.exit_reason, '-') FROM rounds ro
@@ -91,6 +98,13 @@ func start(t *testing.T, script func(runner.Spec) runnertest.Answer, set map[str
 			_ = rows.Scan(&a, &b, &c, &d)
 			out += "round " + a + " (" + b + ") run " + c + " (" + d + ")\n"
 		}
+		evs, _ := e.Deps.Pool.Query(ctx, `SELECT type, name, status, left(preview, 300) FROM run_events WHERE type IN ('tool_call', 'error', 'note') ORDER BY run_id, seq`)
+		for evs.Next() {
+			var a, b, c, d string
+			_ = evs.Scan(&a, &b, &c, &d)
+			out += "  event " + a + " " + b + " " + c + ": " + d + "\n"
+		}
+		evs.Close()
 		rv, _ := e.Deps.Pool.Query(ctx, `SELECT workflow_id, state FROM reviews`)
 		for rv.Next() {
 			var id, st string
@@ -106,7 +120,6 @@ func start(t *testing.T, script func(runner.Spec) runnertest.Answer, set map[str
 		rv.Close()
 		return out
 	}
-	return &env{Env: e, sr: sr}
 }
 
 func (e *env) open(t *testing.T, repo string) *fakegh.Pull {
