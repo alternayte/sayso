@@ -238,7 +238,14 @@ func (a *Activities) applyFix(ctx context.Context, w work, p *prRef, f *findings
 		if fd.IsDelete || fd.IsBinary {
 			return a.finishWork(ctx, w.id, "failed", "the patch deletes or changes a binary file; Sayso commits only text changes", nil)
 		}
+		// Like git apply -p1, which the runtime checks the patch with.
 		path := fd.NewName
+		for _, pre := range []string{"b/", "a/"} {
+			if p, ok := strings.CutPrefix(path, pre); ok {
+				path = p
+				break
+			}
+		}
 		old, sha, _, err := p.gh.Client.FileWithSHA(ctx, p.gh.Token, p.gh.Inst, p.full, path, branch)
 		if err != nil {
 			return err
