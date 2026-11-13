@@ -18,12 +18,71 @@ export type AppBody = {
     slug: string;
 };
 
+export type ArtifactBody = {
+    name: string;
+    size: number;
+};
+
 export type Assessment = {
     impact: Array<Impact>;
     risk: 'low' | 'medium' | 'high' | 'critical';
     risk_reasons: Array<string>;
     tldr: string;
     where_to_look: Array<WhereToLook>;
+};
+
+export type CaseFile = {
+    config_snapshot: unknown;
+    exported_at: string;
+    findings: Array<CaseFinding>;
+    prompt_ref: unknown;
+    pull_request: CasePull;
+    round: CaseRound;
+    signals: Array<CaseSignal>;
+    skill_ref: SkillRef;
+    steering_review: SteeringReview;
+    /**
+     * Format version, 1
+     */
+    version: number;
+};
+
+export type CaseFinding = {
+    blocking: boolean;
+    category: string;
+    challenge?: Challenge;
+    end_line: number;
+    evidence: Evidence;
+    id: string;
+    path: string;
+    severity: string;
+    start_line: number;
+    status: string;
+    title: string;
+};
+
+export type CasePull = {
+    author: string;
+    number: number;
+    repository: string;
+    url: string;
+};
+
+export type CaseRound = {
+    base_sha: string;
+    head_sha: string;
+    id: string;
+    risk: string;
+    status: string;
+    verdict: string;
+};
+
+export type CaseSignal = {
+    actor: string;
+    at: string;
+    detail: unknown;
+    finding?: string;
+    type: string;
 };
 
 export type Challenge = {
@@ -122,6 +181,20 @@ export type ErrorModel = {
      * A URI reference to human-readable documentation for the error.
      */
     type?: string;
+};
+
+export type EventBody = {
+    at: string;
+    duration_ms: number;
+    has_payload: boolean;
+    name: string;
+    preview: string;
+    seq: number;
+    stage: string;
+    status: string;
+    tokens_in: number;
+    tokens_out: number;
+    type: string;
 };
 
 export type Evidence = {
@@ -419,6 +492,22 @@ export type PutTeamRoleRequest = {
     role: 'admin' | 'maintainer' | 'viewer';
 };
 
+export type QueueItem = {
+    head_sha: string;
+    last_signal: string;
+    number: number;
+    profile?: string;
+    repository: string;
+    round_id: string;
+    /**
+     * Signal types of the round
+     */
+    signals: Array<string>;
+    skill_source?: string;
+    skill_version?: string;
+    verdict?: string;
+};
+
 export type Reply = {
     body: string;
     finding_id: string;
@@ -464,6 +553,11 @@ export type ReviewBody = {
     signals: Array<SignalBody>;
     state: string;
     temporal_url?: string;
+};
+
+export type ReviewInput = {
+    note: string;
+    tags: Array<string>;
 };
 
 export type ReviewItem = {
@@ -513,6 +607,29 @@ export type RoundSummary = {
     status: string;
     trigger: string;
     verdict?: string;
+};
+
+export type RunBody = {
+    artifacts: Array<ArtifactBody>;
+    cost_usd: number;
+    created_at: string;
+    events: number;
+    exit_reason: string;
+    finished_at: string | null;
+    head_sha?: string;
+    id: string;
+    kind: string;
+    number?: number;
+    repository?: string;
+    round_id?: string;
+    started_at: string | null;
+    status: string;
+    tokens_in: number;
+    tokens_out: number;
+};
+
+export type RunEnd = {
+    status: string;
 };
 
 export type ServerBody = {
@@ -648,6 +765,41 @@ export type StatusBody = {
     monthly_budget_usd: number;
 };
 
+export type SteeringReview = {
+    author: string;
+    created_at: string;
+    note: string;
+    tags: Array<string>;
+};
+
+export type StoreBody = {
+    config: unknown;
+    default: boolean;
+    driver: string;
+    id: string;
+    name: string;
+    /**
+     * Artifacts and event payloads in this store
+     */
+    objects: number;
+    retention_days: number;
+    secret: Field;
+};
+
+export type StoreInput = {
+    /**
+     * S3Config or AzConfig
+     */
+    config?: unknown;
+    default?: boolean;
+    driver: 'postgres' | 's3' | 'azblob';
+    retention_days: number;
+    /**
+     * s3: the secret access key; azblob: the account key or connection string
+     */
+    secret?: Input;
+};
+
 export type Target = {
     context_window?: number;
     max_tokens?: number;
@@ -677,12 +829,29 @@ export type TestProviderRequest = {
     model?: string;
 };
 
+export type TestResult = {
+    detail: string;
+    ms: number;
+    ok: boolean;
+};
+
 export type ToolInfo = {
     allowed: boolean;
     description: string;
     destructive?: boolean;
     name: string;
     read_only: boolean;
+};
+
+export type UsageRow = {
+    cost_usd: number;
+    /**
+     * Round ID, owner/name, profile or YYYY-MM
+     */
+    key: string;
+    label: string;
+    tokens_in: number;
+    tokens_out: number;
 };
 
 export type UserBody = {
@@ -1923,6 +2092,234 @@ export type CancelRoundResponses = {
     202: unknown;
 };
 
+export type ExportCaseData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/rounds/{id}/case';
+};
+
+export type ExportCaseErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type ExportCaseError = ExportCaseErrors[keyof ExportCaseErrors];
+
+export type ExportCaseResponses = {
+    /**
+     * OK
+     */
+    200: CaseFile;
+};
+
+export type ExportCaseResponse = ExportCaseResponses[keyof ExportCaseResponses];
+
+export type SaveSteeringReviewData = {
+    body: ReviewInput;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/rounds/{id}/steering-review';
+};
+
+export type SaveSteeringReviewErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type SaveSteeringReviewError = SaveSteeringReviewErrors[keyof SaveSteeringReviewErrors];
+
+export type SaveSteeringReviewResponses = {
+    /**
+     * OK
+     */
+    200: SteeringReview;
+};
+
+export type SaveSteeringReviewResponse = SaveSteeringReviewResponses[keyof SaveSteeringReviewResponses];
+
+export type GetRunData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/runs/{id}';
+};
+
+export type GetRunErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type GetRunError = GetRunErrors[keyof GetRunErrors];
+
+export type GetRunResponses = {
+    /**
+     * OK
+     */
+    200: RunBody;
+};
+
+export type GetRunResponse = GetRunResponses[keyof GetRunResponses];
+
+export type GetRunArtifactData = {
+    body?: never;
+    path: {
+        id: string;
+        /**
+         * session.jsonl.gz, result.json or manifest.json
+         */
+        name: string;
+    };
+    query?: never;
+    url: '/api/v1/runs/{id}/artifacts/{name}';
+};
+
+export type GetRunArtifactErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type GetRunArtifactError = GetRunArtifactErrors[keyof GetRunArtifactErrors];
+
+export type GetRunArtifactResponses = {
+    /**
+     * OK
+     */
+    200: unknown;
+};
+
+export type ListRunEventsData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: {
+        /**
+         * Return events after this seq
+         */
+        after?: number;
+        limit?: number;
+    };
+    url: '/api/v1/runs/{id}/events';
+};
+
+export type ListRunEventsErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type ListRunEventsError = ListRunEventsErrors[keyof ListRunEventsErrors];
+
+export type ListRunEventsResponses = {
+    /**
+     * OK
+     */
+    200: Array<EventBody>;
+};
+
+export type ListRunEventsResponse = ListRunEventsResponses[keyof ListRunEventsResponses];
+
+export type GetRunEventPayloadData = {
+    body?: never;
+    path: {
+        id: string;
+        seq: number;
+    };
+    query?: never;
+    url: '/api/v1/runs/{id}/events/{seq}/payload';
+};
+
+export type GetRunEventPayloadErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type GetRunEventPayloadError = GetRunEventPayloadErrors[keyof GetRunEventPayloadErrors];
+
+export type GetRunEventPayloadResponses = {
+    /**
+     * OK
+     */
+    200: unknown;
+};
+
+export type StreamRunData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: {
+        after?: number;
+    };
+    url: '/api/v1/runs/{id}/stream';
+};
+
+export type StreamRunErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type StreamRunError = StreamRunErrors[keyof StreamRunErrors];
+
+export type StreamRunResponses = {
+    /**
+     * Server Sent Events
+     *
+     * Each oneOf object in the array represents one possible Server Sent Events (SSE) message, serialized as UTF-8 text according to the SSE specification.
+     */
+    200: Array<{
+        data: RunEnd;
+        /**
+         * The event name.
+         */
+        event: 'end';
+        /**
+         * The event ID.
+         */
+        id?: number | string;
+        /**
+         * The retry time in milliseconds.
+         */
+        retry?: number;
+    } | {
+        data: EventBody;
+        /**
+         * The event name.
+         */
+        event: 'event';
+        /**
+         * The event ID.
+         */
+        id?: number | string;
+        /**
+         * The retry time in milliseconds.
+         */
+        retry?: number;
+    }>;
+};
+
+export type StreamRunResponse = StreamRunResponses[keyof StreamRunResponses];
+
 export type ListSettingsData = {
     body?: never;
     path?: never;
@@ -2151,3 +2548,179 @@ export type GetStatusResponses = {
 };
 
 export type GetStatusResponse = GetStatusResponses[keyof GetStatusResponses];
+
+export type SteeringQueueData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * owner/name
+         */
+        repository?: string;
+        skill_source?: '' | 'repository' | 'skael' | 'builtin';
+        skill_version?: string;
+        /**
+         * A prompt layer version or hash; matches any layer
+         */
+        prompt_version?: string;
+        /**
+         * Profile of the review stage
+         */
+        profile?: string;
+        signal_type?: '' | 'dismissed' | 'overridden' | 'conceded' | 'resolved_unfixed' | 'human_comment_unflagged' | 'rerun_requested';
+        from?: string;
+        to?: string;
+    };
+    url: '/api/v1/steering';
+};
+
+export type SteeringQueueErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type SteeringQueueError = SteeringQueueErrors[keyof SteeringQueueErrors];
+
+export type SteeringQueueResponses = {
+    /**
+     * OK
+     */
+    200: Array<QueueItem>;
+};
+
+export type SteeringQueueResponse = SteeringQueueResponses[keyof SteeringQueueResponses];
+
+export type ListStoresData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/stores';
+};
+
+export type ListStoresErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type ListStoresError = ListStoresErrors[keyof ListStoresErrors];
+
+export type ListStoresResponses = {
+    /**
+     * OK
+     */
+    200: Array<StoreBody>;
+};
+
+export type ListStoresResponse = ListStoresResponses[keyof ListStoresResponses];
+
+export type DeleteStoreData = {
+    body?: never;
+    path: {
+        name: string;
+    };
+    query?: never;
+    url: '/api/v1/stores/{name}';
+};
+
+export type DeleteStoreErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type DeleteStoreError = DeleteStoreErrors[keyof DeleteStoreErrors];
+
+export type DeleteStoreResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type DeleteStoreResponse = DeleteStoreResponses[keyof DeleteStoreResponses];
+
+export type PutStoreData = {
+    body: StoreInput;
+    path: {
+        name: string;
+    };
+    query?: never;
+    url: '/api/v1/stores/{name}';
+};
+
+export type PutStoreErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type PutStoreError = PutStoreErrors[keyof PutStoreErrors];
+
+export type PutStoreResponses = {
+    /**
+     * OK
+     */
+    200: StoreBody;
+};
+
+export type PutStoreResponse = PutStoreResponses[keyof PutStoreResponses];
+
+export type TestStoreData = {
+    body?: never;
+    path: {
+        name: string;
+    };
+    query?: never;
+    url: '/api/v1/stores/{name}/test';
+};
+
+export type TestStoreErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type TestStoreError = TestStoreErrors[keyof TestStoreErrors];
+
+export type TestStoreResponses = {
+    /**
+     * OK
+     */
+    200: TestResult;
+};
+
+export type TestStoreResponse = TestStoreResponses[keyof TestStoreResponses];
+
+export type GetUsageData = {
+    body?: never;
+    path?: never;
+    query?: {
+        group?: 'round' | 'repository' | 'profile' | 'month';
+    };
+    url: '/api/v1/usage';
+};
+
+export type GetUsageErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type GetUsageError = GetUsageErrors[keyof GetUsageErrors];
+
+export type GetUsageResponses = {
+    /**
+     * OK
+     */
+    200: Array<UsageRow>;
+};
+
+export type GetUsageResponse = GetUsageResponses[keyof GetUsageResponses];

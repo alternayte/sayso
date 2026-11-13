@@ -162,7 +162,7 @@ func (a *Activities) ApplyWork(ctx context.Context, id uuid.UUID) error {
 	if runID == nil || runStatus != "done" {
 		return a.finishWork(ctx, id, "failed", "the agent run ended: "+exit, nil)
 	}
-	res, err := runner.ReadResult(ctx, a.Pool, *runID)
+	res, err := runner.ReadResult(ctx, a.Pool, a.Stores, *runID)
 	if err != nil {
 		return err
 	}

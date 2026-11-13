@@ -13,6 +13,7 @@ import (
 	"github.com/alternayte/sayso/internal/review"
 	"github.com/alternayte/sayso/internal/review/signals"
 	"github.com/alternayte/sayso/internal/settings"
+	"github.com/alternayte/sayso/internal/storage"
 )
 
 // WorkerStopTimeout bounds the wait for running activities at shutdown.
@@ -30,6 +31,11 @@ func StartWorker(ctx context.Context, d *Deps, f *Features) (func(), error) {
 	w.RegisterWorkflowWithOptions(review.ReviewRound, workflow.RegisterOptions{Name: review.RoundWorkflowType})
 	w.RegisterWorkflowWithOptions(review.AgentWork, workflow.RegisterOptions{Name: review.WorkWorkflowType})
 	w.RegisterActivity(ReviewActivities(d, f))
+	w.RegisterWorkflowWithOptions(storage.RetentionWorkflow, workflow.RegisterOptions{Name: storage.RetentionWorkflowName})
+	w.RegisterActivity(&storage.Retention{Registry: f.Stores, IndexDays: func(ctx context.Context) int {
+		n, _ := f.Settings.Int(ctx, settings.EventIndexRetentionDays)
+		return n
+	}})
 	limit, err := f.Settings.Int(ctx, settings.WorkerMaxAgentRuns)
 	if err != nil {
 		return nil, err
@@ -59,6 +65,9 @@ func StartWorker(ctx context.Context, d *Deps, f *Features) (func(), error) {
 	}
 	if err := github.EnsureReconcileSchedule(ctx, d.Temporal, time.Duration(minutes)*time.Minute); err != nil {
 		d.Log.Warn("reconciler schedule not created", "error", err)
+	}
+	if err := storage.EnsureRetentionSchedule(ctx, d.Temporal, signals.TaskQueue); err != nil {
+		d.Log.Warn("retention schedule not created", "error", err)
 	}
 	d.Log.Info("worker started", "task_queue", signals.TaskQueue, "agent_runs", limit)
 	return stop, nil

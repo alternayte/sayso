@@ -145,13 +145,6 @@ func threadBodies(e *env, n int, top int64) []string {
 	return out
 }
 
-func (e *env) reply(t *testing.T, n int, top int64, author, body string) {
-	t.Helper()
-	if _, code := e.GitHub.AddReviewComment("acme/payments", n, author, body, "", 0, top); code != http.StatusOK {
-		t.Fatalf("reply: %d", code)
-	}
-}
-
 func (e *env) botReplies(top int64) []string {
 	var out []string
 	for _, c := range e.GitHub.Thread(top) {

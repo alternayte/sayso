@@ -59,6 +59,23 @@
         ],
         "type": "object"
       },
+      "ArtifactBody": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "size": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "name",
+          "size"
+        ],
+        "type": "object"
+      },
       "Assessment": {
         "additionalProperties": false,
         "properties": {
@@ -102,6 +119,195 @@
           "risk_reasons",
           "where_to_look",
           "impact"
+        ],
+        "type": "object"
+      },
+      "CaseFile": {
+        "additionalProperties": false,
+        "properties": {
+          "config_snapshot": {},
+          "exported_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "findings": {
+            "items": {
+              "$ref": "#/components/schemas/CaseFinding"
+            },
+            "type": "array"
+          },
+          "prompt_ref": {},
+          "pull_request": {
+            "$ref": "#/components/schemas/CasePull"
+          },
+          "round": {
+            "$ref": "#/components/schemas/CaseRound"
+          },
+          "signals": {
+            "items": {
+              "$ref": "#/components/schemas/CaseSignal"
+            },
+            "type": "array"
+          },
+          "skill_ref": {
+            "$ref": "#/components/schemas/SkillRef"
+          },
+          "steering_review": {
+            "$ref": "#/components/schemas/SteeringReview"
+          },
+          "version": {
+            "description": "Format version, 1",
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version",
+          "exported_at",
+          "pull_request",
+          "round",
+          "config_snapshot",
+          "skill_ref",
+          "prompt_ref",
+          "findings",
+          "signals",
+          "steering_review"
+        ],
+        "type": "object"
+      },
+      "CaseFinding": {
+        "additionalProperties": false,
+        "properties": {
+          "blocking": {
+            "type": "boolean"
+          },
+          "category": {
+            "type": "string"
+          },
+          "challenge": {
+            "$ref": "#/components/schemas/Challenge"
+          },
+          "end_line": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "evidence": {
+            "$ref": "#/components/schemas/Evidence"
+          },
+          "id": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "severity": {
+            "type": "string"
+          },
+          "start_line": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "status": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "severity",
+          "category",
+          "title",
+          "path",
+          "start_line",
+          "end_line",
+          "status",
+          "blocking",
+          "evidence"
+        ],
+        "type": "object"
+      },
+      "CasePull": {
+        "additionalProperties": false,
+        "properties": {
+          "author": {
+            "type": "string"
+          },
+          "number": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "repository": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "repository",
+          "number",
+          "url",
+          "author"
+        ],
+        "type": "object"
+      },
+      "CaseRound": {
+        "additionalProperties": false,
+        "properties": {
+          "base_sha": {
+            "type": "string"
+          },
+          "head_sha": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "risk": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "verdict": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "head_sha",
+          "base_sha",
+          "status",
+          "verdict",
+          "risk"
+        ],
+        "type": "object"
+      },
+      "CaseSignal": {
+        "additionalProperties": false,
+        "properties": {
+          "actor": {
+            "type": "string"
+          },
+          "at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "detail": {},
+          "finding": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "actor",
+          "detail",
+          "at"
         ],
         "type": "object"
       },
@@ -378,6 +584,63 @@
             "type": "string"
           }
         },
+        "type": "object"
+      },
+      "EventBody": {
+        "additionalProperties": false,
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "duration_ms": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "has_payload": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          },
+          "preview": {
+            "type": "string"
+          },
+          "seq": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "stage": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "tokens_in": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "tokens_out": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "seq",
+          "at",
+          "stage",
+          "type",
+          "name",
+          "status",
+          "duration_ms",
+          "tokens_in",
+          "tokens_out",
+          "preview",
+          "has_payload"
+        ],
         "type": "object"
       },
       "Evidence": {
@@ -1356,6 +1619,56 @@
         ],
         "type": "object"
       },
+      "QueueItem": {
+        "additionalProperties": false,
+        "properties": {
+          "head_sha": {
+            "type": "string"
+          },
+          "last_signal": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "number": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "profile": {
+            "type": "string"
+          },
+          "repository": {
+            "type": "string"
+          },
+          "round_id": {
+            "type": "string"
+          },
+          "signals": {
+            "description": "Signal types of the round",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "skill_source": {
+            "type": "string"
+          },
+          "skill_version": {
+            "type": "string"
+          },
+          "verdict": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "round_id",
+          "repository",
+          "number",
+          "head_sha",
+          "signals",
+          "last_signal"
+        ],
+        "type": "object"
+      },
       "Reply": {
         "additionalProperties": false,
         "properties": {
@@ -1552,6 +1865,27 @@
         ],
         "type": "object"
       },
+      "ReviewInput": {
+        "additionalProperties": false,
+        "properties": {
+          "note": {
+            "maxLength": 4000,
+            "type": "string"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 20,
+            "type": "array"
+          }
+        },
+        "required": [
+          "tags",
+          "note"
+        ],
+        "type": "object"
+      },
       "ReviewItem": {
         "additionalProperties": false,
         "properties": {
@@ -1720,6 +2054,103 @@
           "status",
           "created_at",
           "finished_at"
+        ],
+        "type": "object"
+      },
+      "RunBody": {
+        "additionalProperties": false,
+        "properties": {
+          "artifacts": {
+            "items": {
+              "$ref": "#/components/schemas/ArtifactBody"
+            },
+            "type": "array"
+          },
+          "cost_usd": {
+            "format": "double",
+            "type": "number"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "events": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "exit_reason": {
+            "type": "string"
+          },
+          "finished_at": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "head_sha": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "number": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "repository": {
+            "type": "string"
+          },
+          "round_id": {
+            "type": "string"
+          },
+          "started_at": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "type": "string"
+          },
+          "tokens_in": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "tokens_out": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "status",
+          "exit_reason",
+          "tokens_in",
+          "tokens_out",
+          "cost_usd",
+          "events",
+          "artifacts",
+          "created_at",
+          "started_at",
+          "finished_at"
+        ],
+        "type": "object"
+      },
+      "RunEnd": {
+        "additionalProperties": false,
+        "properties": {
+          "status": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
         ],
         "type": "object"
       },
@@ -2137,6 +2568,109 @@
         ],
         "type": "object"
       },
+      "SteeringReview": {
+        "additionalProperties": false,
+        "properties": {
+          "author": {
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "note": {
+            "type": "string"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "tags",
+          "note",
+          "author",
+          "created_at"
+        ],
+        "type": "object"
+      },
+      "StoreBody": {
+        "additionalProperties": false,
+        "properties": {
+          "config": {},
+          "default": {
+            "type": "boolean"
+          },
+          "driver": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "objects": {
+            "description": "Artifacts and event payloads in this store",
+            "format": "int64",
+            "type": "integer"
+          },
+          "retention_days": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "secret": {
+            "$ref": "#/components/schemas/Field"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "driver",
+          "config",
+          "secret",
+          "retention_days",
+          "default",
+          "objects"
+        ],
+        "type": "object"
+      },
+      "StoreInput": {
+        "additionalProperties": false,
+        "properties": {
+          "config": {
+            "description": "S3Config or AzConfig"
+          },
+          "default": {
+            "type": "boolean"
+          },
+          "driver": {
+            "enum": [
+              "postgres",
+              "s3",
+              "azblob"
+            ],
+            "type": "string"
+          },
+          "retention_days": {
+            "format": "int64",
+            "maximum": 3650,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "secret": {
+            "$ref": "#/components/schemas/Input",
+            "description": "s3: the secret access key; azblob: the account key or connection string"
+          }
+        },
+        "required": [
+          "driver",
+          "retention_days"
+        ],
+        "type": "object"
+      },
       "Target": {
         "additionalProperties": false,
         "properties": {
@@ -2242,6 +2776,27 @@
         },
         "type": "object"
       },
+      "TestResult": {
+        "additionalProperties": false,
+        "properties": {
+          "detail": {
+            "type": "string"
+          },
+          "ms": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "ok": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ok",
+          "detail",
+          "ms"
+        ],
+        "type": "object"
+      },
       "ToolInfo": {
         "additionalProperties": false,
         "properties": {
@@ -2266,6 +2821,38 @@
           "description",
           "read_only",
           "allowed"
+        ],
+        "type": "object"
+      },
+      "UsageRow": {
+        "additionalProperties": false,
+        "properties": {
+          "cost_usd": {
+            "format": "double",
+            "type": "number"
+          },
+          "key": {
+            "description": "Round ID, owner/name, profile or YYYY-MM",
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "tokens_in": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "tokens_out": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "tokens_in",
+          "tokens_out",
+          "cost_usd"
         ],
         "type": "object"
       },
@@ -4226,6 +4813,422 @@
         ]
       }
     },
+    "/api/v1/rounds/{id}/case": {
+      "get": {
+        "operationId": "export-case",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaseFile"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "Content-Disposition": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "tags": [
+          "steering"
+        ]
+      }
+    },
+    "/api/v1/rounds/{id}/steering-review": {
+      "put": {
+        "operationId": "save-steering-review",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SteeringReview"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "tags": [
+          "steering"
+        ]
+      }
+    },
+    "/api/v1/runs/{id}": {
+      "get": {
+        "operationId": "get-run",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/api/v1/runs/{id}/artifacts/{name}": {
+      "get": {
+        "operationId": "get-run-artifact",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "session.jsonl.gz, result.json or manifest.json",
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "description": "session.jsonl.gz, result.json or manifest.json",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/api/v1/runs/{id}/events": {
+      "get": {
+        "operationId": "list-run-events",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Return events after this seq",
+            "explode": false,
+            "in": "query",
+            "name": "after",
+            "schema": {
+              "description": "Return events after this seq",
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "default": 10000,
+              "format": "int64",
+              "maximum": 10000,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/EventBody"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/api/v1/runs/{id}/events/{seq}/payload": {
+      "get": {
+        "operationId": "get-run-event-payload",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "seq",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/api/v1/runs/{id}/stream": {
+      "get": {
+        "operationId": "stream-run",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "after",
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "description": "Each oneOf object in the array represents one possible Server Sent Events (SSE) message, serialized as UTF-8 text according to the SSE specification.",
+                  "items": {
+                    "oneOf": [
+                      {
+                        "properties": {
+                          "data": {
+                            "$ref": "#/components/schemas/RunEnd"
+                          },
+                          "event": {
+                            "const": "end",
+                            "description": "The event name.",
+                            "type": "string"
+                          },
+                          "id": {
+                            "description": "The event ID.",
+                            "oneOf": [
+                              {
+                                "type": "integer"
+                              },
+                              {
+                                "type": "string"
+                              }
+                            ]
+                          },
+                          "retry": {
+                            "description": "The retry time in milliseconds.",
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "data",
+                          "event"
+                        ],
+                        "title": "Event end",
+                        "type": "object"
+                      },
+                      {
+                        "properties": {
+                          "data": {
+                            "$ref": "#/components/schemas/EventBody"
+                          },
+                          "event": {
+                            "const": "event",
+                            "description": "The event name.",
+                            "type": "string"
+                          },
+                          "id": {
+                            "description": "The event ID.",
+                            "oneOf": [
+                              {
+                                "type": "integer"
+                              },
+                              {
+                                "type": "string"
+                              }
+                            ]
+                          },
+                          "retry": {
+                            "description": "The retry time in milliseconds.",
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "data",
+                          "event"
+                        ],
+                        "title": "Event event",
+                        "type": "object"
+                      }
+                    ]
+                  },
+                  "title": "Server Sent Events",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "tags": [
+          "runs"
+        ]
+      }
+    },
     "/api/v1/settings": {
       "get": {
         "operationId": "list-settings",
@@ -4566,6 +5569,332 @@
         },
         "tags": [
           "status"
+        ]
+      }
+    },
+    "/api/v1/steering": {
+      "get": {
+        "operationId": "steering-queue",
+        "parameters": [
+          {
+            "description": "owner/name",
+            "explode": false,
+            "in": "query",
+            "name": "repository",
+            "schema": {
+              "description": "owner/name",
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "skill_source",
+            "schema": {
+              "enum": [
+                "",
+                "repository",
+                "skael",
+                "builtin"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "skill_version",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "A prompt layer version or hash; matches any layer",
+            "explode": false,
+            "in": "query",
+            "name": "prompt_version",
+            "schema": {
+              "description": "A prompt layer version or hash; matches any layer",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Profile of the review stage",
+            "explode": false,
+            "in": "query",
+            "name": "profile",
+            "schema": {
+              "description": "Profile of the review stage",
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "signal_type",
+            "schema": {
+              "enum": [
+                "",
+                "dismissed",
+                "overridden",
+                "conceded",
+                "resolved_unfixed",
+                "human_comment_unflagged",
+                "rerun_requested"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "from",
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "to",
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/QueueItem"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "tags": [
+          "steering"
+        ]
+      }
+    },
+    "/api/v1/stores": {
+      "get": {
+        "operationId": "list-stores",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/StoreBody"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "tags": [
+          "storage"
+        ]
+      }
+    },
+    "/api/v1/stores/{name}": {
+      "delete": {
+        "operationId": "delete-store",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "tags": [
+          "storage"
+        ]
+      },
+      "put": {
+        "operationId": "put-store",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StoreInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StoreBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "tags": [
+          "storage"
+        ]
+      }
+    },
+    "/api/v1/stores/{name}/test": {
+      "post": {
+        "operationId": "test-store",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TestResult"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "tags": [
+          "storage"
+        ]
+      }
+    },
+    "/api/v1/usage": {
+      "get": {
+        "operationId": "get-usage",
+        "parameters": [
+          {
+            "explode": false,
+            "in": "query",
+            "name": "group",
+            "schema": {
+              "default": "month",
+              "enum": [
+                "round",
+                "repository",
+                "profile",
+                "month"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/UsageRow"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "tags": [
+          "usage"
         ]
       }
     }

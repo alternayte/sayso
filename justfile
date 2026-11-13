@@ -55,6 +55,7 @@ gen:
     go run ./cmd/sayso openapi > ui/openapi.json
     go run ./cmd/sayso openapi --doc runner > schemas/runner.openapi.json
     go run ./cmd/sayso openapi --doc result > schemas/result.schema.json
+    go run ./cmd/sayso openapi --doc case > schemas/case.schema.json
     cd agent && npx --no-install openapi-ts >/dev/null
     cd ui && bunx openapi-ts >/dev/null && bunx vite build >/dev/null && touch dist/.keep
 

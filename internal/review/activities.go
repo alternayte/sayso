@@ -21,6 +21,7 @@ import (
 	"github.com/alternayte/sayso/internal/runner"
 	"github.com/alternayte/sayso/internal/settings"
 	"github.com/alternayte/sayso/internal/skills"
+	"github.com/alternayte/sayso/internal/storage"
 )
 
 // SkipLabel stops new rounds on a pull request (§7.1).
@@ -36,6 +37,7 @@ type Activities struct {
 	Extensions *skills.Extensions
 	Feeds      *feeds.Service
 	Reporter   *skills.Reporter
+	Stores     *storage.Registry
 	// AppLogin is the login of the App bot, for REQ-LIFE-011.
 	AppLogin func(ctx context.Context) string
 }
@@ -460,7 +462,7 @@ func (a *Activities) ReconcileLedger(ctx context.Context, roundID uuid.UUID) (Re
 		}
 		return Reconciled{Status: "failed", Reason: reason}, nil
 	}
-	res, err := runner.ReadResult(ctx, a.Pool, *runID)
+	res, err := runner.ReadResult(ctx, a.Pool, a.Stores, *runID)
 	if err != nil {
 		return Reconciled{}, err
 	}

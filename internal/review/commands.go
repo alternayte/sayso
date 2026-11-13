@@ -211,6 +211,13 @@ func (a *Activities) HandleCommand(ctx context.Context, in CommentInput) (Comman
 	switch cmd.Name {
 	case "review":
 		out.Action = ActionRound
+		// A person asks for a new round: a steering signal (§5).
+		detail, _ := json.Marshal(map[string]string{"head_sha": p.head, "comment": fmt.Sprint(c.id)})
+		if _, err := a.Pool.Exec(ctx, `INSERT INTO steering_signals (id, review_id, round_id, type, actor_login, detail)
+			VALUES ($1, $2, (SELECT id FROM rounds WHERE review_id = $2 ORDER BY created_at DESC LIMIT 1), 'rerun_requested', $3, $4)`,
+			uuid.Must(uuid.NewV7()), p.reviewID, c.author, detail); err != nil {
+			return out, err
+		}
 	case "pause":
 		out.Action = ActionPause
 	case "resume":

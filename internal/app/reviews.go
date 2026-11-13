@@ -40,6 +40,7 @@ func ReviewActivities(d *Deps, f *Features) *review.Activities {
 		Extensions: f.Extensions,
 		Feeds:      f.Feeds,
 		Reporter:   f.Reporter,
+		Stores:     f.Stores,
 		AppLogin: func(ctx context.Context) string {
 			app, err := github.LoadApp(ctx, d.Pool, f.Secrets)
 			if err != nil {
