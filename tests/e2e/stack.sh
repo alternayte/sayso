@@ -27,7 +27,7 @@ E2E_BASE_URL=http://127.0.0.1:$port
 E2E_FAKE_URL=http://github.fake.localhost:9001
 E2E_SETUP_TOKEN=$SAYSO_SETUP_TOKEN
 ENV
-docker compose -p "$project" --profile fakes -f "$compose_dir/compose.yaml" -f "$root/tests/e2e/compose.e2e.yaml" up -d --pull never >/dev/null 2>&1
+docker compose -p "$project" --profile fakes -f "$compose_dir/compose.yaml" -f "$root/tests/e2e/compose.e2e.yaml" up -d --pull missing >/dev/null 2>&1
 for _ in $(seq 1 180); do
   curl -fsS "http://127.0.0.1:$port/readyz" >/dev/null 2>&1 && exit 0
   sleep 1

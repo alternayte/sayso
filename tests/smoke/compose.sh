@@ -27,7 +27,7 @@ emit() { # emit <scn> <pass> <ms> [detail]
 fail=0
 now() { python3 -c 'import time;print(int(time.time()*1000))'; }
 start=$(now)
-"${compose[@]}" up -d --pull never >/dev/null
+"${compose[@]}" up -d --pull missing >/dev/null
 
 # SCN-CORE-002: /readyz returns 200 within 180 s, and the port listens on 127.0.0.1 only.
 ready=false
