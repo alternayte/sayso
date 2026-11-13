@@ -137,7 +137,7 @@ func TestSCN_FND_004_005_RepeatMovesAndFixResolves(t *testing.T) {
 	s.set(fixed)
 	e.push(t, pr.Number, splitFile("func Split() { add() }", "// x", "// a", "// b", "// c"))
 	waitFor(t, 60*time.Second, "round 3", func() bool { return e.rounds(t, "acme/payments", pr.Number, "done") == 3 })
-	head := e.GitHub.Repo("acme/payments").Pulls[pr.Number].HeadSHA
+	head := e.GitHub.Pull("acme/payments", pr.Number).HeadSHA
 	rs := e.replies(pr.Number, top[0].ID)
 	if len(rs) != 1 || rs[0].Body != "Fixed in "+head[:7]+"." {
 		t.Fatalf("fixed replies: %+v", rs)
@@ -207,7 +207,7 @@ func TestSCN_PUB_005_PublishRetryDuplicatesNothing(t *testing.T) {
 		e.GitHub.FailWrite(n)
 		pr := e.openWith(t, splitFile("func Split() {}", "// a", "// b"))
 		waitFor(t, 120*time.Second, "a done round", func() bool { return e.rounds(t, "acme/payments", pr.Number, "done") == 1 })
-		head := e.GitHub.Repo("acme/payments").Pulls[pr.Number].HeadSHA
+		head := e.GitHub.Pull("acme/payments", pr.Number).HeadSHA
 		summaries := 0
 		for _, c := range e.GitHub.IssueComments("acme/payments", pr.Number) {
 			if strings.HasPrefix(c.Body, publish.SummaryMarker) {
@@ -296,7 +296,7 @@ func TestSCN_LIFE_010_Budgets(t *testing.T) {
 		t.Fatalf("the proxy answered %d", proxyStatus)
 	}
 	mu.Unlock()
-	head := e.GitHub.Repo("acme/payments").Pulls[pr.Number].HeadSHA
+	head := e.GitHub.Pull("acme/payments", pr.Number).HeadSHA
 	waitFor(t, 30*time.Second, "a neutral check", func() bool {
 		for _, c := range e.GitHub.CheckRuns() {
 			if c.HeadSHA == head && c.Status == "completed" {

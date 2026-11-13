@@ -49,7 +49,7 @@ func (q *Queries) Artifacts(ctx context.Context, runID uuid.UUID) ([]Artifact, e
 const createRun = `-- name: CreateRun :one
 INSERT INTO agent_runs (id, round_id, review_id, repository_id, kind, runner, status, token_hash, token_expires_at, models, budget_usd, stages, spec, started_at)
 VALUES ($1, $2, $3, $4, $5, $6, 'running', $7, $8, $9, $10, $11, $12, now())
-RETURNING id, round_id, review_id, repository_id, kind, runner, external_ref, status, token_hash, token_expires_at, models, budget_usd, stages, harness_version, image, exit_reason, tokens_in, tokens_out, cost_usd, created_at, started_at, finished_at, spec, cancel_requested, heartbeat_at
+RETURNING id, round_id, review_id, repository_id, kind, runner, external_ref, status, token_hash, token_expires_at, models, budget_usd, stages, harness_version, image, exit_reason, tokens_in, tokens_out, cost_usd, created_at, started_at, finished_at, spec, cancel_requested, heartbeat_at, work_id
 `
 
 type CreateRunParams struct {
@@ -109,6 +109,7 @@ func (q *Queries) CreateRun(ctx context.Context, arg CreateRunParams) (AgentRun,
 		&i.Spec,
 		&i.CancelRequested,
 		&i.HeartbeatAt,
+		&i.WorkID,
 	)
 	return i, err
 }
@@ -116,7 +117,7 @@ func (q *Queries) CreateRun(ctx context.Context, arg CreateRunParams) (AgentRun,
 const finishRun = `-- name: FinishRun :one
 UPDATE agent_runs SET status = $1, exit_reason = $2, finished_at = now(), token_expires_at = LEAST(token_expires_at, now())
 WHERE id = $3
-RETURNING id, round_id, review_id, repository_id, kind, runner, external_ref, status, token_hash, token_expires_at, models, budget_usd, stages, harness_version, image, exit_reason, tokens_in, tokens_out, cost_usd, created_at, started_at, finished_at, spec, cancel_requested, heartbeat_at
+RETURNING id, round_id, review_id, repository_id, kind, runner, external_ref, status, token_hash, token_expires_at, models, budget_usd, stages, harness_version, image, exit_reason, tokens_in, tokens_out, cost_usd, created_at, started_at, finished_at, spec, cancel_requested, heartbeat_at, work_id
 `
 
 type FinishRunParams struct {
@@ -154,12 +155,13 @@ func (q *Queries) FinishRun(ctx context.Context, arg FinishRunParams) (AgentRun,
 		&i.Spec,
 		&i.CancelRequested,
 		&i.HeartbeatAt,
+		&i.WorkID,
 	)
 	return i, err
 }
 
 const getRun = `-- name: GetRun :one
-SELECT id, round_id, review_id, repository_id, kind, runner, external_ref, status, token_hash, token_expires_at, models, budget_usd, stages, harness_version, image, exit_reason, tokens_in, tokens_out, cost_usd, created_at, started_at, finished_at, spec, cancel_requested, heartbeat_at FROM agent_runs WHERE id = $1
+SELECT id, round_id, review_id, repository_id, kind, runner, external_ref, status, token_hash, token_expires_at, models, budget_usd, stages, harness_version, image, exit_reason, tokens_in, tokens_out, cost_usd, created_at, started_at, finished_at, spec, cancel_requested, heartbeat_at, work_id FROM agent_runs WHERE id = $1
 `
 
 func (q *Queries) GetRun(ctx context.Context, id uuid.UUID) (AgentRun, error) {
@@ -191,6 +193,7 @@ func (q *Queries) GetRun(ctx context.Context, id uuid.UUID) (AgentRun, error) {
 		&i.Spec,
 		&i.CancelRequested,
 		&i.HeartbeatAt,
+		&i.WorkID,
 	)
 	return i, err
 }
@@ -278,7 +281,7 @@ func (q *Queries) RequestCancel(ctx context.Context, id uuid.UUID) error {
 }
 
 const runByTokenHash = `-- name: RunByTokenHash :one
-SELECT id, round_id, review_id, repository_id, kind, runner, external_ref, status, token_hash, token_expires_at, models, budget_usd, stages, harness_version, image, exit_reason, tokens_in, tokens_out, cost_usd, created_at, started_at, finished_at, spec, cancel_requested, heartbeat_at FROM agent_runs WHERE token_hash = $1
+SELECT id, round_id, review_id, repository_id, kind, runner, external_ref, status, token_hash, token_expires_at, models, budget_usd, stages, harness_version, image, exit_reason, tokens_in, tokens_out, cost_usd, created_at, started_at, finished_at, spec, cancel_requested, heartbeat_at, work_id FROM agent_runs WHERE token_hash = $1
 `
 
 func (q *Queries) RunByTokenHash(ctx context.Context, tokenHash []byte) (AgentRun, error) {
@@ -310,6 +313,7 @@ func (q *Queries) RunByTokenHash(ctx context.Context, tokenHash []byte) (AgentRu
 		&i.Spec,
 		&i.CancelRequested,
 		&i.HeartbeatAt,
+		&i.WorkID,
 	)
 	return i, err
 }

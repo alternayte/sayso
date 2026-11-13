@@ -254,3 +254,24 @@ func (f *Fake) FileAt(repo, path, ref string) (string, error) {
 	defer f.mu.Unlock()
 	return f.git(f.repos[repo].dir, "show", ref+":"+path)
 }
+
+// Pull returns a copy of a pull request.
+func (f *Fake) Pull(repo string, number int) Pull {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if p := f.repos[repo].Pulls[number]; p != nil {
+		return *p
+	}
+	return Pull{}
+}
+
+// Pulls returns copies of the pull requests of a repository.
+func (f *Fake) Pulls(repo string) []Pull {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	out := make([]Pull, 0, len(f.repos[repo].Pulls))
+	for _, p := range f.repos[repo].Pulls {
+		out = append(out, *p)
+	}
+	return out
+}

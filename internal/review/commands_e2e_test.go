@@ -99,15 +99,15 @@ func TestSCN_CMD_003_FixPullRequest(t *testing.T) {
 	branch := "sayso/fix/" + strconv.Itoa(pr.Number) + "-2"
 	var fix *fakegh.Pull
 	waitFor(t, 4*time.Minute, "the fix pull request", func() bool {
-		for _, p := range e.GitHub.Repo("acme/payments").Pulls {
+		for _, p := range e.GitHub.Pulls("acme/payments") {
 			if p.HeadRef == branch {
-				fix = p
+				fix = &p
 				return true
 			}
 		}
 		return false
 	})
-	head := e.GitHub.Repo("acme/payments").Pulls[pr.Number]
+	head := e.GitHub.Pull("acme/payments", pr.Number)
 	if fix.BaseRef != head.HeadRef || !strings.HasSuffix(fix.Author, "[bot]") {
 		t.Fatalf("fix pull request %+v", fix)
 	}
@@ -223,7 +223,7 @@ func TestSCN_PUB_007_NoApproveMergeOrForeignPush(t *testing.T) {
 		time.Sleep(time.Second)
 	}
 	waitFor(t, 6*time.Minute, "the fix pull request", func() bool {
-		for _, p := range e.GitHub.Repo("acme/payments").Pulls {
+		for _, p := range e.GitHub.Pulls("acme/payments") {
 			if strings.HasPrefix(p.HeadRef, "sayso/fix/") {
 				return true
 			}
