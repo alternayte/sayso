@@ -135,6 +135,29 @@ verify:
     python3 scripts/evidence.py write --out .build/evidence --gates "$reports/gates.jsonl" --trace "$reports/trace.json" $specs || ok=1
     exit $ok
 
+# Trace and write the evidence of HEAD from its GitHub CI run, without running the gates here
+verify-ci:
+    #!/usr/bin/env bash
+    set -uo pipefail
+    reports="$(just _reports)"; specs="$(just _specs)" || exit 1
+    sha="$(git rev-parse HEAD)"
+    run="$(gh run list --workflow ci --commit "$sha" --event push --limit 1 --json databaseId,status --jq '.[0] | select(.status == "completed") | .databaseId')"
+    if [ -z "$run" ]; then echo "verify-ci: no completed CI push run for $sha" >&2; exit 1; fi
+    rm -rf "$reports"; mkdir -p "$reports"
+    ok=0
+    while IFS=$'\t' read -r name conclusion seconds; do
+      pass=false; [ "$conclusion" = success ] && pass=true || ok=1
+      if [ "$name" = static ]; then gates="gen-check fmt-check lint replay"; else gates="$name"; fi
+      for g in $gates; do printf '{"gate":"%s","pass":%s,"seconds":%s,"ci_run":%s}\n' "$g" "$pass" "$seconds" "$run" >> "$reports/gates.jsonl"; done
+    done < <(gh run view "$run" --json jobs --jq '.jobs[] | [.name, .conclusion, ((.completedAt | fromdate) - (.startedAt | fromdate))] | @tsv')
+    tmp="$(mktemp -d)"
+    gh run download "$run" --dir "$tmp" >/dev/null || ok=1
+    find "$tmp" -path '*reports*' -type f \( -name '*.jsonl' -o -name '*.json' \) -exec cp {} "$reports/" \;
+    rm -rf "$tmp"
+    just trace || ok=1
+    python3 scripts/evidence.py write --out .build/evidence --gates "$reports/gates.jsonl" --trace "$reports/trace.json" $specs || ok=1
+    exit $ok
+
 # Pass when HEAD has evidence of a verify run with all gates passed
 evidence-check:
     python3 scripts/evidence.py check --out .build/evidence $(just _specs)
