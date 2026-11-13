@@ -213,6 +213,11 @@ func (a *API) register(api huma.API) {
 				if err := a.PutArtifact(ctx, run.ID, "result.json", "application/json", raw); err != nil {
 					return nil, err
 				}
+				if h := c.Result.Harness; h.Name != "" {
+					if err := New(a.Pool).SetHarness(ctx, SetHarnessParams{ID: run.ID, HarnessVersion: strings.TrimSpace(h.Name + " " + h.Version)}); err != nil {
+						return nil, err
+					}
+				}
 			}
 			status := "done"
 			switch c.ExitStatus {

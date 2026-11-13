@@ -10,27 +10,12 @@ import (
 	"time"
 
 	"github.com/alternayte/sayso/internal/app/apptest"
-	"github.com/alternayte/sayso/internal/audit"
-	"github.com/alternayte/sayso/internal/auth"
 	"github.com/alternayte/sayso/internal/guidance"
 )
 
 func TestSCN_CFG_011_GuidanceVersionsPreviewAndPromptRef(t *testing.T) {
 	e := real(t, "comment")
-	// Sign-in redirects the browser to the GitHub web URL, which the agent
-	// container reaches by another host name.
-	web := func(u string) {
-		raw, _ := json.Marshal(u)
-		if _, err := e.F.Settings.Set(t.Context(), audit.System, "github_web_url", raw); err != nil {
-			t.Fatal(err)
-		}
-	}
-	if err := e.F.Auth.Grant(t.Context(), audit.System, "octo-admin", auth.Admin); err != nil {
-		t.Fatal(err)
-	}
-	web(e.GHServer.URL)
-	admin, _ := e.SignIn(t, "octo-admin")
-	web(e.ContainerURL(containerHost, e.GHServer))
+	admin := e.admin(t)
 	put := func(path, text string) guidance.GuidanceBody {
 		t.Helper()
 		var out guidance.GuidanceBody

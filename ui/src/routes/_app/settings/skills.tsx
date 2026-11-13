@@ -5,6 +5,8 @@ import { getSkillsOptions, getSkillsQueryKey, putSkaelMutation } from "@/client/
 import type { SkaelBody } from "@/client/types.gen";
 import { Button, ErrorAlert, PageHead } from "@/components/app-ui";
 import { SecretField, type SecretValue } from "@/components/secret-field";
+import { RunnerTestOutcome } from "@/components/runner-test";
+import { testSkael } from "@/client/sdk.gen";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -58,6 +60,7 @@ function lines(s: string): string[] {
 }
 
 function SkaelForm({ current }: { current: SkaelBody }) {
+  const test = useMutation({ mutationFn: async () => (await testSkael({ throwOnError: true })).data });
   const qc = useQueryClient();
   const [f, setF] = useState({
     url: current.url,
@@ -157,7 +160,13 @@ function SkaelForm({ current }: { current: SkaelBody }) {
             {t("skills.skael.save")}
           </Button>
           {save.isSuccess ? <span className="t-hint">{t("skills.skael.saved")}</span> : null}
+          <Button mutation={test} disabled={!current.url || !current.default_set} onClick={() => test.mutate()}>
+            {t("skills.skael.test")}
+          </Button>
         </div>
+        {test.data ? <RunnerTestOutcome r={test.data} /> : null}
+        <ErrorAlert error={test.error} />
+        <p className="t-hint -mt-2">{t("skills.skael.test.hint")}</p>
       </form>
     </Card>
   );

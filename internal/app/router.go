@@ -32,6 +32,7 @@ import (
 	"github.com/alternayte/sayso/internal/skills"
 	"github.com/alternayte/sayso/internal/steering"
 	"github.com/alternayte/sayso/internal/storage"
+	"go.temporal.io/sdk/client"
 )
 
 // Features are the services that the HTTP handler exposes.
@@ -173,6 +174,8 @@ func registerOperations(api huma.API, d *Deps, f *Features) {
 	rv.Register(v1, auth.Op(auth.Viewer), auth.Op(auth.Maintainer), actor)
 	(&runner.RunsAPI{Pool: d.Pool, Stores: f.Stores}).Register(v1, auth.Op(auth.Viewer))
 	setup.Register(v1, d.Pool, auth.Op(auth.Admin))
+	review.RegisterRunnerTest(v1, d.Pool, func() client.Client { return d.Temporal }, auth.Op(auth.Admin), actor)
+	(&github.DeliveriesAPI{Pool: d.Pool, Secrets: f.Secrets, GitHub: f.GitHubClient}).Register(v1, auth.Op(auth.Admin), actor)
 	(&config.Service{Pool: d.Pool, LearnEnv: f.Secrets.LearnEnv}).Register(v1, auth.Op(auth.Admin), actor)
 	(&guidance.API{Store: &guidance.Store{Pool: d.Pool}, Inputs: func(ctx context.Context, repo string) (guidance.Inputs, error) {
 		return rv.Activities.PreviewInputs(ctx, repo)

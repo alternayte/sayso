@@ -31,6 +31,7 @@ func StartWorker(ctx context.Context, d *Deps, f *Features) (func(), error) {
 	w.RegisterWorkflowWithOptions(review.ReviewRound, workflow.RegisterOptions{Name: review.RoundWorkflowType})
 	w.RegisterWorkflowWithOptions(review.AgentWork, workflow.RegisterOptions{Name: review.WorkWorkflowType})
 	w.RegisterActivity(ReviewActivities(d, f))
+	w.RegisterWorkflowWithOptions(review.RunnerTestWorkflow, workflow.RegisterOptions{Name: review.RunnerTestWorkflowType})
 	w.RegisterWorkflowWithOptions(storage.RetentionWorkflow, workflow.RegisterOptions{Name: storage.RetentionWorkflowName})
 	w.RegisterActivity(&storage.Retention{Registry: f.Stores, IndexDays: func(ctx context.Context) int {
 		n, _ := f.Settings.Int(ctx, settings.EventIndexRetentionDays)

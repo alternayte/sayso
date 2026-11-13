@@ -10,7 +10,9 @@ import {
 import type { ImageBody } from "@/client/types.gen";
 import { Button, ErrorAlert, PageHead } from "@/components/app-ui";
 import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
+import { RunnerTestOutcome } from "@/components/runner-test";
+import { testRunner } from "@/client/sdk.gen";
+import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
@@ -57,7 +59,30 @@ function Images() {
           </ul>
         )}
       </Card>
+      <RunnerTestCard />
     </>
+  );
+}
+
+/** RunnerTestCard starts a no-op agent run with the default image (§16.3). */
+function RunnerTestCard() {
+  const test = useMutation({ mutationFn: async () => (await testRunner({ throwOnError: true })).data });
+  return (
+    <Card className="mt-5">
+      <CardHeader>
+        <CardTitle>{t("runner.test.title")}</CardTitle>
+      </CardHeader>
+      <div className="grid gap-3 p-4">
+        <p className="t-hint max-w-[640px]">{t("runner.test.hint")}</p>
+        <div>
+          <Button size="sm" mutation={test} onClick={() => test.mutate()}>
+            {t("runner.test.start")}
+          </Button>
+        </div>
+        {test.data ? <RunnerTestOutcome r={test.data} /> : null}
+        <ErrorAlert error={test.error} />
+      </div>
+    </Card>
   );
 }
 
