@@ -7,13 +7,9 @@ import (
 	"strings"
 	"time"
 
-	authv1 "k8s.io/api/authorization/v1"
-	batchv1 "k8s.io/api/batch/v1"
-	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
+	"net/http"
+	"net/url"
+	"regexp"
 )
 
 // RunLabel labels the Job and the Pod of an agent run.
@@ -27,7 +23,7 @@ type Resources struct {
 
 // Kubernetes runs each agent run as a Job in one namespace (§8.2).
 type Kubernetes struct {
-	Client    kubernetes.Interface
+	Client    *KubeClient
 	Namespace string
 	Image     string
 	Resources Resources
@@ -41,7 +37,7 @@ const JobGrace = 5 * time.Minute
 // Job returns the Job of an agent run: the agent image, emptyDir volumes for
 // /work, HOME and /tmp, no service account token, non-root and a read-only
 // root filesystem (SI-09).
-func (k *Kubernetes) Job(j Job) (*batchv1.Job, error) {
+func (k *Kubernetes) Job(j Job) (*KubeJob, error) {
 	image := j.Image
 	if image == "" {
 		image = k.Image
@@ -49,54 +45,49 @@ func (k *Kubernetes) Job(j Job) (*batchv1.Job, error) {
 	if image == "" {
 		return nil, errors.New("kubernetes runner: no agent image")
 	}
-	res := corev1.ResourceRequirements{Requests: corev1.ResourceList{}, Limits: corev1.ResourceList{}}
+	res := KubeResources{Requests: map[string]string{}, Limits: map[string]string{}}
 	for _, r := range []struct {
-		list corev1.ResourceList
-		name corev1.ResourceName
+		list map[string]string
+		name string
 		val  string
 	}{
-		{res.Requests, corev1.ResourceCPU, k.Resources.CPURequest}, {res.Limits, corev1.ResourceCPU, k.Resources.CPULimit},
-		{res.Requests, corev1.ResourceMemory, k.Resources.MemoryRequest}, {res.Limits, corev1.ResourceMemory, k.Resources.MemoryLimit},
+		{res.Requests, "cpu", k.Resources.CPURequest}, {res.Limits, "cpu", k.Resources.CPULimit},
+		{res.Requests, "memory", k.Resources.MemoryRequest}, {res.Limits, "memory", k.Resources.MemoryLimit},
 	} {
 		if r.val == "" {
 			continue
 		}
-		q, err := resource.ParseQuantity(r.val)
-		if err != nil {
-			return nil, fmt.Errorf("kubernetes runner: %s %q: %w", r.name, r.val, err)
+		if !quantity.MatchString(r.val) {
+			return nil, fmt.Errorf("kubernetes runner: %s %q is not a Kubernetes quantity", r.name, r.val)
 		}
-		r.list[r.name] = q
+		r.list[r.name] = r.val
 	}
-	no, yes := false, true
 	uid := int64(10001)
-	deadline := int64((j.Timeout + JobGrace).Seconds())
-	ttl, backoff := int32(600), int32(0)
 	labels := map[string]string{RunLabel: j.RunID, "app.kubernetes.io/name": "sayso-agent", "app.kubernetes.io/component": "agent-run"}
-	empty := func(name string) corev1.Volume {
-		return corev1.Volume{Name: name, VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}}
-	}
-	return &batchv1.Job{
-		ObjectMeta: metav1.ObjectMeta{Name: "sayso-run-" + strings.ReplaceAll(j.RunID, "-", ""), Namespace: k.Namespace, Labels: labels},
-		Spec: batchv1.JobSpec{
-			BackoffLimit:            &backoff,
-			ActiveDeadlineSeconds:   &deadline,
-			TTLSecondsAfterFinished: &ttl,
-			Template: corev1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{Labels: labels},
-				Spec: corev1.PodSpec{
-					RestartPolicy:                corev1.RestartPolicyNever,
-					AutomountServiceAccountToken: &no,
-					EnableServiceLinks:           &no,
-					SecurityContext: &corev1.PodSecurityContext{
-						RunAsNonRoot: &yes, RunAsUser: &uid, RunAsGroup: &uid, FSGroup: &uid,
-						SeccompProfile: &corev1.SeccompProfile{Type: corev1.SeccompProfileTypeRuntimeDefault},
+	return &KubeJob{
+		APIVersion: "batch/v1",
+		Kind:       "Job",
+		Metadata:   kMeta{Name: "sayso-run-" + strings.ReplaceAll(j.RunID, "-", ""), Namespace: k.Namespace, Labels: labels},
+		Spec: KubeJobSpec{
+			BackoffLimit:            0,
+			ActiveDeadlineSeconds:   int64((j.Timeout + JobGrace).Seconds()),
+			TTLSecondsAfterFinished: 600,
+			Template: KubePodTemplate{
+				Metadata: kMeta{Labels: labels},
+				Spec: KubePodSpec{
+					RestartPolicy:                "Never",
+					AutomountServiceAccountToken: false,
+					EnableServiceLinks:           false,
+					SecurityContext: KubePodSecurity{
+						RunAsNonRoot: true, RunAsUser: uid, RunAsGroup: uid, FSGroup: uid,
+						SeccompProfile: map[string]string{"type": "RuntimeDefault"},
 					},
-					Containers: []corev1.Container{{
+					Containers: []KubeContainer{{
 						Name:            "agent",
 						Image:           image,
-						ImagePullPolicy: corev1.PullIfNotPresent,
+						ImagePullPolicy: "IfNotPresent",
 						Args:            []string{"agent"},
-						Env: []corev1.EnvVar{
+						Env: []KubeEnv{
 							{Name: "SAYSO_API_URL", Value: j.APIURL},
 							{Name: "SAYSO_RUN_TOKEN", Value: j.Token},
 							{Name: "SAYSO_RUN_ID", Value: j.RunID},
@@ -104,18 +95,21 @@ func (k *Kubernetes) Job(j Job) (*batchv1.Job, error) {
 						},
 						WorkingDir: "/work",
 						Resources:  res,
-						SecurityContext: &corev1.SecurityContext{
-							RunAsNonRoot: &yes, ReadOnlyRootFilesystem: &yes, AllowPrivilegeEscalation: &no,
-							Capabilities: &corev1.Capabilities{Drop: []corev1.Capability{"ALL"}},
+						SecurityContext: KubeContainerSecurity{
+							RunAsNonRoot: true, ReadOnlyRootFilesystem: true, AllowPrivilegeEscalation: false,
+							Capabilities: map[string][]string{"drop": {"ALL"}},
 						},
-						VolumeMounts: []corev1.VolumeMount{{Name: "work", MountPath: "/work"}, {Name: "home", MountPath: "/home/sayso"}, {Name: "tmp", MountPath: "/tmp"}},
+						VolumeMounts: []KubeMount{{Name: "work", MountPath: "/work"}, {Name: "home", MountPath: "/home/sayso"}, {Name: "tmp", MountPath: "/tmp"}},
 					}},
-					Volumes: []corev1.Volume{empty("work"), empty("home"), empty("tmp")},
+					Volumes: []KubeEmptyDirVolume{{Name: "work"}, {Name: "home"}, {Name: "tmp"}},
 				},
 			},
 		},
 	}, nil
 }
+
+// quantity is the syntax of a Kubernetes resource quantity.
+var quantity = regexp.MustCompile(`^([+-]?[0-9.]+)([eEinumkKMGTP]*[-+]?[0-9]*)$`)
 
 type kubeJob struct {
 	k       *Kubernetes
@@ -130,11 +124,11 @@ func (k *Kubernetes) Start(ctx context.Context, j Job) (Handle, error) {
 	if err != nil {
 		return nil, err
 	}
-	created, err := k.Client.BatchV1().Jobs(k.Namespace).Create(ctx, job, metav1.CreateOptions{})
-	if err != nil {
+	var created KubeJob
+	if err := k.Client.do(ctx, http.MethodPost, jobsPath(k.Namespace), nil, job, &created); err != nil {
 		return nil, fmt.Errorf("create Job: %w", err)
 	}
-	return &kubeJob{k: k, name: created.Name, runID: j.RunID}, nil
+	return &kubeJob{k: k, name: created.Metadata.Name, runID: j.RunID}, nil
 }
 
 func (h *kubeJob) Ref() string { return h.k.Namespace + "/" + h.name }
@@ -167,8 +161,9 @@ func (h *kubeJob) Wait(ctx context.Context) (string, error) {
 var pullFailures = map[string]bool{"ErrImagePull": true, "ImagePullBackOff": true, "InvalidImageName": true, "ErrImageNeverPull": true}
 
 func (h *kubeJob) status(ctx context.Context) (string, bool, error) {
-	job, err := h.k.Client.BatchV1().Jobs(h.k.Namespace).Get(ctx, h.name, metav1.GetOptions{})
-	if apierrors.IsNotFound(err) {
+	var job KubeJob
+	err := h.k.Client.do(ctx, http.MethodGet, jobsPath(h.k.Namespace)+"/"+url.PathEscape(h.name), nil, nil, &job)
+	if IsNotFound(err) {
 		if h.stopped {
 			return ExitCancelled, true, nil
 		}
@@ -177,8 +172,9 @@ func (h *kubeJob) status(ctx context.Context) (string, bool, error) {
 	if err != nil {
 		return "", false, err
 	}
-	pods, err := h.k.Client.CoreV1().Pods(h.k.Namespace).List(ctx, metav1.ListOptions{LabelSelector: RunLabel + "=" + h.runID})
-	if err != nil {
+	var pods kubePodList
+	if err := h.k.Client.do(ctx, http.MethodGet, "/api/v1/namespaces/"+url.PathEscape(h.k.Namespace)+"/pods",
+		url.Values{"labelSelector": {RunLabel + "=" + h.runID}}, nil, &pods); err != nil {
 		return "", false, err
 	}
 	for _, p := range pods.Items {
@@ -192,13 +188,13 @@ func (h *kubeJob) status(ctx context.Context) (string, bool, error) {
 		}
 	}
 	for _, c := range job.Status.Conditions {
-		if c.Status != corev1.ConditionTrue {
+		if c.Status != "True" {
 			continue
 		}
 		switch c.Type {
-		case batchv1.JobComplete:
+		case "Complete":
 			return ExitCompleted, true, nil
-		case batchv1.JobFailed:
+		case "Failed":
 			if c.Reason == "DeadlineExceeded" {
 				return ExitDeadline, true, nil
 			}
@@ -211,9 +207,9 @@ func (h *kubeJob) status(ctx context.Context) (string, bool, error) {
 // Stop deletes the Job and its Pod.
 func (h *kubeJob) Stop(ctx context.Context) error {
 	h.stopped = true
-	bg := metav1.DeletePropagationBackground
-	err := h.k.Client.BatchV1().Jobs(h.k.Namespace).Delete(ctx, h.name, metav1.DeleteOptions{PropagationPolicy: &bg})
-	if apierrors.IsNotFound(err) {
+	err := h.k.Client.do(ctx, http.MethodDelete, jobsPath(h.k.Namespace)+"/"+url.PathEscape(h.name), nil,
+		map[string]string{"kind": "DeleteOptions", "apiVersion": "v1", "propagationPolicy": "Background"}, nil)
+	if IsNotFound(err) {
 		return nil
 	}
 	return err
@@ -233,12 +229,16 @@ func (k *Kubernetes) CheckPermissions(ctx context.Context) error {
 		if p.Resource == "jobs" {
 			group = "batch"
 		}
-		r, err := k.Client.AuthorizationV1().SelfSubjectAccessReviews().Create(ctx, &authv1.SelfSubjectAccessReview{
-			Spec: authv1.SelfSubjectAccessReviewSpec{ResourceAttributes: &authv1.ResourceAttributes{
-				Namespace: k.Namespace, Group: group, Resource: p.Resource, Subresource: p.Subresource, Verb: p.Verb,
-			}},
-		}, metav1.CreateOptions{})
-		if err != nil {
+		review := map[string]any{"apiVersion": "authorization.k8s.io/v1", "kind": "SelfSubjectAccessReview",
+			"spec": map[string]any{"resourceAttributes": map[string]string{
+				"namespace": k.Namespace, "group": group, "resource": p.Resource, "subresource": p.Subresource, "verb": p.Verb,
+			}}}
+		var r struct {
+			Status struct {
+				Allowed bool `json:"allowed"`
+			} `json:"status"`
+		}
+		if err := k.Client.do(ctx, http.MethodPost, "/apis/authorization.k8s.io/v1/selfsubjectaccessreviews", nil, review, &r); err != nil {
 			return err
 		}
 		if !r.Status.Allowed {

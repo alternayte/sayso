@@ -41,6 +41,14 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
   value: {{ include "sayso.runnerNamespace" . | quote }}
 - name: SAYSO_AGENT_IMAGE
   value: {{ include "sayso.agentImage" . | quote }}
+- name: SAYSO_K8S_CPU_REQUEST
+  value: {{ .Values.runner.resources.requests.cpu | default "" | quote }}
+- name: SAYSO_K8S_MEMORY_REQUEST
+  value: {{ .Values.runner.resources.requests.memory | default "" | quote }}
+- name: SAYSO_K8S_CPU_LIMIT
+  value: {{ .Values.runner.resources.limits.cpu | default "" | quote }}
+- name: SAYSO_K8S_MEMORY_LIMIT
+  value: {{ .Values.runner.resources.limits.memory | default "" | quote }}
 - name: SAYSO_RUNNER_API_URL
   value: http://{{ include "sayso.name" . }}-api.{{ .Release.Namespace }}.svc:{{ .Values.service.port }}
 {{- end -}}

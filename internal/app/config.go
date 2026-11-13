@@ -1,6 +1,8 @@
 package app
 
 import (
+	"github.com/alternayte/sayso/internal/runner"
+
 	"encoding/base64"
 	"fmt"
 	"log/slog"
@@ -57,10 +59,12 @@ type Config struct {
 	Runner            string
 	RunnerAPIURL      string
 	K8sNamespace      string
-	AgentImage        string
-	ExtraCAPEM        string
-	ExtraCAFile       string
-	LogLevel          slog.Level
+	// K8sResources are the requests and limits of each agent Job.
+	K8sResources runner.Resources
+	AgentImage   string
+	ExtraCAPEM   string
+	ExtraCAFile  string
+	LogLevel     slog.Level
 }
 
 var knownVars = map[string]bool{
@@ -71,6 +75,7 @@ var knownVars = map[string]bool{
 	"SAYSO_TEMPORAL_ADDRESS": true, "SAYSO_TEMPORAL_NAMESPACE": true, "SAYSO_TEMPORAL_TLS_CERT": true,
 	"SAYSO_TEMPORAL_TLS_KEY": true, "SAYSO_TEMPORAL_API_KEY": true, "SAYSO_TEMPORAL_UI_URL": true,
 	"SAYSO_RUNNER": true, "SAYSO_RUNNER_API_URL": true, "SAYSO_K8S_NAMESPACE": true, "SAYSO_AGENT_IMAGE": true,
+	"SAYSO_K8S_CPU_REQUEST": true, "SAYSO_K8S_CPU_LIMIT": true, "SAYSO_K8S_MEMORY_REQUEST": true, "SAYSO_K8S_MEMORY_LIMIT": true,
 	"SAYSO_EXTRA_CA_PEM": true, "SAYSO_EXTRA_CA_FILE": true, "SAYSO_LOG_LEVEL": true,
 }
 
@@ -101,9 +106,11 @@ func LoadConfig(getenv func(string) string, environ []string, need Need) (*Confi
 		TemporalUIURL:     strings.TrimRight(getenv("SAYSO_TEMPORAL_UI_URL"), "/"),
 		Runner:            or(getenv("SAYSO_RUNNER"), "process"),
 		K8sNamespace:      getenv("SAYSO_K8S_NAMESPACE"),
-		AgentImage:        getenv("SAYSO_AGENT_IMAGE"),
-		ExtraCAPEM:        getenv("SAYSO_EXTRA_CA_PEM"),
-		ExtraCAFile:       getenv("SAYSO_EXTRA_CA_FILE"),
+		K8sResources: runner.Resources{CPURequest: getenv("SAYSO_K8S_CPU_REQUEST"), CPULimit: getenv("SAYSO_K8S_CPU_LIMIT"),
+			MemoryRequest: getenv("SAYSO_K8S_MEMORY_REQUEST"), MemoryLimit: getenv("SAYSO_K8S_MEMORY_LIMIT")},
+		AgentImage:  getenv("SAYSO_AGENT_IMAGE"),
+		ExtraCAPEM:  getenv("SAYSO_EXTRA_CA_PEM"),
+		ExtraCAFile: getenv("SAYSO_EXTRA_CA_FILE"),
 	}
 	c.RunnerAPIURL = or(strings.TrimRight(getenv("SAYSO_RUNNER_API_URL"), "/"), c.BaseURL)
 	for _, l := range strings.Split(getenv("SAYSO_BOOTSTRAP_ADMINS"), ",") {
