@@ -42,6 +42,28 @@ func SeverityRank(s string) int {
 	return len(severityRank)
 }
 
+var severities = []string{"blocker", "major", "minor", "nit"}
+
+// ApplyChallenge applies a challenge outcome to a candidate's severity
+// (§9.1 as the execution and challenge spec changes it): refuted is
+// withdrawn; downgraded drops one level, and a downgraded nit is withdrawn.
+func ApplyChallenge(severity string, c *runner.Challenge) (string, bool) {
+	if c == nil {
+		return severity, false
+	}
+	switch c.Outcome {
+	case "refuted":
+		return severity, true
+	case "downgraded":
+		i := SeverityRank(severity)
+		if i+1 >= len(severities) {
+			return severity, true
+		}
+		return severities[i+1], false
+	}
+	return severity, false
+}
+
 // Blocking applies the rule of §9.1: severity blocker, evidence that is not
 // reasoning alone, confirmed by the challenge stage, and an overlay that
 // allows blocking.
