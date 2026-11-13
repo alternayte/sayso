@@ -1,6 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { expect, test, type Page } from "@playwright/test";
-import { fake, signIn, sql, stack } from "../stack";
+import { cli, fake, signIn, sql, stack } from "../stack";
 import { fakeJSON, open, roundOf, state, waitRound } from "../rounds";
 
 // Each test runs real rounds with the agent image.
@@ -245,4 +245,9 @@ test("SCN-UI-011 a maintainer turns execution off and sets the threshold, and th
   expect(
     sql(`SELECT prompt_ref->>'execution' FROM rounds WHERE id = '${id}'`),
   ).toBe("false");
+  const exported = cli("config", "export");
+  const web = exported.slice(exported.indexOf("- full_name: acme/web"));
+  expect(web.slice(0, web.indexOf("challenge_min_severity:") + 40)).toMatch(
+    /execution: false\n\s+challenge_min_severity: major/,
+  );
 });

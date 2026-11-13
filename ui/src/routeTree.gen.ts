@@ -19,6 +19,7 @@ import { Route as AppRepositoriesIndexRouteImport } from './routes/_app/reposito
 import { Route as AppRoundsIdRouteImport } from './routes/_app/rounds/$id'
 import { Route as AppRunsIdRouteImport } from './routes/_app/runs/$id'
 import { Route as AppSettingsAccessRouteImport } from './routes/_app/settings/access'
+import { Route as AppSettingsConfigRouteImport } from './routes/_app/settings/config'
 import { Route as AppSettingsExtensionsRouteImport } from './routes/_app/settings/extensions'
 import { Route as AppSettingsFeedsRouteImport } from './routes/_app/settings/feeds'
 import { Route as AppSettingsGeneralRouteImport } from './routes/_app/settings/general'
@@ -81,6 +82,11 @@ const AppRunsIdRoute = AppRunsIdRouteImport.update({
 const AppSettingsAccessRoute = AppSettingsAccessRouteImport.update({
   id: '/settings/access',
   path: '/settings/access',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSettingsConfigRoute = AppSettingsConfigRouteImport.update({
+  id: '/settings/config',
+  path: '/settings/config',
   getParentRoute: () => AppRoute,
 } as any)
 const AppSettingsExtensionsRoute = AppSettingsExtensionsRouteImport.update({
@@ -165,6 +171,7 @@ export interface FileRoutesByFullPath {
   '/rounds/$id': typeof AppRoundsIdRoute
   '/runs/$id': typeof AppRunsIdRoute
   '/settings/access': typeof AppSettingsAccessRoute
+  '/settings/config': typeof AppSettingsConfigRoute
   '/settings/extensions': typeof AppSettingsExtensionsRoute
   '/settings/feeds': typeof AppSettingsFeedsRoute
   '/settings/general': typeof AppSettingsGeneralRoute
@@ -190,6 +197,7 @@ export interface FileRoutesByTo {
   '/rounds/$id': typeof AppRoundsIdRoute
   '/runs/$id': typeof AppRunsIdRoute
   '/settings/access': typeof AppSettingsAccessRoute
+  '/settings/config': typeof AppSettingsConfigRoute
   '/settings/extensions': typeof AppSettingsExtensionsRoute
   '/settings/feeds': typeof AppSettingsFeedsRoute
   '/settings/general': typeof AppSettingsGeneralRoute
@@ -217,6 +225,7 @@ export interface FileRoutesById {
   '/_app/rounds/$id': typeof AppRoundsIdRoute
   '/_app/runs/$id': typeof AppRunsIdRoute
   '/_app/settings/access': typeof AppSettingsAccessRoute
+  '/_app/settings/config': typeof AppSettingsConfigRoute
   '/_app/settings/extensions': typeof AppSettingsExtensionsRoute
   '/_app/settings/feeds': typeof AppSettingsFeedsRoute
   '/_app/settings/general': typeof AppSettingsGeneralRoute
@@ -244,6 +253,7 @@ export interface FileRouteTypes {
     | '/rounds/$id'
     | '/runs/$id'
     | '/settings/access'
+    | '/settings/config'
     | '/settings/extensions'
     | '/settings/feeds'
     | '/settings/general'
@@ -269,6 +279,7 @@ export interface FileRouteTypes {
     | '/rounds/$id'
     | '/runs/$id'
     | '/settings/access'
+    | '/settings/config'
     | '/settings/extensions'
     | '/settings/feeds'
     | '/settings/general'
@@ -295,6 +306,7 @@ export interface FileRouteTypes {
     | '/_app/rounds/$id'
     | '/_app/runs/$id'
     | '/_app/settings/access'
+    | '/_app/settings/config'
     | '/_app/settings/extensions'
     | '/_app/settings/feeds'
     | '/_app/settings/general'
@@ -388,6 +400,13 @@ declare module '@tanstack/react-router' {
       path: '/settings/access'
       fullPath: '/settings/access'
       preLoaderRoute: typeof AppSettingsAccessRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/settings/config': {
+      id: '/_app/settings/config'
+      path: '/settings/config'
+      fullPath: '/settings/config'
+      preLoaderRoute: typeof AppSettingsConfigRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/settings/extensions': {
@@ -498,6 +517,7 @@ interface AppRouteChildren {
   AppRoundsIdRoute: typeof AppRoundsIdRoute
   AppRunsIdRoute: typeof AppRunsIdRoute
   AppSettingsAccessRoute: typeof AppSettingsAccessRoute
+  AppSettingsConfigRoute: typeof AppSettingsConfigRoute
   AppSettingsExtensionsRoute: typeof AppSettingsExtensionsRoute
   AppSettingsFeedsRoute: typeof AppSettingsFeedsRoute
   AppSettingsGeneralRoute: typeof AppSettingsGeneralRoute
@@ -522,6 +542,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppRoundsIdRoute: AppRoundsIdRoute,
   AppRunsIdRoute: AppRunsIdRoute,
   AppSettingsAccessRoute: AppSettingsAccessRoute,
+  AppSettingsConfigRoute: AppSettingsConfigRoute,
   AppSettingsExtensionsRoute: AppSettingsExtensionsRoute,
   AppSettingsFeedsRoute: AppSettingsFeedsRoute,
   AppSettingsGeneralRoute: AppSettingsGeneralRoute,

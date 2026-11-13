@@ -33,6 +33,14 @@ func (s *Store) Learn(name, value string) {
 	}
 }
 
+// LearnEnv registers the value of an environment variable that a secret
+// refers to, after a caller stored the reference in its own transaction.
+func (s *Store) LearnEnv(name, envName string) {
+	if v := s.getenv(envName); v != "" {
+		s.Learn(name, v)
+	}
+}
+
 // ErrWrongKey means the configured key did not encrypt this value.
 var ErrWrongKey = errors.New("secret was encrypted with another key: check SAYSO_SECRET_KEY")
 
@@ -210,7 +218,18 @@ func (s *Store) Value(ctx context.Context, name string) (string, error) {
 	return s.value(row)
 }
 
+// value decrypts or resolves a secret. Each read registers the value with
+// the redactor, so a secret that another process stored (config apply from
+// the CLI) is hidden from the first use.
 func (s *Store) value(r Secret) (string, error) {
+	v, err := s.plain(r)
+	if err == nil {
+		s.Learn(r.Name, v)
+	}
+	return v, err
+}
+
+func (s *Store) plain(r Secret) (string, error) {
 	if r.Kind == "env_ref" {
 		v := s.getenv(deref(r.EnvName))
 		if v == "" {
