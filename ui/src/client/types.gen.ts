@@ -18,11 +18,39 @@ export type AppBody = {
     slug: string;
 };
 
+export type Assessment = {
+    impact: Array<Impact>;
+    risk: 'low' | 'medium' | 'high' | 'critical';
+    risk_reasons: Array<string>;
+    tldr: string;
+    where_to_look: Array<WhereToLook>;
+};
+
+export type Challenge = {
+    outcome: 'confirmed' | 'refuted' | 'downgraded';
+    reason: string;
+};
+
+export type Check = {
+    conclusion?: string;
+    status: string;
+    summary: string;
+    title: string;
+};
+
 export type CheckResult = {
     detail: string;
     ms: number;
     name: string;
     ok: boolean;
+};
+
+export type Comment = {
+    body: string;
+    finding_id: string;
+    line: number;
+    path: string;
+    start_line?: number;
 };
 
 export type CreateSetupSessionRequest = {
@@ -94,6 +122,12 @@ export type ErrorModel = {
      * A URI reference to human-readable documentation for the error.
      */
     type?: string;
+};
+
+export type Evidence = {
+    detail: string;
+    kind: 'test' | 'trace' | 'call_path' | 'reasoning';
+    test_path?: string;
 };
 
 export type ExtensionBody = {
@@ -201,6 +235,22 @@ export type Field = {
     updated_at?: string;
 };
 
+export type FindingBody = {
+    blocking: boolean;
+    body: string;
+    category: string;
+    challenge?: Challenge;
+    end_line: number;
+    evidence: Evidence;
+    id: string;
+    label: string;
+    path: string;
+    severity: string;
+    start_line: number;
+    status: string;
+    title: string;
+};
+
 export type GitHubBody = {
     app: AppBody;
     deliveries: Array<DeliveryBody>;
@@ -229,6 +279,11 @@ export type ImageBody = {
      */
     image: string;
     name: string;
+};
+
+export type Impact = {
+    area: string;
+    why: string;
 };
 
 export type IngressBody = {
@@ -281,6 +336,13 @@ export type Preset = {
     hint?: string;
     id: string;
     label: string;
+};
+
+export type Preview = {
+    check?: Check;
+    comments: Array<Comment>;
+    replies: Array<Reply>;
+    summary: string;
 };
 
 export type ProfileBody = {
@@ -357,9 +419,21 @@ export type PutTeamRoleRequest = {
     role: 'admin' | 'maintainer' | 'viewer';
 };
 
+export type Reply = {
+    body: string;
+    finding_id: string;
+    key: string;
+    resolve?: boolean;
+};
+
 export type RepositoryBody = {
+    challenge_min_severity: 'blocker' | 'major' | 'minor' | 'nit';
     default_branch: string;
     enabled_at: string | null;
+    /**
+     * Off: no stage runs a command or writes a file
+     */
+    execution: boolean;
     feeds: Array<string>;
     feeds_available?: Array<FeedOption>;
     full_name: string;
@@ -376,6 +450,69 @@ export type Result = {
     ms: number;
     name: string;
     ok: boolean;
+};
+
+export type ReviewBody = {
+    author: string;
+    findings: Array<FindingBody>;
+    id: string;
+    last_round: RoundSummary;
+    mode: string;
+    number: number;
+    repository: string;
+    rounds: Array<RoundSummary>;
+    signals: Array<SignalBody>;
+    state: string;
+    temporal_url?: string;
+};
+
+export type ReviewItem = {
+    author: string;
+    id: string;
+    last_round: RoundSummary;
+    mode: string;
+    number: number;
+    repository: string;
+    state: string;
+};
+
+export type RoundBody = {
+    agent_run_id?: string;
+    assessment?: Assessment;
+    can_cancel: boolean;
+    config?: unknown;
+    created_at: string;
+    findings: Array<FindingBody>;
+    finished_at: string | null;
+    head_sha: string;
+    id: string;
+    mode: string;
+    number: number;
+    /**
+     * What Sayso posts, rendered as Markdown; shadow mode posts nothing
+     */
+    preview?: Preview;
+    prompt_ref?: unknown;
+    reason?: string;
+    repository: string;
+    risk?: string;
+    skill_ref?: SkillRef;
+    status: string;
+    temporal_url?: string;
+    trigger: string;
+    verdict?: string;
+};
+
+export type RoundSummary = {
+    created_at: string;
+    finished_at: string | null;
+    head_sha: string;
+    id: string;
+    reason?: string;
+    risk?: string;
+    status: string;
+    trigger: string;
+    verdict?: string;
 };
 
 export type ServerBody = {
@@ -424,6 +561,11 @@ export type SetRepositoryModeRequest = {
     mode: 'off' | 'shadow' | 'comment' | 'gate';
 };
 
+export type SetRepositoryReviewRequest = {
+    challenge_min_severity: 'blocker' | 'major' | 'minor' | 'nit';
+    execution: boolean;
+};
+
 export type SettingBody = {
     default: unknown;
     key: string;
@@ -438,6 +580,13 @@ export type SetupStateBody = {
     install_url: string;
     setup_session: boolean;
     signed_in: boolean;
+};
+
+export type SignalBody = {
+    actor: string;
+    at: string;
+    finding?: string;
+    type: string;
 };
 
 export type SkaelBody = {
@@ -466,6 +615,13 @@ export type SkaelInput = {
     url: string;
 };
 
+export type SkillRef = {
+    name: string;
+    sha256: string;
+    source: 'repository' | 'skael' | 'builtin';
+    version?: string;
+};
+
 export type SkillsBody = {
     /**
      * Files of the built-in review skill
@@ -481,6 +637,15 @@ export type Smoke = {
     checks: Array<CheckResult>;
     model: string;
     response_model: string;
+};
+
+export type StatusBody = {
+    /**
+     * The monthly budget is spent; no new round starts
+     */
+    budget_spent: boolean;
+    month_spent_usd: number;
+    monthly_budget_usd: number;
 };
 
 export type Target = {
@@ -527,6 +692,11 @@ export type UserBody = {
     role: string;
     role_source: string;
     status: string;
+};
+
+export type WhereToLook = {
+    target: string;
+    why: string;
 };
 
 export type GetAccessData = {
@@ -1613,6 +1783,146 @@ export type SetRepositoryProfilesResponses = {
 
 export type SetRepositoryProfilesResponse = SetRepositoryProfilesResponses[keyof SetRepositoryProfilesResponses];
 
+export type SetRepositoryReviewData = {
+    body: SetRepositoryReviewRequest;
+    path: {
+        owner: string;
+        name: string;
+    };
+    query?: never;
+    url: '/api/v1/repositories/{owner}/{name}/review';
+};
+
+export type SetRepositoryReviewErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type SetRepositoryReviewError = SetRepositoryReviewErrors[keyof SetRepositoryReviewErrors];
+
+export type SetRepositoryReviewResponses = {
+    /**
+     * OK
+     */
+    200: RepositoryBody;
+};
+
+export type SetRepositoryReviewResponse = SetRepositoryReviewResponses[keyof SetRepositoryReviewResponses];
+
+export type ListReviewsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * owner/name
+         */
+        repository?: string;
+        state?: '' | 'open' | 'paused' | 'closed' | 'merged';
+    };
+    url: '/api/v1/reviews';
+};
+
+export type ListReviewsErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type ListReviewsError = ListReviewsErrors[keyof ListReviewsErrors];
+
+export type ListReviewsResponses = {
+    /**
+     * OK
+     */
+    200: Array<ReviewItem>;
+};
+
+export type ListReviewsResponse = ListReviewsResponses[keyof ListReviewsResponses];
+
+export type GetReviewData = {
+    body?: never;
+    path: {
+        owner: string;
+        name: string;
+        number: number;
+    };
+    query?: never;
+    url: '/api/v1/reviews/{owner}/{name}/{number}';
+};
+
+export type GetReviewErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type GetReviewError = GetReviewErrors[keyof GetReviewErrors];
+
+export type GetReviewResponses = {
+    /**
+     * OK
+     */
+    200: ReviewBody;
+};
+
+export type GetReviewResponse = GetReviewResponses[keyof GetReviewResponses];
+
+export type GetRoundData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/rounds/{id}';
+};
+
+export type GetRoundErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type GetRoundError = GetRoundErrors[keyof GetRoundErrors];
+
+export type GetRoundResponses = {
+    /**
+     * OK
+     */
+    200: RoundBody;
+};
+
+export type GetRoundResponse = GetRoundResponses[keyof GetRoundResponses];
+
+export type CancelRoundData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/rounds/{id}/cancel';
+};
+
+export type CancelRoundErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type CancelRoundError = CancelRoundErrors[keyof CancelRoundErrors];
+
+export type CancelRoundResponses = {
+    /**
+     * Accepted
+     */
+    202: unknown;
+};
+
 export type ListSettingsData = {
     body?: never;
     path?: never;
@@ -1816,3 +2126,28 @@ export type PutSkaelResponses = {
 };
 
 export type PutSkaelResponse = PutSkaelResponses[keyof PutSkaelResponses];
+
+export type GetStatusData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/status';
+};
+
+export type GetStatusErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type GetStatusError = GetStatusErrors[keyof GetStatusErrors];
+
+export type GetStatusResponses = {
+    /**
+     * OK
+     */
+    200: StatusBody;
+};
+
+export type GetStatusResponse = GetStatusResponses[keyof GetStatusResponses];

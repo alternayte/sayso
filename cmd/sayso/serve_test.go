@@ -13,6 +13,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/alternayte/sayso/internal/review/signals"
+	"github.com/google/uuid"
+	"go.temporal.io/api/enums/v1"
+	"go.temporal.io/sdk/client"
+
 	"github.com/jackc/pgx/v5"
 
 	"github.com/alternayte/sayso/internal/app"
@@ -119,6 +124,59 @@ func TestSCN_CORE_001_TwoServersMigrateOnce(t *testing.T) {
 	}
 	if applied != want || distinct != want {
 		t.Fatalf("migrations: applied rows %d, distinct %d, want %d each", applied, distinct, want)
+	}
+
+	// A round signal reaches one workflow, which one of the two workers runs.
+	repo := uuid.Must(uuid.NewV7())
+	if _, err := conn.Exec(ctx, `INSERT INTO installations (installation_id, account_login) VALUES (4242, 'acme')`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := conn.Exec(ctx, `INSERT INTO repositories (id, github_id, installation_id, full_name, mode) VALUES ($1, 5001, 4242, 'acme/payments', 'gate')`, repo); err != nil {
+		t.Fatal(err)
+	}
+	tc, err := client.Dial(client.Options{HostPort: tp.Address})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tc.Close()
+	id := signals.WorkflowID(5001, 1)
+	for i := 0; i < 2; i++ {
+		if _, err := tc.SignalWithStartWorkflow(ctx, id, signals.SignalHeadUpdated, signals.Signal{Trigger: signals.TriggerOpened, HeadSHA: "h1"},
+			client.StartWorkflowOptions{ID: id, TaskQueue: signals.TaskQueue}, signals.WorkflowType, signals.Start{RepositoryID: repo, RepoGitHubID: 5001, Number: 1}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	deadline := time.Now().Add(30 * time.Second)
+	var reviews int
+	for time.Now().Before(deadline) {
+		if err := conn.QueryRow(ctx, `SELECT count(*) FROM reviews WHERE workflow_id = $1`, id).Scan(&reviews); err == nil && reviews == 1 {
+			break
+		}
+		time.Sleep(200 * time.Millisecond)
+	}
+	if reviews != 1 {
+		t.Fatalf("reviews for %s: %d", id, reviews)
+	}
+	d, err := tc.DescribeWorkflow(ctx, id, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	it := tc.GetWorkflowHistory(ctx, id, d.RawResponse.WorkflowExecutionInfo.Execution.RunId, false, enums.HISTORY_EVENT_FILTER_TYPE_ALL_EVENT)
+	signaled, ensured := 0, 0
+	for it.HasNext() {
+		ev, err := it.Next()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if ev.GetWorkflowExecutionSignaledEventAttributes() != nil {
+			signaled++
+		}
+		if a := ev.GetActivityTaskScheduledEventAttributes(); a != nil && a.ActivityType.GetName() == "EnsureReview" {
+			ensured++
+		}
+	}
+	if signaled != 2 || ensured != 1 {
+		t.Fatalf("one workflow got %d signals and ran EnsureReview %d times", signaled, ensured)
 	}
 }
 

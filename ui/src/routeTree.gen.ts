@@ -16,6 +16,7 @@ import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppAuditRouteImport } from './routes/_app/audit'
 import { Route as AppDiagnosticsRouteImport } from './routes/_app/diagnostics'
 import { Route as AppRepositoriesIndexRouteImport } from './routes/_app/repositories/index'
+import { Route as AppRoundsIdRouteImport } from './routes/_app/rounds/$id'
 import { Route as AppSettingsAccessRouteImport } from './routes/_app/settings/access'
 import { Route as AppSettingsExtensionsRouteImport } from './routes/_app/settings/extensions'
 import { Route as AppSettingsFeedsRouteImport } from './routes/_app/settings/feeds'
@@ -26,6 +27,7 @@ import { Route as AppSettingsMcpRouteImport } from './routes/_app/settings/mcp'
 import { Route as AppSettingsModelsRouteImport } from './routes/_app/settings/models'
 import { Route as AppSettingsSkillsRouteImport } from './routes/_app/settings/skills'
 import { Route as AppRepositoriesOwnerNameRouteImport } from './routes/_app/repositories/$owner.$name'
+import { Route as AppReviewsOwnerNameNumberRouteImport } from './routes/_app/reviews/$owner.$name.$number'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
@@ -59,6 +61,11 @@ const AppDiagnosticsRoute = AppDiagnosticsRouteImport.update({
 const AppRepositoriesIndexRoute = AppRepositoriesIndexRouteImport.update({
   id: '/repositories/',
   path: '/repositories/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppRoundsIdRoute = AppRoundsIdRouteImport.update({
+  id: '/rounds/$id',
+  path: '/rounds/$id',
   getParentRoute: () => AppRoute,
 } as any)
 const AppSettingsAccessRoute = AppSettingsAccessRouteImport.update({
@@ -112,6 +119,12 @@ const AppRepositoriesOwnerNameRoute =
     path: '/repositories/$owner/$name',
     getParentRoute: () => AppRoute,
   } as any)
+const AppReviewsOwnerNameNumberRoute =
+  AppReviewsOwnerNameNumberRouteImport.update({
+    id: '/reviews/$owner/$name/$number',
+    path: '/reviews/$owner/$name/$number',
+    getParentRoute: () => AppRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
@@ -119,6 +132,7 @@ export interface FileRoutesByFullPath {
   '/signin': typeof SigninRoute
   '/audit': typeof AppAuditRoute
   '/diagnostics': typeof AppDiagnosticsRoute
+  '/rounds/$id': typeof AppRoundsIdRoute
   '/settings/access': typeof AppSettingsAccessRoute
   '/settings/extensions': typeof AppSettingsExtensionsRoute
   '/settings/feeds': typeof AppSettingsFeedsRoute
@@ -130,6 +144,7 @@ export interface FileRoutesByFullPath {
   '/settings/skills': typeof AppSettingsSkillsRoute
   '/repositories/': typeof AppRepositoriesIndexRoute
   '/repositories/$owner/$name': typeof AppRepositoriesOwnerNameRoute
+  '/reviews/$owner/$name/$number': typeof AppReviewsOwnerNameNumberRoute
 }
 export interface FileRoutesByTo {
   '/setup': typeof SetupRoute
@@ -137,6 +152,7 @@ export interface FileRoutesByTo {
   '/audit': typeof AppAuditRoute
   '/diagnostics': typeof AppDiagnosticsRoute
   '/': typeof AppIndexRoute
+  '/rounds/$id': typeof AppRoundsIdRoute
   '/settings/access': typeof AppSettingsAccessRoute
   '/settings/extensions': typeof AppSettingsExtensionsRoute
   '/settings/feeds': typeof AppSettingsFeedsRoute
@@ -148,6 +164,7 @@ export interface FileRoutesByTo {
   '/settings/skills': typeof AppSettingsSkillsRoute
   '/repositories': typeof AppRepositoriesIndexRoute
   '/repositories/$owner/$name': typeof AppRepositoriesOwnerNameRoute
+  '/reviews/$owner/$name/$number': typeof AppReviewsOwnerNameNumberRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -157,6 +174,7 @@ export interface FileRoutesById {
   '/_app/audit': typeof AppAuditRoute
   '/_app/diagnostics': typeof AppDiagnosticsRoute
   '/_app/': typeof AppIndexRoute
+  '/_app/rounds/$id': typeof AppRoundsIdRoute
   '/_app/settings/access': typeof AppSettingsAccessRoute
   '/_app/settings/extensions': typeof AppSettingsExtensionsRoute
   '/_app/settings/feeds': typeof AppSettingsFeedsRoute
@@ -168,6 +186,7 @@ export interface FileRoutesById {
   '/_app/settings/skills': typeof AppSettingsSkillsRoute
   '/_app/repositories/': typeof AppRepositoriesIndexRoute
   '/_app/repositories/$owner/$name': typeof AppRepositoriesOwnerNameRoute
+  '/_app/reviews/$owner/$name/$number': typeof AppReviewsOwnerNameNumberRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -177,6 +196,7 @@ export interface FileRouteTypes {
     | '/signin'
     | '/audit'
     | '/diagnostics'
+    | '/rounds/$id'
     | '/settings/access'
     | '/settings/extensions'
     | '/settings/feeds'
@@ -188,6 +208,7 @@ export interface FileRouteTypes {
     | '/settings/skills'
     | '/repositories/'
     | '/repositories/$owner/$name'
+    | '/reviews/$owner/$name/$number'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/setup'
@@ -195,6 +216,7 @@ export interface FileRouteTypes {
     | '/audit'
     | '/diagnostics'
     | '/'
+    | '/rounds/$id'
     | '/settings/access'
     | '/settings/extensions'
     | '/settings/feeds'
@@ -206,6 +228,7 @@ export interface FileRouteTypes {
     | '/settings/skills'
     | '/repositories'
     | '/repositories/$owner/$name'
+    | '/reviews/$owner/$name/$number'
   id:
     | '__root__'
     | '/_app'
@@ -214,6 +237,7 @@ export interface FileRouteTypes {
     | '/_app/audit'
     | '/_app/diagnostics'
     | '/_app/'
+    | '/_app/rounds/$id'
     | '/_app/settings/access'
     | '/_app/settings/extensions'
     | '/_app/settings/feeds'
@@ -225,6 +249,7 @@ export interface FileRouteTypes {
     | '/_app/settings/skills'
     | '/_app/repositories/'
     | '/_app/repositories/$owner/$name'
+    | '/_app/reviews/$owner/$name/$number'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -282,6 +307,13 @@ declare module '@tanstack/react-router' {
       path: '/repositories'
       fullPath: '/repositories/'
       preLoaderRoute: typeof AppRepositoriesIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/rounds/$id': {
+      id: '/_app/rounds/$id'
+      path: '/rounds/$id'
+      fullPath: '/rounds/$id'
+      preLoaderRoute: typeof AppRoundsIdRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/settings/access': {
@@ -354,6 +386,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppRepositoriesOwnerNameRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/reviews/$owner/$name/$number': {
+      id: '/_app/reviews/$owner/$name/$number'
+      path: '/reviews/$owner/$name/$number'
+      fullPath: '/reviews/$owner/$name/$number'
+      preLoaderRoute: typeof AppReviewsOwnerNameNumberRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
@@ -361,6 +400,7 @@ interface AppRouteChildren {
   AppAuditRoute: typeof AppAuditRoute
   AppDiagnosticsRoute: typeof AppDiagnosticsRoute
   AppIndexRoute: typeof AppIndexRoute
+  AppRoundsIdRoute: typeof AppRoundsIdRoute
   AppSettingsAccessRoute: typeof AppSettingsAccessRoute
   AppSettingsExtensionsRoute: typeof AppSettingsExtensionsRoute
   AppSettingsFeedsRoute: typeof AppSettingsFeedsRoute
@@ -372,12 +412,14 @@ interface AppRouteChildren {
   AppSettingsSkillsRoute: typeof AppSettingsSkillsRoute
   AppRepositoriesIndexRoute: typeof AppRepositoriesIndexRoute
   AppRepositoriesOwnerNameRoute: typeof AppRepositoriesOwnerNameRoute
+  AppReviewsOwnerNameNumberRoute: typeof AppReviewsOwnerNameNumberRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppAuditRoute: AppAuditRoute,
   AppDiagnosticsRoute: AppDiagnosticsRoute,
   AppIndexRoute: AppIndexRoute,
+  AppRoundsIdRoute: AppRoundsIdRoute,
   AppSettingsAccessRoute: AppSettingsAccessRoute,
   AppSettingsExtensionsRoute: AppSettingsExtensionsRoute,
   AppSettingsFeedsRoute: AppSettingsFeedsRoute,
@@ -389,6 +431,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppSettingsSkillsRoute: AppSettingsSkillsRoute,
   AppRepositoriesIndexRoute: AppRepositoriesIndexRoute,
   AppRepositoriesOwnerNameRoute: AppRepositoriesOwnerNameRoute,
+  AppReviewsOwnerNameNumberRoute: AppReviewsOwnerNameNumberRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

@@ -4,3 +4,15 @@ services:
     environment:
       SAYSO_BOOTSTRAP_ADMINS: octo-admin
       SAYSO_PUBLIC_WEBHOOK_URL: http://sayso:8080/webhooks/github
+  # git (libcurl) resolves every *.localhost name to 127.0.0.1, so agent
+  # runs in the worker reach the fake GitHub by its service name.
+  worker:
+    configs:
+      - source: fake-gitconfig
+        target: /etc/gitconfig
+
+configs:
+  fake-gitconfig:
+    content: |
+      [url "http://fake:9001/"]
+        insteadOf = http://github.fake.localhost:9001/

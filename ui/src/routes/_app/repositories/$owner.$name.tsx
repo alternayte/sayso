@@ -6,11 +6,13 @@ import {
   listRepositoriesQueryKey,
   setRepositoryFeedsMutation,
   setRepositoryMcpMutation,
+  setRepositoryReviewMutation,
   setRepositoryModeMutation,
 } from "@/client/@tanstack/react-query.gen";
 import type { RepositoryBody } from "@/client/types.gen";
 import { Button, ErrorAlert, PageHead, Segmented } from "@/components/app-ui";
 import { Alert } from "@/components/ui/alert";
+import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -42,6 +44,12 @@ function Repository() {
           <ModeCard repo={repo.data} canEdit={atLeast(me.role, "maintainer")} queryKey={opts.queryKey} />
           <McpCard
             key={repo.data.mcp_servers.join(",")}
+            repo={repo.data}
+            canEdit={atLeast(me.role, "maintainer")}
+            queryKey={opts.queryKey}
+          />
+          <ReviewCard
+            key={`${repo.data.execution}-${repo.data.challenge_min_severity}`}
             repo={repo.data}
             canEdit={atLeast(me.role, "maintainer")}
             queryKey={opts.queryKey}
@@ -191,6 +199,70 @@ function FeedsCard({ repo, canEdit, queryKey }: { repo: RepositoryBody; canEdit:
           <div className="flex items-center gap-3">
             <Button mutation={save} onClick={() => save.mutate({ path: { owner, name }, body: { feeds: chosen } })}>
               {t("repos.feeds.save")}
+            </Button>
+          </div>
+        ) : null}
+        <ErrorAlert error={save.error} />
+      </div>
+    </Card>
+  );
+}
+
+type Severity = "blocker" | "major" | "minor" | "nit";
+
+/** ReviewCard sets code execution and the challenge threshold (REQ-UI-011). */
+function ReviewCard({ repo, canEdit, queryKey }: { repo: RepositoryBody; canEdit: boolean; queryKey: readonly unknown[] }) {
+  const qc = useQueryClient();
+  const [owner = "", name = ""] = repo.full_name.split("/");
+  const [execution, setExecution] = useState(repo.execution);
+  const [threshold, setThreshold] = useState<Severity>(repo.challenge_min_severity);
+  const save = useMutation({ ...setRepositoryReviewMutation(), onSuccess: () => qc.invalidateQueries({ queryKey }) });
+  const changed = execution !== repo.execution || threshold !== repo.challenge_min_severity;
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{t("repos.review.label")}</CardTitle>
+      </CardHeader>
+      <div className="grid gap-4 p-4">
+        <div className="flex items-start gap-3">
+          <Switch
+            id="repo-execution"
+            checked={execution}
+            disabled={!canEdit}
+            onCheckedChange={setExecution}
+            aria-describedby="repo-execution-hint"
+          />
+          <div className="grid gap-1">
+            <label htmlFor="repo-execution" className="text-ink">
+              {t("repos.execution")}
+            </label>
+            <span id="repo-execution-hint" className="t-hint">
+              {t("repos.execution.hint")}
+            </span>
+          </div>
+        </div>
+        <div className="grid gap-1.5">
+          <span className="t-label" aria-hidden="true">
+            {t("repos.threshold")}
+          </span>
+          <Segmented
+            label={t("repos.threshold")}
+            disabled={!canEdit}
+            className="justify-self-start"
+            options={(["blocker", "major", "minor", "nit"] as const).map((v) => ({ value: v, label: t(`severity.${v}`) }))}
+            value={threshold}
+            onChange={setThreshold}
+          />
+          <span className="t-hint">{t("repos.threshold.hint")}</span>
+        </div>
+        {canEdit ? (
+          <div className="flex items-center gap-3">
+            <Button
+              mutation={save}
+              disabled={!changed}
+              onClick={() => save.mutate({ path: { owner, name }, body: { execution, challenge_min_severity: threshold } })}
+            >
+              {t("repos.review.save")}
             </Button>
           </div>
         ) : null}

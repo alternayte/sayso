@@ -29,6 +29,8 @@ type RepositoryBody struct {
 	EnabledAt     *time.Time   `json:"enabled_at"`
 	Profiles      ProfilesBody `json:"profiles"`
 	MCPServers    []string     `json:"mcp_servers"`
+	Execution     bool         `json:"execution" doc:"Off: no stage runs a command or writes a file"`
+	ChallengeMin  string       `json:"challenge_min_severity" enum:"blocker,major,minor,nit"`
 	// MCPAvailable are the servers that admins configured; only the detail has it.
 	MCPAvailable []string `json:"mcp_available,omitempty"`
 	Feeds        []string `json:"feeds"`
@@ -53,7 +55,8 @@ type ProfilesBody struct {
 
 func body(r Repository) RepositoryBody {
 	return RepositoryBody{ID: r.ID.String(), FullName: r.FullName, DefaultBranch: r.DefaultBranch, Private: r.Private, Mode: r.Mode, EnabledAt: r.EnabledAt,
-		Profiles: ProfilesBody{Review: r.ProfileReview, Challenge: r.ProfileChallenge, Reply: r.ProfileReply, Fix: r.ProfileFix}, MCPServers: r.McpServers, Feeds: r.Feeds}
+		Profiles: ProfilesBody{Review: r.ProfileReview, Challenge: r.ProfileChallenge, Reply: r.ProfileReply, Fix: r.ProfileFix}, MCPServers: r.McpServers, Feeds: r.Feeds,
+		Execution: r.Execution, ChallengeMin: r.ChallengeMinSeverity}
 }
 
 func detail(ctx context.Context, q *Queries, r Repository) (RepositoryBody, error) {
@@ -268,6 +271,53 @@ func Register(api huma.API, pool *pgxpool.Pool, acc Access) {
 				return err
 			}
 			if err := audit.Write(ctx, tx, acc.Actor(ctx), "repository.feeds", r.FullName, map[string]any{"feeds": want}); err != nil {
+				return err
+			}
+			out, err = detail(ctx, q, saved)
+			return err
+		})
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, huma.Error404NotFound("repository not found")
+		}
+		if err != nil {
+			return nil, err
+		}
+		return &struct{ Body RepositoryBody }{out}, nil
+	})
+
+	huma.Register(api, huma.Operation{
+		OperationID: "set-repository-review", Method: http.MethodPut, Path: "/repositories/{owner}/{name}/review", Tags: []string{"repositories"}, Metadata: acc.Edit,
+	}, func(ctx context.Context, in *struct {
+		Owner string `path:"owner"`
+		Name  string `path:"name"`
+		Body  struct {
+			Execution    bool   `json:"execution"`
+			ChallengeMin string `json:"challenge_min_severity" enum:"blocker,major,minor,nit"`
+		}
+	}) (*struct{ Body RepositoryBody }, error) {
+		var out RepositoryBody
+		err := pgx.BeginFunc(ctx, pool, func(tx pgx.Tx) error {
+			q := New(tx)
+			r, err := q.ByFullName(ctx, in.Owner+"/"+in.Name)
+			if err != nil {
+				return err
+			}
+			if _, err := tx.Exec(ctx, `UPDATE repositories SET execution = $2, challenge_min_severity = $3 WHERE id = $1`, r.ID, in.Body.Execution, in.Body.ChallengeMin); err != nil {
+				return err
+			}
+			if r.Execution != in.Body.Execution {
+				if err := audit.Write(ctx, tx, acc.Actor(ctx), "repository.execution", r.FullName, map[string]any{"old": r.Execution, "new": in.Body.Execution}); err != nil {
+					return err
+				}
+			}
+			if r.ChallengeMinSeverity != in.Body.ChallengeMin {
+				if err := audit.Write(ctx, tx, acc.Actor(ctx), "repository.challenge_min_severity", r.FullName,
+					map[string]any{"old": r.ChallengeMinSeverity, "new": in.Body.ChallengeMin}); err != nil {
+					return err
+				}
+			}
+			saved, err := q.ByFullName(ctx, r.FullName)
+			if err != nil {
 				return err
 			}
 			out, err = detail(ctx, q, saved)

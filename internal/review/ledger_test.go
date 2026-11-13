@@ -255,8 +255,8 @@ func TestSCN_LIFE_006_CloseCancelsAndReports(t *testing.T) {
 	}
 	id := e.wfID("acme/payments", pr.Number)
 	waitFor(t, 60*time.Second, "the workflow completes", func() bool {
-		d, err := e.Temporal.DescribeWorkflowExecution(ctx, id, "")
-		return err == nil && d.WorkflowExecutionInfo.Status == enums.WORKFLOW_EXECUTION_STATUS_COMPLETED
+		d, err := e.Temporal.DescribeWorkflow(ctx, id, "")
+		return err == nil && d.RawResponse.WorkflowExecutionInfo.Status == enums.WORKFLOW_EXECUTION_STATUS_COMPLETED
 	})
 	if e.rounds(t, "acme/payments", pr.Number, "cancelled") != 1 || e.Count(t, `SELECT count(*) FROM reviews WHERE state = 'merged'`) != 1 {
 		t.Fatalf("round or review state:\n%s", dump())

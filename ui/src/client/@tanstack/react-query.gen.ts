@@ -3,8 +3,8 @@
 import { type InfiniteData, infiniteQueryOptions, queryOptions, type UseMutationOptions } from '@tanstack/react-query';
 
 import { client } from '../client.gen';
-import { createAppManifest, createMcpServer, createProvider, createSetupSession, deleteAgentImage, deleteExtension, deleteFeed, deleteGrant, deleteMcpServer, deleteProfile, deleteProvider, deleteTeamRole, getAccess, getDiagnostics, getGithub, getMe, getRepository, getSettingHistory, getSetupState, getSkills, listAgentImages, listAudit, listAuditActions, listExtensions, listFeeds, listMcpServers, listProfiles, listProviderModels, listProviderPresets, listProviders, listRepositories, listSettings, type Options, putAgentImage, putExtension, putFeed, putGrant, putProfile, putSetting, putSkael, putTeamRole, setRepositoryFeeds, setRepositoryMcp, setRepositoryMode, setRepositoryProfiles, testFeed, testMcpServer, testProvider, updateMcpServer, updateProvider } from '../sdk.gen';
-import type { CreateAppManifestData, CreateAppManifestError, CreateAppManifestResponse, CreateMcpServerData, CreateMcpServerError, CreateMcpServerResponse, CreateProviderData, CreateProviderError, CreateProviderResponse, CreateSetupSessionData, CreateSetupSessionError, CreateSetupSessionResponse, DeleteAgentImageData, DeleteAgentImageError, DeleteAgentImageResponse, DeleteExtensionData, DeleteExtensionError, DeleteExtensionResponse, DeleteFeedData, DeleteFeedError, DeleteFeedResponse, DeleteGrantData, DeleteGrantError, DeleteGrantResponse, DeleteMcpServerData, DeleteMcpServerError, DeleteMcpServerResponse, DeleteProfileData, DeleteProfileError, DeleteProfileResponse, DeleteProviderData, DeleteProviderError, DeleteProviderResponse, DeleteTeamRoleData, DeleteTeamRoleError, DeleteTeamRoleResponse, GetAccessData, GetAccessError, GetAccessResponse, GetDiagnosticsData, GetDiagnosticsError, GetDiagnosticsResponse, GetGithubData, GetGithubError, GetGithubResponse, GetMeData, GetMeError, GetMeResponse, GetRepositoryData, GetRepositoryError, GetRepositoryResponse, GetSettingHistoryData, GetSettingHistoryError, GetSettingHistoryResponse, GetSetupStateData, GetSetupStateError, GetSetupStateResponse, GetSkillsData, GetSkillsError, GetSkillsResponse, ListAgentImagesData, ListAgentImagesError, ListAgentImagesResponse, ListAuditActionsData, ListAuditActionsError, ListAuditActionsResponse, ListAuditData, ListAuditError, ListAuditResponse, ListExtensionsData, ListExtensionsError, ListExtensionsResponse, ListFeedsData, ListFeedsError, ListFeedsResponse, ListMcpServersData, ListMcpServersError, ListMcpServersResponse, ListProfilesData, ListProfilesError, ListProfilesResponse, ListProviderModelsData, ListProviderModelsError, ListProviderModelsResponse, ListProviderPresetsData, ListProviderPresetsError, ListProviderPresetsResponse, ListProvidersData, ListProvidersError, ListProvidersResponse, ListRepositoriesData, ListRepositoriesError, ListRepositoriesResponse, ListSettingsData, ListSettingsError, ListSettingsResponse, PutAgentImageData, PutAgentImageError, PutAgentImageResponse, PutExtensionData, PutExtensionError, PutExtensionResponse, PutFeedData, PutFeedError, PutFeedResponse, PutGrantData, PutGrantError, PutGrantResponse, PutProfileData, PutProfileError, PutProfileResponse, PutSettingData, PutSettingError, PutSettingResponse, PutSkaelData, PutSkaelError, PutSkaelResponse, PutTeamRoleData, PutTeamRoleError, PutTeamRoleResponse, SetRepositoryFeedsData, SetRepositoryFeedsError, SetRepositoryFeedsResponse, SetRepositoryMcpData, SetRepositoryMcpError, SetRepositoryMcpResponse, SetRepositoryModeData, SetRepositoryModeError, SetRepositoryModeResponse, SetRepositoryProfilesData, SetRepositoryProfilesError, SetRepositoryProfilesResponse, TestFeedData, TestFeedError, TestFeedResponse2, TestMcpServerData, TestMcpServerError, TestMcpServerResponse, TestProviderData, TestProviderError, TestProviderResponse, UpdateMcpServerData, UpdateMcpServerError, UpdateMcpServerResponse, UpdateProviderData, UpdateProviderError, UpdateProviderResponse } from '../types.gen';
+import { cancelRound, createAppManifest, createMcpServer, createProvider, createSetupSession, deleteAgentImage, deleteExtension, deleteFeed, deleteGrant, deleteMcpServer, deleteProfile, deleteProvider, deleteTeamRole, getAccess, getDiagnostics, getGithub, getMe, getRepository, getReview, getRound, getSettingHistory, getSetupState, getSkills, getStatus, listAgentImages, listAudit, listAuditActions, listExtensions, listFeeds, listMcpServers, listProfiles, listProviderModels, listProviderPresets, listProviders, listRepositories, listReviews, listSettings, type Options, putAgentImage, putExtension, putFeed, putGrant, putProfile, putSetting, putSkael, putTeamRole, setRepositoryFeeds, setRepositoryMcp, setRepositoryMode, setRepositoryProfiles, setRepositoryReview, testFeed, testMcpServer, testProvider, updateMcpServer, updateProvider } from '../sdk.gen';
+import type { CancelRoundData, CancelRoundError, CreateAppManifestData, CreateAppManifestError, CreateAppManifestResponse, CreateMcpServerData, CreateMcpServerError, CreateMcpServerResponse, CreateProviderData, CreateProviderError, CreateProviderResponse, CreateSetupSessionData, CreateSetupSessionError, CreateSetupSessionResponse, DeleteAgentImageData, DeleteAgentImageError, DeleteAgentImageResponse, DeleteExtensionData, DeleteExtensionError, DeleteExtensionResponse, DeleteFeedData, DeleteFeedError, DeleteFeedResponse, DeleteGrantData, DeleteGrantError, DeleteGrantResponse, DeleteMcpServerData, DeleteMcpServerError, DeleteMcpServerResponse, DeleteProfileData, DeleteProfileError, DeleteProfileResponse, DeleteProviderData, DeleteProviderError, DeleteProviderResponse, DeleteTeamRoleData, DeleteTeamRoleError, DeleteTeamRoleResponse, GetAccessData, GetAccessError, GetAccessResponse, GetDiagnosticsData, GetDiagnosticsError, GetDiagnosticsResponse, GetGithubData, GetGithubError, GetGithubResponse, GetMeData, GetMeError, GetMeResponse, GetRepositoryData, GetRepositoryError, GetRepositoryResponse, GetReviewData, GetReviewError, GetReviewResponse, GetRoundData, GetRoundError, GetRoundResponse, GetSettingHistoryData, GetSettingHistoryError, GetSettingHistoryResponse, GetSetupStateData, GetSetupStateError, GetSetupStateResponse, GetSkillsData, GetSkillsError, GetSkillsResponse, GetStatusData, GetStatusError, GetStatusResponse, ListAgentImagesData, ListAgentImagesError, ListAgentImagesResponse, ListAuditActionsData, ListAuditActionsError, ListAuditActionsResponse, ListAuditData, ListAuditError, ListAuditResponse, ListExtensionsData, ListExtensionsError, ListExtensionsResponse, ListFeedsData, ListFeedsError, ListFeedsResponse, ListMcpServersData, ListMcpServersError, ListMcpServersResponse, ListProfilesData, ListProfilesError, ListProfilesResponse, ListProviderModelsData, ListProviderModelsError, ListProviderModelsResponse, ListProviderPresetsData, ListProviderPresetsError, ListProviderPresetsResponse, ListProvidersData, ListProvidersError, ListProvidersResponse, ListRepositoriesData, ListRepositoriesError, ListRepositoriesResponse, ListReviewsData, ListReviewsError, ListReviewsResponse, ListSettingsData, ListSettingsError, ListSettingsResponse, PutAgentImageData, PutAgentImageError, PutAgentImageResponse, PutExtensionData, PutExtensionError, PutExtensionResponse, PutFeedData, PutFeedError, PutFeedResponse, PutGrantData, PutGrantError, PutGrantResponse, PutProfileData, PutProfileError, PutProfileResponse, PutSettingData, PutSettingError, PutSettingResponse, PutSkaelData, PutSkaelError, PutSkaelResponse, PutTeamRoleData, PutTeamRoleError, PutTeamRoleResponse, SetRepositoryFeedsData, SetRepositoryFeedsError, SetRepositoryFeedsResponse, SetRepositoryMcpData, SetRepositoryMcpError, SetRepositoryMcpResponse, SetRepositoryModeData, SetRepositoryModeError, SetRepositoryModeResponse, SetRepositoryProfilesData, SetRepositoryProfilesError, SetRepositoryProfilesResponse, SetRepositoryReviewData, SetRepositoryReviewError, SetRepositoryReviewResponse, TestFeedData, TestFeedError, TestFeedResponse2, TestMcpServerData, TestMcpServerError, TestMcpServerResponse, TestProviderData, TestProviderError, TestProviderResponse, UpdateMcpServerData, UpdateMcpServerError, UpdateMcpServerResponse, UpdateProviderData, UpdateProviderError, UpdateProviderResponse } from '../types.gen';
 
 export type QueryKey<TOptions extends Options> = [
     Pick<TOptions, 'baseUrl' | 'body' | 'headers' | 'path' | 'query'> & {
@@ -685,6 +685,79 @@ export const setRepositoryProfilesMutation = (options?: Partial<Options<SetRepos
     return mutationOptions;
 };
 
+export const setRepositoryReviewMutation = (options?: Partial<Options<SetRepositoryReviewData>>): UseMutationOptions<SetRepositoryReviewResponse, SetRepositoryReviewError, Options<SetRepositoryReviewData>> => {
+    const mutationOptions: UseMutationOptions<SetRepositoryReviewResponse, SetRepositoryReviewError, Options<SetRepositoryReviewData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await setRepositoryReview({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const listReviewsQueryKey = (options?: Options<ListReviewsData>) => createQueryKey('listReviews', options);
+
+export const listReviewsOptions = (options?: Options<ListReviewsData>) => queryOptions<ListReviewsResponse, ListReviewsError, ListReviewsResponse, ReturnType<typeof listReviewsQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await listReviews({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: listReviewsQueryKey(options)
+});
+
+export const getReviewQueryKey = (options: Options<GetReviewData>) => createQueryKey('getReview', options);
+
+export const getReviewOptions = (options: Options<GetReviewData>) => queryOptions<GetReviewResponse, GetReviewError, GetReviewResponse, ReturnType<typeof getReviewQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await getReview({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: getReviewQueryKey(options)
+});
+
+export const getRoundQueryKey = (options: Options<GetRoundData>) => createQueryKey('getRound', options);
+
+export const getRoundOptions = (options: Options<GetRoundData>) => queryOptions<GetRoundResponse, GetRoundError, GetRoundResponse, ReturnType<typeof getRoundQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await getRound({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: getRoundQueryKey(options)
+});
+
+export const cancelRoundMutation = (options?: Partial<Options<CancelRoundData>>): UseMutationOptions<unknown, CancelRoundError, Options<CancelRoundData>> => {
+    const mutationOptions: UseMutationOptions<unknown, CancelRoundError, Options<CancelRoundData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await cancelRound({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
 export const listSettingsQueryKey = (options?: Options<ListSettingsData>) => createQueryKey('listSettings', options);
 
 export const listSettingsOptions = (options?: Options<ListSettingsData>) => queryOptions<ListSettingsResponse, ListSettingsError, ListSettingsResponse, ReturnType<typeof listSettingsQueryKey>>({
@@ -800,3 +873,18 @@ export const putSkaelMutation = (options?: Partial<Options<PutSkaelData>>): UseM
     };
     return mutationOptions;
 };
+
+export const getStatusQueryKey = (options?: Options<GetStatusData>) => createQueryKey('getStatus', options);
+
+export const getStatusOptions = (options?: Options<GetStatusData>) => queryOptions<GetStatusResponse, GetStatusError, GetStatusResponse, ReturnType<typeof getStatusQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await getStatus({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: getStatusQueryKey(options)
+});
