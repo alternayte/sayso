@@ -123,12 +123,12 @@ test("SCN-OBS-009 the cost view equals the sum of model_usage", async ({
   ] as const) {
     await page.getByRole("radio", { name: group }).click();
     const want =
-      sql(`SELECT ${sel} || '=' || to_char(sum(u.cost_usd), 'FM999990.000000') FROM model_usage u JOIN agent_runs ar ON ar.id = u.run_id
-      LEFT JOIN repositories r ON r.id = ar.repository_id GROUP BY 1 ORDER BY 1`).split(
+      sql(`SELECT ${sel} AS k, to_char(sum(u.cost_usd), 'FM999990.000000') FROM model_usage u JOIN agent_runs ar ON ar.id = u.run_id
+      LEFT JOIN repositories r ON r.id = ar.repository_id GROUP BY k ORDER BY k`).split(
         "\n",
       );
     for (const line of want) {
-      const [key, cost] = line.split("=") as [string, string];
+      const [key, cost] = line.split("|") as [string, string];
       await expect(
         table.locator(`tr[data-key="${key}"] td[data-cost]`),
       ).toHaveAttribute("data-cost", Number(cost).toFixed(6));
@@ -279,7 +279,9 @@ test("SCN-UI-010 INP p75 is 100 ms or less at 4x CPU slowdown; the run page keep
     w.__inp = [];
     const byId = new Map<number, number>();
     new PerformanceObserver((list) => {
-      for (const e of list.getEntries() as PerformanceEventTiming[]) {
+      for (const e of list.getEntries() as (PerformanceEventTiming & {
+        interactionId?: number;
+      })[]) {
         if (!e.interactionId) continue;
         byId.set(
           e.interactionId,
