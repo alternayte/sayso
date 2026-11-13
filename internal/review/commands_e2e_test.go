@@ -231,7 +231,9 @@ func TestSCN_PUB_007_NoApproveMergeOrForeignPush(t *testing.T) {
 		return false
 	})
 	e.reply(t, pr.Number, e.top(t, pr.Number, 1).ID, "dev-alice", "Is this right?")
-	waitFor(t, 4*time.Minute, "the reply", func() bool { return e.Count(t, `SELECT count(*) FROM agent_work WHERE kind = 'reply' AND status = 'done'`) >= 2 })
+	waitFor(t, 4*time.Minute, "the reply", func() bool {
+		return e.Count(t, `SELECT count(*) FROM agent_work WHERE kind = 'reply' AND status = 'done'`) >= 2
+	})
 	for _, r := range e.GitHub.Reviews() {
 		if r.Event != "COMMENT" {
 			t.Fatalf("review with event %s", r.Event)
