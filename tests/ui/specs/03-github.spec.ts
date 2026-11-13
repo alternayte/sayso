@@ -33,5 +33,6 @@ test("SCN-GH-002 admins see the installation and the install link", async ({ pag
   await page.goto("/settings/github");
   await expect(page.getByRole("link", { name: "Install the App" })).toHaveAttribute("href", /installations\/new$/);
   await expect(page.getByRole("cell", { name: "acme", exact: true })).toBeVisible();
-  await expect(page.getByRole("cell", { name: "installation.created" })).toBeVisible();
+  // Both delivery tables, received and on GitHub, list the installation event.
+  await expect(page.getByRole("cell", { name: "installation.created" }).first()).toBeVisible();
 });

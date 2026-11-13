@@ -41,6 +41,10 @@ func TestSCN_CFG_006_EffectiveConfigWithSources(t *testing.T) {
 	if !slices.ContainsFunc(eff.Warnings, func(w string) bool { return strings.Contains(w, `"mode"`) }) {
 		t.Fatalf("no mode warning: %v", eff.Warnings)
 	}
+	// The page reads each list, so none is JSON null.
+	if eff.Extensions == nil || eff.Feeds == nil || eff.Setup == nil {
+		t.Fatalf("null lists: %+v", eff)
+	}
 	if b.SkillSource != "builtin" {
 		t.Fatalf("skill source %s", b.SkillSource)
 	}

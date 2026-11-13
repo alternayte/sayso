@@ -430,6 +430,12 @@ func (a *Activities) EffectiveConfig(ctx context.Context, fullName string) (Effe
 	if err != nil {
 		return EffectiveBody{}, err
 	}
+	// The page reads each list; JSON null would break it.
+	for _, l := range []*[]string{&eff.MCP, &eff.Extensions, &eff.Feeds, &eff.Ignore, &eff.Setup, &eff.Warnings} {
+		if *l == nil {
+			*l = []string{}
+		}
+	}
 	b := EffectiveBody{Repository: repo.FullName, Mode: repo.Mode, Ref: repo.DefaultBranch, Effective: eff, SkillSource: skill.Source, SkillName: skill.Name}
 	if skael != nil {
 		b.SkillName = skael.SkillName + " (" + skael.Set + ")"
