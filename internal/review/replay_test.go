@@ -71,4 +71,3 @@ func TestSCN_LIFE_012_ReorderFailsReplay(t *testing.T) {
 	}
 	t.Fatal("no PRReview history")
 }
-
