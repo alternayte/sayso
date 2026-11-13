@@ -87,7 +87,7 @@ func NewFeatures(ctx context.Context, d *Deps) (*Features, error) {
 		Name: "sayso_webhook_signal_seconds", Help: "Time from webhook request start to the workflow signal.",
 		Buckets: []float64{.01, .025, .05, .1, .25, .5, 1, 2, 5},
 	})
-	d.Metrics.MustRegister(signaled)
+	d.Metrics.MustRegister(signaled, newDBMetrics(d.Pool))
 	tokens := github.NewTokens()
 	ingest := &github.Ingest{Pool: d.Pool, Secrets: sec, Temporal: d.Temporal, GitHub: gh, Tokens: tokens, Log: d.Log, Signaled: signaled}
 	f := &Features{Settings: st, Secrets: sec, Auth: a, GitHubClient: gh, RateLimits: limits, Tokens: tokens, Ingest: ingest,

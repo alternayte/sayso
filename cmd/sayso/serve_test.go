@@ -187,6 +187,19 @@ func TestSCN_CORE_005_HealthReadyMetrics(t *testing.T) {
 	s.waitStatus(t, "/readyz", http.StatusOK, 60*time.Second)
 	s.waitStatus(t, "/healthz", http.StatusOK, time.Second)
 	s.waitStatus(t, "/metrics", http.StatusOK, time.Second)
+	resp, err := http.Get(s.base + "/metrics")
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, _ := io.ReadAll(resp.Body)
+	_ = resp.Body.Close()
+	// The metric families of §18.3.
+	for _, family := range []string{"sayso_http_requests_total", "sayso_rounds", "sayso_agent_run_duration_seconds", "sayso_model_tokens_total",
+		"sayso_model_cost_usd_total", "sayso_proxy_errors_total", "sayso_webhook_deliveries_total", "sayso_steering_signals_total"} {
+		if !strings.Contains(string(body), "# HELP "+family+" ") {
+			t.Errorf("/metrics has no %s", family)
+		}
+	}
 
 	tp.Stop(t)
 	s.waitStatus(t, "/readyz", http.StatusServiceUnavailable, 30*time.Second)
