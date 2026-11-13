@@ -1,0 +1,121 @@
+marker: '[script:e2e-commands]'
+stages:
+  review:
+  - tools:
+    - name: record_finding
+      args:
+        severity: blocker
+        category: correctness
+        title: Post no longer rejects negative amounts
+        body: Charge in api/handler.go relies on Post to reject a negative amount.
+        path: ledger/ledger.go
+        start_line: 15
+        end_line: 18
+        evidence:
+          kind: call_path
+          detail: api/handler.go Charge -> ledger.Post; the negative check is gone.
+    - name: record_finding
+      args:
+        severity: major
+        category: docs
+        title: Post comment still promises a check
+        body: The comment of Post does not say that refunds pass.
+        path: ledger/ledger.go
+        start_line: 14
+        end_line: 14
+        evidence:
+          kind: reasoning
+          detail: The comment and the code differ.
+    - name: record_finding
+      args:
+        severity: minor
+        category: naming
+        title: Unused error value kept
+        body: ErrNegative is now unused.
+        path: ledger/ledger.go
+        start_line: 17
+        end_line: 17
+        evidence:
+          kind: reasoning
+          detail: The value is assigned to the blank identifier.
+  - tools:
+    - name: set_assessment
+      args:
+        tldr: The change removes the negative check from Post.
+        risk: high
+        risk_reasons:
+        - money path
+        where_to_look: []
+        impact:
+        - area: api/handler.go
+          why: Charge calls Post
+  - text: Review done.
+  review+ledger:
+  - tools:
+    - name: set_assessment
+      args:
+        tldr: The negative check is still gone.
+        risk: high
+        risk_reasons:
+        - money path
+        where_to_look: []
+        impact: []
+  - text: Review done.
+  challenge:
+  - tools:
+    - name: challenge_result
+      args:
+        candidate_id: c1
+        outcome: confirmed
+        reason: Charge passes the amount unchanged.
+    - name: challenge_result
+      args:
+        candidate_id: c2
+        outcome: confirmed
+        reason: The comment is wrong.
+    - name: challenge_result
+      args:
+        candidate_id: c3
+        outcome: confirmed
+        reason: The value is unused.
+  - text: Challenge done.
+  'reply+# Finding S-1:':
+  - tools:
+    - name: reply
+      args:
+        text: You are right. The API rejects negative amounts before Post.
+        action: concede
+  - text: Done.
+  'reply+# Finding S-2:':
+  - tools:
+    - name: reply
+      args:
+        text: The comment still says that Post rejects negative amounts.
+        action: hold
+  - text: Done.
+  'reply+# Finding S-3:':
+  - tools:
+    - name: reply
+      args:
+        text: ErrNegative stays exported for callers; the fix is to drop the blank assignment.
+        action: clarify
+  - text: Done.
+  fix:
+  - tools:
+    - name: propose_patch
+      args:
+        title: Say that refunds pass
+        description: The comment of Post now says that negative amounts pass.
+        diff: |
+          --- a/ledger/ledger.go
+          +++ b/ledger/ledger.go
+          @@ -11,7 +11,7 @@ type Ledger struct {
+           	balance int64
+           }
+           
+          -// Post adds amount cents to the balance.
+          +// Post adds amount cents to the balance. Refunds pass negative amounts.
+           func (l *Ledger) Post(amount int64) error {
+           	// Refunds pass negative amounts now.
+           	_ = ErrNegative
+  - text: Done.

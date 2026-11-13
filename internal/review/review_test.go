@@ -418,3 +418,5 @@ func record(t *testing.T, e *apptest.Env, dir string, since time.Time) {
 		}
 	}
 }
+
+func (e *env) head(n int) string { return e.GitHub.Repo("acme/payments").Pulls[n].HeadSHA }

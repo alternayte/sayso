@@ -44,6 +44,9 @@ type publishState struct {
 	issueComments map[int64]*IssueComment
 	reviews       []*Review
 	reactions     []Reaction
+	// commentReactions and pushes are written by command handling (S7).
+	commentReactions []CommentReaction
+	pushes           []Push
 	// failWrite makes the n-th write call from now answer 502, once.
 	failWrite int
 }
@@ -124,7 +127,18 @@ func (f *Fake) ReviewComments(repo string) []Comment {
 }
 
 func (f *Fake) publishRoutes(mux *http.ServeMux) {
-	mux.HandleFunc("GET /repos/{owner}/{repo}/issues/{n}/comments", f.listIssueComments)
+	// One pattern for GET /issues/{n}/{sub}: it overlaps /issues/comments/{id}.
+	mux.HandleFunc("GET /repos/{owner}/{repo}/issues/{n}/{sub}", func(w http.ResponseWriter, r *http.Request) {
+		switch n, sub := r.PathValue("n"), r.PathValue("sub"); {
+		case n == "comments":
+			r.SetPathValue("id", sub)
+			f.getIssueComment(w, r)
+		case sub == "comments":
+			f.listIssueComments(w, r)
+		default:
+			writeJSON(w, http.StatusNotFound, map[string]string{"message": "Not Found"})
+		}
+	})
 	mux.HandleFunc("POST /repos/{owner}/{repo}/issues/{n}/comments", f.createIssueComment)
 	mux.HandleFunc("PATCH /repos/{owner}/{repo}/issues/comments/{id}", f.editIssueComment)
 	mux.HandleFunc("POST /repos/{owner}/{repo}/issues/{n}/reactions", f.createReaction)

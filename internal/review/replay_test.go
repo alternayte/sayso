@@ -27,6 +27,7 @@ func replayer(prReview any) worker.WorkflowReplayer {
 	r := worker.NewWorkflowReplayer()
 	r.RegisterWorkflowWithOptions(prReview, workflow.RegisterOptions{Name: signals.WorkflowType})
 	r.RegisterWorkflowWithOptions(review.ReviewRound, workflow.RegisterOptions{Name: review.RoundWorkflowType})
+	r.RegisterWorkflowWithOptions(review.AgentWork, workflow.RegisterOptions{Name: review.WorkWorkflowType})
 	return r
 }
 

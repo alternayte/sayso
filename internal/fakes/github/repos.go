@@ -38,6 +38,8 @@ type Pull struct {
 	Labels  []string
 	Title   string
 	Body    string
+	// Fork is true when the head branch is in a fork.
+	Fork bool
 }
 
 // Comment is a pull request review comment.
@@ -275,6 +277,13 @@ func (f *Fake) AddCheckRun(repo, name, head string) int64 {
 	return f.nextID
 }
 
+func headRepo(r *Repo, p *Pull) map[string]any {
+	if p.Fork {
+		return map[string]any{"id": r.ID + 1_000_000, "full_name": "mallory/" + strings.SplitN(r.FullName, "/", 2)[1], "fork": true}
+	}
+	return map[string]any{"id": r.ID, "full_name": r.FullName}
+}
+
 func (f *Fake) pullJSON(r *Repo, p *Pull) map[string]any {
 	labels := []map[string]any{}
 	for _, l := range p.Labels {
@@ -284,7 +293,7 @@ func (f *Fake) pullJSON(r *Repo, p *Pull) map[string]any {
 	return map[string]any{
 		"number": p.Number, "node_id": p.NodeID, "draft": p.Draft, "state": state, "merged": p.Merged, "title": p.Title, "body": p.Body,
 		"user":   map[string]any{"login": p.Author},
-		"head":   map[string]any{"sha": p.HeadSHA, "ref": p.HeadRef, "repo": map[string]any{"id": r.ID, "full_name": r.FullName}},
+		"head":   map[string]any{"sha": p.HeadSHA, "ref": p.HeadRef, "repo": headRepo(r, p)},
 		"base":   map[string]any{"sha": p.BaseSHA, "ref": p.BaseRef, "repo": map[string]any{"id": r.ID, "full_name": r.FullName}},
 		"labels": labels,
 	}
@@ -345,6 +354,7 @@ func (f *Fake) repoRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /{owner}/{repo}/git-receive-pack", f.gitHTTP)
 	mux.HandleFunc("PATCH /repos/{owner}/{repo}/check-runs/{id}", f.patchCheckRun)
 	f.publishRoutes(mux)
+	f.commandRoutes(mux)
 }
 
 func (f *Fake) repoOf(r *http.Request) *Repo {
@@ -416,7 +426,7 @@ func (f *Fake) getComment(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusNotFound, map[string]string{"message": "Not Found"})
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"id": c.ID, "body": c.Body, "user": map[string]any{"login": c.Author}, "in_reply_to_id": c.InReplyTo})
+	writeJSON(w, http.StatusOK, f.commentJSON(c))
 }
 
 func (f *Fake) patchCheckRun(w http.ResponseWriter, r *http.Request) {
@@ -460,7 +470,7 @@ func (f *Fake) contents(w http.ResponseWriter, r *http.Request) {
 	}
 	f.mu.Lock()
 	repo := f.repoOf(r)
-	var out string
+	var out, sha string
 	var err error
 	if repo != nil {
 		ref := r.URL.Query().Get("ref")
@@ -468,12 +478,15 @@ func (f *Fake) contents(w http.ResponseWriter, r *http.Request) {
 			ref = "main"
 		}
 		out, err = f.git(repo.dir, "show", ref+":"+r.PathValue("path"))
+		if err == nil {
+			sha, err = f.git(repo.dir, "rev-parse", ref+":"+r.PathValue("path"))
+		}
 	}
 	f.mu.Unlock()
 	if repo == nil || err != nil {
 		writeJSON(w, http.StatusNotFound, map[string]string{"message": "Not Found"})
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"type": "file", "encoding": "base64", "path": r.PathValue("path"),
+	writeJSON(w, http.StatusOK, map[string]any{"type": "file", "encoding": "base64", "path": r.PathValue("path"), "sha": strings.TrimSpace(sha),
 		"content": base64.StdEncoding.EncodeToString([]byte(out + "\n"))})
 }
