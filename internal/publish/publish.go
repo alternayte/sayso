@@ -100,6 +100,10 @@ func (p *Publisher) load(ctx context.Context, roundID uuid.UUID) (*round, error)
 	if verdict != nil {
 		r.Verdict = *verdict
 	}
+	// A publishing round has its ledger outcome; Publish renders it as done.
+	if r.Status == "publishing" {
+		r.Status = "done"
+	}
 	if len(assessment) > 0 {
 		r.Assessment = &runner.Assessment{}
 		_ = json.Unmarshal(assessment, r.Assessment)

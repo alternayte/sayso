@@ -23,6 +23,10 @@ type Answer struct {
 	Result     *runner.Result
 	// Hold keeps the run running until it is closed or the run is stopped.
 	Hold chan struct{}
+	// Manifest is uploaded as manifest.json before the hold, as a Skael pull does.
+	Manifest *runner.SkaelManifest
+	// Before runs after the spec is read, with the run's job (token, API URL).
+	Before func(j runner.Job, spec runner.Spec)
 }
 
 // Scripted starts runs that answer with Script.
@@ -139,6 +143,18 @@ func (h *handle) run(ctx context.Context) {
 	h.s.order = append(h.s.order, fmt.Sprintf("%s#%d", spec.Repository.FullName, spec.PullRequest.Number))
 	h.s.mu.Unlock()
 	a := h.s.Script(spec)
+	if a.Before != nil {
+		a.Before(h.job, spec)
+	}
+	if a.Manifest != nil {
+		raw, _ := json.Marshal(a.Manifest)
+		req, _ := http.NewRequestWithContext(ctx, http.MethodPut, h.job.APIURL+"/api/runner/v1/artifacts/manifest.json", bytes.NewReader(raw))
+		req.Header.Set("Authorization", "Bearer "+h.job.Token)
+		req.Header.Set("Content-Type", "application/json")
+		if resp, err := http.DefaultClient.Do(req); err == nil {
+			_ = resp.Body.Close()
+		}
+	}
 	if a.Hold != nil {
 		t := time.NewTicker(500 * time.Millisecond)
 		defer t.Stop()

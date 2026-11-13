@@ -20,6 +20,7 @@ import (
 	"github.com/alternayte/sayso/internal/mcpproxy"
 	"github.com/alternayte/sayso/internal/models"
 	"github.com/alternayte/sayso/internal/repos"
+	"github.com/alternayte/sayso/internal/review"
 	"github.com/alternayte/sayso/internal/runner"
 	"github.com/alternayte/sayso/internal/secrets"
 	"github.com/alternayte/sayso/internal/settings"
@@ -153,6 +154,7 @@ func registerOperations(api huma.API, d *Deps, f *Features) {
 	f.Settings.Register(v1)
 	audit.Register(v1, d.Pool, auth.Op(auth.Admin))
 	actor := func(ctx context.Context) audit.Actor { return auth.UserFrom(ctx).Actor() }
+	review.RegisterStatus(v1, d.Pool, f.Settings, auth.Op(auth.Viewer))
 	repos.Register(v1, d.Pool, repos.Access{View: auth.Op(auth.Viewer), Edit: auth.Op(auth.Maintainer), Actor: actor,
 		AllowedProfiles: func(ctx context.Context) ([]string, error) {
 			var allowed []string

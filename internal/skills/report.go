@@ -149,8 +149,11 @@ func (r *Reporter) result(ctx context.Context, roundID uuid.UUID) (*runner.Resul
 	var storeID uuid.UUID
 	var key string
 	var finished *time.Time
-	err := r.Pool.QueryRow(ctx, `SELECT a.store_id, a.key, ar.finished_at FROM agent_runs ar JOIN artifacts a ON a.run_id = ar.id AND a.name = 'result.json'
-		WHERE ar.round_id = $1 ORDER BY ar.created_at DESC LIMIT 1`, roundID).Scan(&storeID, &key, &finished)
+	// A run that ended without result.json (cancelled, failed) still has the
+	// manifest that the pull uploaded, so the outcome reaches Skael.
+	var name string
+	err := r.Pool.QueryRow(ctx, `SELECT a.store_id, a.key, ar.finished_at, a.name FROM agent_runs ar JOIN artifacts a ON a.run_id = ar.id AND a.name IN ('result.json', 'manifest.json')
+		WHERE ar.round_id = $1 ORDER BY ar.created_at DESC, a.name = 'result.json' DESC LIMIT 1`, roundID).Scan(&storeID, &key, &finished, &name)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, time.Time{}, nil
 	}
@@ -167,7 +170,13 @@ func (r *Reporter) result(ctx context.Context, roundID uuid.UUID) (*runner.Resul
 	}
 	defer func() { _ = rc.Close() }()
 	var res runner.Result
-	if err := json.NewDecoder(rc).Decode(&res); err != nil {
+	if name == "manifest.json" {
+		var m runner.SkaelManifest
+		if err := json.NewDecoder(rc).Decode(&m); err != nil {
+			return nil, time.Time{}, err
+		}
+		res.SkaelManifest = &m
+	} else if err := json.NewDecoder(rc).Decode(&res); err != nil {
 		return nil, time.Time{}, err
 	}
 	at := time.Now()
