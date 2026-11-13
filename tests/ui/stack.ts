@@ -29,6 +29,11 @@ export function sql(query: string): string {
   }).trim();
 }
 
+/** cli runs the sayso binary in the API container. */
+export function cli(...args: string[]): string {
+  return execFileSync("docker", ["exec", `${stack.project}-sayso-1`, "sayso", ...args], { encoding: "utf8" });
+}
+
 /** pointGitHubAtFake sets the GitHub URL settings to the fake. Setup cannot change settings, so the test does it. */
 export function pointGitHubAtFake() {
   const url = JSON.stringify(stack.fakeURL);

@@ -18,6 +18,11 @@ export type AppBody = {
     slug: string;
 };
 
+export type ApplyInput = {
+    changes: Array<ConfigChange>;
+    yaml: string;
+};
+
 export type ArtifactBody = {
     name: string;
     size: number;
@@ -101,6 +106,12 @@ export type Challenge = {
     reason: string;
 };
 
+export type ChangeField = {
+    field: string;
+    new: string;
+    old: string;
+};
+
 export type Check = {
     conclusion?: string;
     status: string;
@@ -121,6 +132,13 @@ export type Comment = {
     line: number;
     path: string;
     start_line?: number;
+};
+
+export type ConfigChange = {
+    fields: Array<ChangeField>;
+    name: string;
+    op: 'add' | 'change' | 'remove';
+    section: string;
 };
 
 export type CreateSetupSessionRequest = {
@@ -416,6 +434,10 @@ export type MeBody = {
     login: string;
     name: string;
     role: string;
+};
+
+export type PlanBody = {
+    changes: Array<ConfigChange>;
 };
 
 export type Preset = {
@@ -916,6 +938,10 @@ export type WhereToLook = {
     why: string;
 };
 
+export type YamlBody = {
+    yaml: string;
+};
+
 export type GetAccessData = {
     body?: never;
     path?: never;
@@ -1181,6 +1207,81 @@ export type ListAuditActionsResponses = {
 };
 
 export type ListAuditActionsResponse = ListAuditActionsResponses[keyof ListAuditActionsResponses];
+
+export type ApplyConfigData = {
+    body: ApplyInput;
+    path?: never;
+    query?: never;
+    url: '/api/v1/config/apply';
+};
+
+export type ApplyConfigErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type ApplyConfigError = ApplyConfigErrors[keyof ApplyConfigErrors];
+
+export type ApplyConfigResponses = {
+    /**
+     * OK
+     */
+    200: PlanBody;
+};
+
+export type ApplyConfigResponse = ApplyConfigResponses[keyof ApplyConfigResponses];
+
+export type ExportConfigData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/config/export';
+};
+
+export type ExportConfigErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type ExportConfigError = ExportConfigErrors[keyof ExportConfigErrors];
+
+export type ExportConfigResponses = {
+    /**
+     * OK
+     */
+    200: YamlBody;
+};
+
+export type ExportConfigResponse = ExportConfigResponses[keyof ExportConfigResponses];
+
+export type PlanConfigData = {
+    body: YamlBody;
+    path?: never;
+    query?: never;
+    url: '/api/v1/config/plan';
+};
+
+export type PlanConfigErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type PlanConfigError = PlanConfigErrors[keyof PlanConfigErrors];
+
+export type PlanConfigResponses = {
+    /**
+     * OK
+     */
+    200: PlanBody;
+};
+
+export type PlanConfigResponse = PlanConfigResponses[keyof PlanConfigResponses];
 
 export type GetDiagnosticsData = {
     body?: never;

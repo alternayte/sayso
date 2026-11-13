@@ -59,6 +59,26 @@
         ],
         "type": "object"
       },
+      "ApplyInput": {
+        "additionalProperties": false,
+        "properties": {
+          "changes": {
+            "items": {
+              "$ref": "#/components/schemas/ConfigChange"
+            },
+            "type": "array"
+          },
+          "yaml": {
+            "maxLength": 2000000,
+            "type": "string"
+          }
+        },
+        "required": [
+          "yaml",
+          "changes"
+        ],
+        "type": "object"
+      },
       "ArtifactBody": {
         "additionalProperties": false,
         "properties": {
@@ -378,6 +398,26 @@
         ],
         "type": "object"
       },
+      "ChangeField": {
+        "additionalProperties": false,
+        "properties": {
+          "field": {
+            "type": "string"
+          },
+          "new": {
+            "type": "string"
+          },
+          "old": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "field",
+          "old",
+          "new"
+        ],
+        "type": "object"
+      },
       "Check": {
         "additionalProperties": false,
         "properties": {
@@ -452,6 +492,38 @@
           "path",
           "line",
           "body"
+        ],
+        "type": "object"
+      },
+      "ConfigChange": {
+        "additionalProperties": false,
+        "properties": {
+          "fields": {
+            "items": {
+              "$ref": "#/components/schemas/ChangeField"
+            },
+            "type": "array"
+          },
+          "name": {
+            "type": "string"
+          },
+          "op": {
+            "enum": [
+              "add",
+              "change",
+              "remove"
+            ],
+            "type": "string"
+          },
+          "section": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "op",
+          "section",
+          "name",
+          "fields"
         ],
         "type": "object"
       },
@@ -1354,6 +1426,21 @@
           "login",
           "name",
           "role"
+        ],
+        "type": "object"
+      },
+      "PlanBody": {
+        "additionalProperties": false,
+        "properties": {
+          "changes": {
+            "items": {
+              "$ref": "#/components/schemas/ConfigChange"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "changes"
         ],
         "type": "object"
       },
@@ -3102,6 +3189,19 @@
           "why"
         ],
         "type": "object"
+      },
+      "YAMLBody": {
+        "additionalProperties": false,
+        "properties": {
+          "yaml": {
+            "maxLength": 2000000,
+            "type": "string"
+          }
+        },
+        "required": [
+          "yaml"
+        ],
+        "type": "object"
       }
     }
   },
@@ -3497,6 +3597,116 @@
         },
         "tags": [
           "audit"
+        ]
+      }
+    },
+    "/api/v1/config/apply": {
+      "post": {
+        "operationId": "apply-config",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApplyInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "tags": [
+          "config"
+        ]
+      }
+    },
+    "/api/v1/config/export": {
+      "get": {
+        "operationId": "export-config",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/YAMLBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "tags": [
+          "config"
+        ]
+      }
+    },
+    "/api/v1/config/plan": {
+      "post": {
+        "operationId": "plan-config",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/YAMLBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "tags": [
+          "config"
         ]
       }
     },

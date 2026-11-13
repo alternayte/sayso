@@ -144,6 +144,17 @@ func (s *Store) String(ctx context.Context, key string) (string, error) {
 // Set validates and stores a new value, writes the history row and an
 // audit entry in one transaction, and returns the new row.
 func (s *Store) Set(ctx context.Context, by audit.Actor, key string, value json.RawMessage) (Setting, error) {
+	var out Setting
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		var err error
+		out, err = SetTx(ctx, tx, by, key, value)
+		return err
+	})
+	return out, err
+}
+
+// SetTx is Set inside the caller's transaction, for config apply.
+func SetTx(ctx context.Context, tx pgx.Tx, by audit.Actor, key string, value json.RawMessage) (Setting, error) {
 	def, ok := Defaults[key]
 	if !ok {
 		return Setting{}, fmt.Errorf("%w: %s", ErrUnknownKey, key)
@@ -155,37 +166,33 @@ func (s *Store) Set(ctx context.Context, by audit.Actor, key string, value json.
 	if kind(value) != kind(def) {
 		return Setting{}, fmt.Errorf("setting %s takes a %s, not a %s", key, kind(def), kind(value))
 	}
-	var out Setting
-	err = pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
-		q := New(tx)
-		old, err := q.GetForUpdate(ctx, key)
-		if errors.Is(err, pgx.ErrNoRows) {
-			if err := q.SeedDefault(ctx, SeedDefaultParams{Key: key, Value: def}); err != nil {
-				return err
-			}
-			if err := q.SeedHistory(ctx, key); err != nil {
-				return err
-			}
-			old, err = q.GetForUpdate(ctx, key)
+	q := New(tx)
+	old, err := q.GetForUpdate(ctx, key)
+	if errors.Is(err, pgx.ErrNoRows) {
+		if err := q.SeedDefault(ctx, SeedDefaultParams{Key: key, Value: def}); err != nil {
+			return Setting{}, err
 		}
-		if err != nil {
-			return err
+		if err := q.SeedHistory(ctx, key); err != nil {
+			return Setting{}, err
 		}
-		out, err = q.Update(ctx, UpdateParams{Key: key, Value: value, UpdatedBy: by.Login})
-		if err != nil {
-			return err
-		}
-		if err := q.InsertHistory(ctx, InsertHistoryParams{
-			Key: key, Revision: out.Revision, OldValue: old.Value, NewValue: value,
-			UpdatedBy: by.Login, UpdatedAt: out.UpdatedAt,
-		}); err != nil {
-			return err
-		}
-		return audit.Write(ctx, tx, by, "settings.update", key, map[string]any{
-			"old": json.RawMessage(old.Value), "new": json.RawMessage(value), "revision": out.Revision,
-		})
+		old, err = q.GetForUpdate(ctx, key)
+	}
+	if err != nil {
+		return Setting{}, err
+	}
+	out, err := q.Update(ctx, UpdateParams{Key: key, Value: value, UpdatedBy: by.Login})
+	if err != nil {
+		return Setting{}, err
+	}
+	if err := q.InsertHistory(ctx, InsertHistoryParams{
+		Key: key, Revision: out.Revision, OldValue: old.Value, NewValue: value,
+		UpdatedBy: by.Login, UpdatedAt: out.UpdatedAt,
+	}); err != nil {
+		return Setting{}, err
+	}
+	return out, audit.Write(ctx, tx, by, "settings.update", key, map[string]any{
+		"old": json.RawMessage(old.Value), "new": json.RawMessage(value), "revision": out.Revision,
 	})
-	return out, err
 }
 
 func normalize(v json.RawMessage) (json.RawMessage, error) {
