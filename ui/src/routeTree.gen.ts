@@ -17,6 +17,7 @@ import { Route as AppAuditRouteImport } from './routes/_app/audit'
 import { Route as AppDiagnosticsRouteImport } from './routes/_app/diagnostics'
 import { Route as AppRepositoriesIndexRouteImport } from './routes/_app/repositories/index'
 import { Route as AppRoundsIdRouteImport } from './routes/_app/rounds/$id'
+import { Route as AppRunsIdRouteImport } from './routes/_app/runs/$id'
 import { Route as AppSettingsAccessRouteImport } from './routes/_app/settings/access'
 import { Route as AppSettingsExtensionsRouteImport } from './routes/_app/settings/extensions'
 import { Route as AppSettingsFeedsRouteImport } from './routes/_app/settings/feeds'
@@ -26,6 +27,9 @@ import { Route as AppSettingsImagesRouteImport } from './routes/_app/settings/im
 import { Route as AppSettingsMcpRouteImport } from './routes/_app/settings/mcp'
 import { Route as AppSettingsModelsRouteImport } from './routes/_app/settings/models'
 import { Route as AppSettingsSkillsRouteImport } from './routes/_app/settings/skills'
+import { Route as AppSettingsStorageRouteImport } from './routes/_app/settings/storage'
+import { Route as AppSteeringIndexRouteImport } from './routes/_app/steering/index'
+import { Route as AppUsageIndexRouteImport } from './routes/_app/usage/index'
 import { Route as AppRepositoriesOwnerNameRouteImport } from './routes/_app/repositories/$owner.$name'
 import { Route as AppReviewsOwnerNameNumberRouteImport } from './routes/_app/reviews/$owner.$name.$number'
 
@@ -66,6 +70,11 @@ const AppRepositoriesIndexRoute = AppRepositoriesIndexRouteImport.update({
 const AppRoundsIdRoute = AppRoundsIdRouteImport.update({
   id: '/rounds/$id',
   path: '/rounds/$id',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppRunsIdRoute = AppRunsIdRouteImport.update({
+  id: '/runs/$id',
+  path: '/runs/$id',
   getParentRoute: () => AppRoute,
 } as any)
 const AppSettingsAccessRoute = AppSettingsAccessRouteImport.update({
@@ -113,6 +122,21 @@ const AppSettingsSkillsRoute = AppSettingsSkillsRouteImport.update({
   path: '/settings/skills',
   getParentRoute: () => AppRoute,
 } as any)
+const AppSettingsStorageRoute = AppSettingsStorageRouteImport.update({
+  id: '/settings/storage',
+  path: '/settings/storage',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSteeringIndexRoute = AppSteeringIndexRouteImport.update({
+  id: '/steering/',
+  path: '/steering/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppUsageIndexRoute = AppUsageIndexRouteImport.update({
+  id: '/usage/',
+  path: '/usage/',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppRepositoriesOwnerNameRoute =
   AppRepositoriesOwnerNameRouteImport.update({
     id: '/repositories/$owner/$name',
@@ -133,6 +157,7 @@ export interface FileRoutesByFullPath {
   '/audit': typeof AppAuditRoute
   '/diagnostics': typeof AppDiagnosticsRoute
   '/rounds/$id': typeof AppRoundsIdRoute
+  '/runs/$id': typeof AppRunsIdRoute
   '/settings/access': typeof AppSettingsAccessRoute
   '/settings/extensions': typeof AppSettingsExtensionsRoute
   '/settings/feeds': typeof AppSettingsFeedsRoute
@@ -142,7 +167,10 @@ export interface FileRoutesByFullPath {
   '/settings/mcp': typeof AppSettingsMcpRoute
   '/settings/models': typeof AppSettingsModelsRoute
   '/settings/skills': typeof AppSettingsSkillsRoute
+  '/settings/storage': typeof AppSettingsStorageRoute
   '/repositories/': typeof AppRepositoriesIndexRoute
+  '/steering/': typeof AppSteeringIndexRoute
+  '/usage/': typeof AppUsageIndexRoute
   '/repositories/$owner/$name': typeof AppRepositoriesOwnerNameRoute
   '/reviews/$owner/$name/$number': typeof AppReviewsOwnerNameNumberRoute
 }
@@ -153,6 +181,7 @@ export interface FileRoutesByTo {
   '/diagnostics': typeof AppDiagnosticsRoute
   '/': typeof AppIndexRoute
   '/rounds/$id': typeof AppRoundsIdRoute
+  '/runs/$id': typeof AppRunsIdRoute
   '/settings/access': typeof AppSettingsAccessRoute
   '/settings/extensions': typeof AppSettingsExtensionsRoute
   '/settings/feeds': typeof AppSettingsFeedsRoute
@@ -162,7 +191,10 @@ export interface FileRoutesByTo {
   '/settings/mcp': typeof AppSettingsMcpRoute
   '/settings/models': typeof AppSettingsModelsRoute
   '/settings/skills': typeof AppSettingsSkillsRoute
+  '/settings/storage': typeof AppSettingsStorageRoute
   '/repositories': typeof AppRepositoriesIndexRoute
+  '/steering': typeof AppSteeringIndexRoute
+  '/usage': typeof AppUsageIndexRoute
   '/repositories/$owner/$name': typeof AppRepositoriesOwnerNameRoute
   '/reviews/$owner/$name/$number': typeof AppReviewsOwnerNameNumberRoute
 }
@@ -175,6 +207,7 @@ export interface FileRoutesById {
   '/_app/diagnostics': typeof AppDiagnosticsRoute
   '/_app/': typeof AppIndexRoute
   '/_app/rounds/$id': typeof AppRoundsIdRoute
+  '/_app/runs/$id': typeof AppRunsIdRoute
   '/_app/settings/access': typeof AppSettingsAccessRoute
   '/_app/settings/extensions': typeof AppSettingsExtensionsRoute
   '/_app/settings/feeds': typeof AppSettingsFeedsRoute
@@ -184,7 +217,10 @@ export interface FileRoutesById {
   '/_app/settings/mcp': typeof AppSettingsMcpRoute
   '/_app/settings/models': typeof AppSettingsModelsRoute
   '/_app/settings/skills': typeof AppSettingsSkillsRoute
+  '/_app/settings/storage': typeof AppSettingsStorageRoute
   '/_app/repositories/': typeof AppRepositoriesIndexRoute
+  '/_app/steering/': typeof AppSteeringIndexRoute
+  '/_app/usage/': typeof AppUsageIndexRoute
   '/_app/repositories/$owner/$name': typeof AppRepositoriesOwnerNameRoute
   '/_app/reviews/$owner/$name/$number': typeof AppReviewsOwnerNameNumberRoute
 }
@@ -197,6 +233,7 @@ export interface FileRouteTypes {
     | '/audit'
     | '/diagnostics'
     | '/rounds/$id'
+    | '/runs/$id'
     | '/settings/access'
     | '/settings/extensions'
     | '/settings/feeds'
@@ -206,7 +243,10 @@ export interface FileRouteTypes {
     | '/settings/mcp'
     | '/settings/models'
     | '/settings/skills'
+    | '/settings/storage'
     | '/repositories/'
+    | '/steering/'
+    | '/usage/'
     | '/repositories/$owner/$name'
     | '/reviews/$owner/$name/$number'
   fileRoutesByTo: FileRoutesByTo
@@ -217,6 +257,7 @@ export interface FileRouteTypes {
     | '/diagnostics'
     | '/'
     | '/rounds/$id'
+    | '/runs/$id'
     | '/settings/access'
     | '/settings/extensions'
     | '/settings/feeds'
@@ -226,7 +267,10 @@ export interface FileRouteTypes {
     | '/settings/mcp'
     | '/settings/models'
     | '/settings/skills'
+    | '/settings/storage'
     | '/repositories'
+    | '/steering'
+    | '/usage'
     | '/repositories/$owner/$name'
     | '/reviews/$owner/$name/$number'
   id:
@@ -238,6 +282,7 @@ export interface FileRouteTypes {
     | '/_app/diagnostics'
     | '/_app/'
     | '/_app/rounds/$id'
+    | '/_app/runs/$id'
     | '/_app/settings/access'
     | '/_app/settings/extensions'
     | '/_app/settings/feeds'
@@ -247,7 +292,10 @@ export interface FileRouteTypes {
     | '/_app/settings/mcp'
     | '/_app/settings/models'
     | '/_app/settings/skills'
+    | '/_app/settings/storage'
     | '/_app/repositories/'
+    | '/_app/steering/'
+    | '/_app/usage/'
     | '/_app/repositories/$owner/$name'
     | '/_app/reviews/$owner/$name/$number'
   fileRoutesById: FileRoutesById
@@ -316,6 +364,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppRoundsIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/runs/$id': {
+      id: '/_app/runs/$id'
+      path: '/runs/$id'
+      fullPath: '/runs/$id'
+      preLoaderRoute: typeof AppRunsIdRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/settings/access': {
       id: '/_app/settings/access'
       path: '/settings/access'
@@ -379,6 +434,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSettingsSkillsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/settings/storage': {
+      id: '/_app/settings/storage'
+      path: '/settings/storage'
+      fullPath: '/settings/storage'
+      preLoaderRoute: typeof AppSettingsStorageRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/steering/': {
+      id: '/_app/steering/'
+      path: '/steering'
+      fullPath: '/steering/'
+      preLoaderRoute: typeof AppSteeringIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/usage/': {
+      id: '/_app/usage/'
+      path: '/usage'
+      fullPath: '/usage/'
+      preLoaderRoute: typeof AppUsageIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/repositories/$owner/$name': {
       id: '/_app/repositories/$owner/$name'
       path: '/repositories/$owner/$name'
@@ -401,6 +477,7 @@ interface AppRouteChildren {
   AppDiagnosticsRoute: typeof AppDiagnosticsRoute
   AppIndexRoute: typeof AppIndexRoute
   AppRoundsIdRoute: typeof AppRoundsIdRoute
+  AppRunsIdRoute: typeof AppRunsIdRoute
   AppSettingsAccessRoute: typeof AppSettingsAccessRoute
   AppSettingsExtensionsRoute: typeof AppSettingsExtensionsRoute
   AppSettingsFeedsRoute: typeof AppSettingsFeedsRoute
@@ -410,7 +487,10 @@ interface AppRouteChildren {
   AppSettingsMcpRoute: typeof AppSettingsMcpRoute
   AppSettingsModelsRoute: typeof AppSettingsModelsRoute
   AppSettingsSkillsRoute: typeof AppSettingsSkillsRoute
+  AppSettingsStorageRoute: typeof AppSettingsStorageRoute
   AppRepositoriesIndexRoute: typeof AppRepositoriesIndexRoute
+  AppSteeringIndexRoute: typeof AppSteeringIndexRoute
+  AppUsageIndexRoute: typeof AppUsageIndexRoute
   AppRepositoriesOwnerNameRoute: typeof AppRepositoriesOwnerNameRoute
   AppReviewsOwnerNameNumberRoute: typeof AppReviewsOwnerNameNumberRoute
 }
@@ -420,6 +500,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppDiagnosticsRoute: AppDiagnosticsRoute,
   AppIndexRoute: AppIndexRoute,
   AppRoundsIdRoute: AppRoundsIdRoute,
+  AppRunsIdRoute: AppRunsIdRoute,
   AppSettingsAccessRoute: AppSettingsAccessRoute,
   AppSettingsExtensionsRoute: AppSettingsExtensionsRoute,
   AppSettingsFeedsRoute: AppSettingsFeedsRoute,
@@ -429,7 +510,10 @@ const AppRouteChildren: AppRouteChildren = {
   AppSettingsMcpRoute: AppSettingsMcpRoute,
   AppSettingsModelsRoute: AppSettingsModelsRoute,
   AppSettingsSkillsRoute: AppSettingsSkillsRoute,
+  AppSettingsStorageRoute: AppSettingsStorageRoute,
   AppRepositoriesIndexRoute: AppRepositoriesIndexRoute,
+  AppSteeringIndexRoute: AppSteeringIndexRoute,
+  AppUsageIndexRoute: AppUsageIndexRoute,
   AppRepositoriesOwnerNameRoute: AppRepositoriesOwnerNameRoute,
   AppReviewsOwnerNameNumberRoute: AppReviewsOwnerNameNumberRoute,
 }

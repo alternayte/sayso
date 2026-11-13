@@ -1,10 +1,10 @@
 import type { UseMutationResult } from "@tanstack/react-query";
 import { Check, Loader2 } from "lucide-react";
-import { useEffect, useState, type ComponentProps, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ComponentProps, type ReactNode } from "react";
 import { Alert } from "@/components/ui/alert";
 import { Button as BaseButton } from "@/components/ui/button";
 import { t } from "@/lib/copy";
-import { usePress } from "@/motion";
+import { useIndicator, usePress } from "@/motion";
 
 type AsyncButtonProps = ComponentProps<typeof BaseButton> & {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -86,6 +86,8 @@ type SegmentedProps<T extends string> = {
  */
 export function Segmented<T extends string>({ label, options, value, onChange, disabled, className }: SegmentedProps<T>) {
   const press = usePress<HTMLButtonElement>();
+  const group = useRef<HTMLDivElement>(null);
+  const indicator = useIndicator(group, '[aria-checked="true"]', [value, options.length]);
   const move = (delta: number) => {
     const i = options.findIndex((o) => o.value === value);
     const next = options[(i + delta + options.length) % options.length];
@@ -93,9 +95,10 @@ export function Segmented<T extends string>({ label, options, value, onChange, d
   };
   return (
     <div
+      ref={group}
       role="radiogroup"
       aria-label={label}
-      className={`segmented ${className ?? ""}`}
+      className={`segmented has-indicator ${className ?? ""}`}
       onKeyDown={(e) => {
         if (disabled) return;
         if (e.key === "ArrowRight" || e.key === "ArrowDown") {
@@ -107,6 +110,7 @@ export function Segmented<T extends string>({ label, options, value, onChange, d
         }
       }}
     >
+      <span ref={indicator} className="indicator indicator-fill" data-indicator="" aria-hidden="true" />
       {options.map((o) => {
         const on = o.value === value;
         return (

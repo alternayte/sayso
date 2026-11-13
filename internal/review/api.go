@@ -28,6 +28,8 @@ type API struct {
 	Temporal client.Client
 	// Namespace is the Temporal namespace, for the links of admins.
 	Namespace string
+	// Activities dismisses findings from the UI as the command does.
+	Activities *Activities
 }
 
 type RoundSummary struct {
@@ -98,6 +100,16 @@ type RoundBody struct {
 	Findings    []FindingBody      `json:"findings"`
 	CanCancel   bool               `json:"can_cancel"`
 	TemporalURL string             `json:"temporal_url,omitempty"`
+	Signals     []SignalBody       `json:"signals"`
+	Steering    *SteeringNote      `json:"steering_review,omitempty"`
+}
+
+// SteeringNote is the saved steering review of a round.
+type SteeringNote struct {
+	Tags   []string  `json:"tags"`
+	Note   string    `json:"note"`
+	Author string    `json:"author"`
+	At     time.Time `json:"at"`
 }
 
 func (a *API) temporalURL(ctx context.Context, workflowID string) string {
@@ -278,6 +290,27 @@ func (a *API) Register(api huma.API, view, edit map[string]any, actor func(conte
 				return nil, err
 			}
 			b.Findings = findingBodies(fs, func(f findings.Finding) bool { return f.FirstRoundID == id || f.LastRoundID == id })
+			sig, err := a.Pool.Query(ctx, `SELECT s.type, s.actor_login, coalesce('S-' || f.seq, ''), s.at FROM steering_signals s LEFT JOIN findings f ON f.id = s.finding_id
+				WHERE s.round_id = $1 ORDER BY s.at`, id)
+			if err != nil {
+				return nil, err
+			}
+			b.Signals = []SignalBody{}
+			for sig.Next() {
+				var x SignalBody
+				if err := sig.Scan(&x.Type, &x.Actor, &x.Finding, &x.At); err != nil {
+					sig.Close()
+					return nil, err
+				}
+				b.Signals = append(b.Signals, x)
+			}
+			sig.Close()
+			var note SteeringNote
+			if err := a.Pool.QueryRow(ctx, `SELECT tags, note, author_login, created_at FROM steering_reviews WHERE round_id = $1`, id).Scan(&note.Tags, &note.Note, &note.Author, &note.At); err == nil {
+				b.Steering = &note
+			} else if !errors.Is(err, pgx.ErrNoRows) {
+				return nil, err
+			}
 			u := auth.UserFrom(ctx)
 			b.CanCancel = u != nil && u.Role.AtLeast(auth.Maintainer) && (b.Status == "queued" || b.Status == "running")
 			b.TemporalURL = a.temporalURL(ctx, "round/"+b.ID)
@@ -311,5 +344,49 @@ func (a *API) Register(api huma.API, view, edit map[string]any, actor func(conte
 			return nil, pgx.BeginFunc(ctx, a.Pool, func(tx pgx.Tx) error {
 				return audit.Write(ctx, tx, actor(ctx), "round.cancel", full+" "+id.String(), nil)
 			})
+		})
+
+	huma.Register(api, huma.Operation{OperationID: "dismiss-finding", Method: http.MethodPost, Path: "/findings/{id}/dismiss", Tags: tags, Metadata: edit},
+		func(ctx context.Context, in *struct {
+			ID   string `path:"id" format:"uuid"`
+			Body struct {
+				Reason string `json:"reason" minLength:"1" maxLength:"500"`
+			}
+		}) (*struct{ Body FindingBody }, error) {
+			id, err := uuid.Parse(in.ID)
+			if err != nil {
+				return nil, huma.Error404NotFound("finding not found")
+			}
+			var reviewID uuid.UUID
+			var status string
+			err = a.Pool.QueryRow(ctx, `SELECT review_id, status FROM findings WHERE id = $1`, id).Scan(&reviewID, &status)
+			if errors.Is(err, pgx.ErrNoRows) {
+				return nil, huma.Error404NotFound("finding not found")
+			}
+			if err != nil {
+				return nil, err
+			}
+			if status != findings.StatusOpen {
+				return nil, huma.Error409Conflict("the finding is " + status + "; only an open finding can be dismissed")
+			}
+			p, err := a.Activities.pr(ctx, reviewID)
+			if err != nil {
+				return nil, err
+			}
+			f, err := a.Activities.findingByID(ctx, reviewID, id)
+			if err != nil {
+				return nil, err
+			}
+			who := auth.UserFrom(ctx)
+			if err := a.Activities.dismiss(ctx, p, f, who.Login, in.Body.Reason); err != nil {
+				return nil, err
+			}
+			if err := pgx.BeginFunc(ctx, a.Pool, func(tx pgx.Tx) error {
+				return audit.Write(ctx, tx, actor(ctx), "finding.dismiss", p.full+" "+f.Label(), map[string]any{"reason": in.Body.Reason})
+			}); err != nil {
+				return nil, err
+			}
+			f.Status = findings.StatusDismissed
+			return &struct{ Body FindingBody }{findingBodies([]findings.Finding{*f}, nil)[0]}, nil
 		})
 }

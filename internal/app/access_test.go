@@ -53,6 +53,7 @@ var required = map[string]string{
 	"test-mcp-server":         "admin",
 	"set-repository-mcp":      "maintainer",
 	"set-repository-feeds":    "maintainer",
+	"dismiss-finding":         "maintainer",
 	"list-stores":             "admin",
 	"put-store":               "admin",
 	"delete-store":            "admin",

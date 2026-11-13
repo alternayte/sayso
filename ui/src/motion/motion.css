@@ -89,3 +89,207 @@
     animation: none;
   }
 }
+
+/* Sliding indicator: one element per group (nav, tabs, segmented) moves to the active item with
+   a FLIP transform and the soft spring. The hook sets transform, width and height through CSSOM. */
+.indicator {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  transform-origin: 0 0;
+  transition:
+    transform var(--spring-soft-ms) var(--spring-soft),
+    width var(--spring-soft-ms) var(--spring-soft),
+    height var(--spring-soft-ms) var(--spring-soft);
+}
+.indicator[data-first] {
+  transition: none;
+}
+
+/* Status change: the badge cross-fades and its dot shows one ring pulse. Running dots breathe. */
+.ring-pulse {
+  position: relative;
+}
+.ring-pulse::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  box-shadow: 0 0 0 1px currentColor;
+  animation: motion-ring 600ms var(--ease-out) 1 forwards;
+}
+@keyframes motion-ring {
+  from {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  to {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+}
+.breathe {
+  animation: motion-breathe 2s ease-in-out infinite;
+}
+@keyframes motion-breathe {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+.fade-swap {
+  animation: motion-fade var(--fast) var(--ease-out) 1;
+}
+@keyframes motion-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+/* Live arrival: an item that arrives live slides in from 6px below and its accent background
+   fades out over 900ms. */
+.arrive {
+  animation:
+    motion-arrive var(--base) var(--ease-out) 1,
+    motion-arrive-bg 900ms var(--ease-out) 1;
+}
+@keyframes motion-arrive {
+  from {
+    transform: translateY(6px);
+    opacity: 0;
+  }
+}
+@keyframes motion-arrive-bg {
+  from {
+    background-color: var(--accent-soft);
+  }
+}
+
+/* Progress line: lists keep their old rows while new data loads, with a 2px line at the top. */
+.progress-line {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 2px;
+  overflow: hidden;
+  pointer-events: none;
+}
+.progress-line::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: 40%;
+  background: var(--accent);
+  animation: motion-progress 900ms var(--ease-in-out) infinite;
+}
+@keyframes motion-progress {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(250%);
+  }
+}
+
+/* Pill: the "N new events" pill rises in. */
+.pill-in {
+  animation: motion-arrive var(--base) var(--spring-snappy) 1;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Route change: the main area cross-fades with a 6px slide. */
+::view-transition-old(main),
+::view-transition-new(main) {
+  animation-duration: var(--base);
+  animation-timing-function: var(--ease-out);
+}
+::view-transition-new(main) {
+  animation-name: motion-route-in;
+}
+::view-transition-old(main) {
+  animation-name: motion-route-out;
+  animation-duration: 126ms;
+}
+@keyframes motion-route-in {
+  from {
+    opacity: 0;
+    transform: translateX(6px);
+  }
+}
+@keyframes motion-route-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .indicator {
+    transition: none;
+  }
+  .ring-pulse::after,
+  .breathe,
+  .arrive,
+  .pill-in {
+    animation: none;
+  }
+  .progress-line::before {
+    animation: none;
+    width: 100%;
+    opacity: 0.6;
+  }
+  ::view-transition-old(main),
+  ::view-transition-new(main) {
+    animation: none;
+  }
+}
+
+/* A group with a sliding indicator draws the active state once, on the indicator. */
+.has-indicator {
+  position: relative;
+}
+.has-indicator > :not(.indicator) {
+  position: relative;
+  z-index: 1;
+}
+.has-indicator .segment-on,
+.has-indicator .nav-link[aria-current="page"] {
+  background: transparent;
+  box-shadow: none;
+}
+.indicator-fill {
+  border-radius: var(--radius);
+  background: var(--raised);
+  box-shadow: inset 0 0 0 1px var(--hairline-strong);
+}
+
+/* A breathing dot: the badge dot is its ::before element. */
+.dot-breathe::before {
+  animation: motion-breathe 2s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .dot-breathe::before {
+    animation: none;
+  }
+}
+
+/* Drawer: slides 16px with a fade; the list behind stays usable. */
+.drawer-in {
+  animation: motion-drawer var(--base) var(--ease-out) 1;
+}
+@keyframes motion-drawer {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .drawer-in {
+    animation-name: motion-fade;
+  }
+}

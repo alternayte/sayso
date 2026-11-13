@@ -131,6 +131,10 @@ export type DiagnosticsBody = {
     ok: boolean;
 };
 
+export type DismissFindingRequest = {
+    reason: string;
+};
+
 export type EntryBody = {
     action: string;
     actor_kind: string;
@@ -590,8 +594,10 @@ export type RoundBody = {
     reason?: string;
     repository: string;
     risk?: string;
+    signals: Array<SignalBody>;
     skill_ref?: SkillRef;
     status: string;
+    steering_review?: SteeringNote;
     temporal_url?: string;
     trigger: string;
     verdict?: string;
@@ -626,10 +632,6 @@ export type RunBody = {
     status: string;
     tokens_in: number;
     tokens_out: number;
-};
-
-export type RunEnd = {
-    status: string;
 };
 
 export type ServerBody = {
@@ -763,6 +765,13 @@ export type StatusBody = {
     budget_spent: boolean;
     month_spent_usd: number;
     monthly_budget_usd: number;
+};
+
+export type SteeringNote = {
+    at: string;
+    author: string;
+    note: string;
+    tags: Array<string>;
 };
 
 export type SteeringReview = {
@@ -1343,6 +1352,33 @@ export type TestFeedResponses = {
 };
 
 export type TestFeedResponse2 = TestFeedResponses[keyof TestFeedResponses];
+
+export type DismissFindingData = {
+    body: DismissFindingRequest;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/findings/{id}/dismiss';
+};
+
+export type DismissFindingErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type DismissFindingError = DismissFindingErrors[keyof DismissFindingErrors];
+
+export type DismissFindingResponses = {
+    /**
+     * OK
+     */
+    200: FindingBody;
+};
+
+export type DismissFindingResponse = DismissFindingResponses[keyof DismissFindingResponses];
 
 export type GetGithubData = {
     body?: never;
@@ -2260,65 +2296,6 @@ export type GetRunEventPayloadResponses = {
      */
     200: unknown;
 };
-
-export type StreamRunData = {
-    body?: never;
-    path: {
-        id: string;
-    };
-    query?: {
-        after?: number;
-    };
-    url: '/api/v1/runs/{id}/stream';
-};
-
-export type StreamRunErrors = {
-    /**
-     * Error
-     */
-    default: ErrorModel;
-};
-
-export type StreamRunError = StreamRunErrors[keyof StreamRunErrors];
-
-export type StreamRunResponses = {
-    /**
-     * Server Sent Events
-     *
-     * Each oneOf object in the array represents one possible Server Sent Events (SSE) message, serialized as UTF-8 text according to the SSE specification.
-     */
-    200: Array<{
-        data: RunEnd;
-        /**
-         * The event name.
-         */
-        event: 'end';
-        /**
-         * The event ID.
-         */
-        id?: number | string;
-        /**
-         * The retry time in milliseconds.
-         */
-        retry?: number;
-    } | {
-        data: EventBody;
-        /**
-         * The event name.
-         */
-        event: 'event';
-        /**
-         * The event ID.
-         */
-        id?: number | string;
-        /**
-         * The retry time in milliseconds.
-         */
-        retry?: number;
-    }>;
-};
-
-export type StreamRunResponse = StreamRunResponses[keyof StreamRunResponses];
 
 export type ListSettingsData = {
     body?: never;
