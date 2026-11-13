@@ -247,3 +247,10 @@ func (f *Fake) SetFork(repo string, number int) {
 	f.repos[repo].Pulls[number].Fork = true
 	f.mu.Unlock()
 }
+
+// FileAt reads a file of a repository at a branch or commit.
+func (f *Fake) FileAt(repo, path, ref string) (string, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.git(f.repos[repo].dir, "show", ref+":"+path)
+}

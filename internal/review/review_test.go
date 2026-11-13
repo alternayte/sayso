@@ -395,7 +395,7 @@ func record(t *testing.T, e *apptest.Env, dir string, since time.Time) {
 	name := strings.TrimPrefix(t.Name(), "TestSCN_")
 	for i, w := range resp.Executions {
 		typ := w.Type.GetName()
-		if (typ != signals.WorkflowType && typ != review.RoundWorkflowType) || w.StartTime.AsTime().Before(since) {
+		if (typ != signals.WorkflowType && typ != review.RoundWorkflowType && typ != review.WorkWorkflowType) || w.StartTime.AsTime().Before(since) {
 			continue
 		}
 		it := e.Temporal.GetWorkflowHistory(ctx, w.Execution.WorkflowId, w.Execution.RunId, false, enums.HISTORY_EVENT_FILTER_TYPE_ALL_EVENT)
