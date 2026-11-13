@@ -178,7 +178,7 @@ func (s *Service) Proxy(m *ProxyMetrics) http.HandlerFunc {
 		q.Del("key")
 		upstream, err := c.Endpoint(path, q.Encode())
 		if err != nil {
-			proxyError(w, http.StatusBadRequest, "invalid_request_error", "bad path")
+			proxyError(w, http.StatusBadRequest, "invalid_request_error", err.Error())
 			return
 		}
 		resp, err := s.send(ctx, r, c, key, upstream, body)

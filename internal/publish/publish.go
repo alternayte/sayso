@@ -36,6 +36,20 @@ type Publisher struct {
 	GitHub func(ctx context.Context, inst int64, fullName string) (Session, error)
 	// BaseURL is the public URL of the UI, for round links.
 	BaseURL string
+	// AppLogin is the login of the App bot. Only its comments count as
+	// Sayso's when Sayso looks for its markers.
+	AppLogin func(ctx context.Context) string
+}
+
+// ours reports whether the App wrote a comment, so a marker that a person
+// copies into their own comment takes nothing over.
+func (p *Publisher) ours(ctx context.Context, login string) bool {
+	if p.AppLogin != nil {
+		if a := p.AppLogin(ctx); a != "" {
+			return login == a
+		}
+	}
+	return strings.HasSuffix(login, "[bot]")
 }
 
 // Outcome is the stored ledger outcome of a round (rounds.ledger_outcome).
@@ -418,8 +432,10 @@ func (p *Publisher) shadowDiff(ctx context.Context, r *round) (map[string]map[in
 	return out, rows.Err()
 }
 
+// markerID reads the last finding marker: Sayso writes it at the end, after
+// any agent text that could hold a copy.
 func markerID(body string) string {
-	i := strings.Index(body, "<!-- sayso:finding:")
+	i := strings.LastIndex(body, "<!-- sayso:finding:")
 	if i < 0 {
 		return ""
 	}
@@ -445,7 +461,7 @@ func (p *Publisher) postReview(ctx context.Context, gh Session, r *round, commen
 	}
 	byFinding := map[string]github.PullComment{}
 	for _, c := range existing {
-		if id := markerID(c.Body); id != "" && c.InReplyTo == 0 {
+		if id := markerID(c.Body); id != "" && c.InReplyTo == 0 && p.ours(ctx, c.User.Login) {
 			byFinding[id] = c
 		}
 	}
@@ -471,7 +487,7 @@ func (p *Publisher) postReview(ctx context.Context, gh Session, r *round, commen
 			return err
 		}
 		for _, c := range existing {
-			if fid := markerID(c.Body); fid != "" && c.InReplyTo == 0 {
+			if fid := markerID(c.Body); fid != "" && c.InReplyTo == 0 && p.ours(ctx, c.User.Login) {
 				byFinding[fid] = c
 			}
 		}
@@ -550,7 +566,7 @@ func (p *Publisher) putSummary(ctx context.Context, gh Session, r *round, body s
 			return err
 		}
 		for _, c := range cs {
-			if strings.HasPrefix(c.Body, SummaryMarker) {
+			if strings.HasPrefix(c.Body, SummaryMarker) && p.ours(ctx, c.User.Login) {
 				id = &c.ID
 				break
 			}
