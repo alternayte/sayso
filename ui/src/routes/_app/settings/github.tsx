@@ -1,9 +1,9 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { ExternalLink } from "lucide-react";
-import { getGithubOptions } from "@/client/@tanstack/react-query.gen";
-import type { DeliveryBody } from "@/client/types.gen";
-import { ErrorAlert, PageHead } from "@/components/app-ui";
+import { getGithubOptions, listGithubDeliveriesOptions, redeliverGithubDeliveryMutation } from "@/client/@tanstack/react-query.gen";
+import type { DeliveryBody, RemoteDeliveryBody } from "@/client/types.gen";
+import { Button as AsyncButton, ErrorAlert, PageHead } from "@/components/app-ui";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
@@ -151,7 +151,80 @@ function GitHubSettings() {
             </Table>
           )}
         </Card>
+        <RemoteDeliveries />
       </div>
     </>
+  );
+}
+
+/** RemoteDeliveries lists what GitHub sent and redelivers one (REQ-CFG-008). */
+function RemoteDeliveries() {
+  const q = useQuery(listGithubDeliveriesOptions());
+  return (
+    <Card className="overflow-x-auto">
+      <CardHeader>
+        <CardTitle>{t("github.remote")}</CardTitle>
+      </CardHeader>
+      <p className="t-hint px-4 pt-3">{t("github.remote.hint")}</p>
+      {q.isPending ? (
+        <Skeleton className="m-4 h-20" />
+      ) : q.error ? (
+        <ErrorAlert error={q.error} className="m-4" onRetry={() => void q.refetch()} />
+      ) : q.data.length === 0 ? (
+        <p className="t-hint p-4">{t("github.remote.none")}</p>
+      ) : (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>{t("github.delivery.event")}</TableHead>
+              <TableHead>{t("github.delivery.when")}</TableHead>
+              <TableHead>{t("github.delivery.status")}</TableHead>
+              <TableHead>
+                <span className="sr-only">{t("github.remote.redeliver")}</span>
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {q.data.map((x) => (
+              <RemoteRow key={x.id} x={x} />
+            ))}
+          </TableBody>
+        </Table>
+      )}
+    </Card>
+  );
+}
+
+function RemoteRow({ x }: { x: RemoteDeliveryBody }) {
+  const redeliver = useMutation({ ...redeliverGithubDeliveryMutation() });
+  return (
+    <TableRow>
+      <TableCell className="t-value text-ink">
+        {x.event}
+        {x.action ? `.${x.action}` : ""}
+        {x.redelivery ? <span className="t-hint ml-2">{t("github.remote.redelivery")}</span> : null}
+      </TableCell>
+      <TableCell className="t-hint">{new Date(x.delivered_at).toLocaleString()}</TableCell>
+      <TableCell>
+        <span className="flex flex-wrap items-center gap-2">
+          <Badge dot tone={x.failed ? "danger" : "success"}>
+            {x.status_code ? t("github.remote.code", { code: x.status_code }) : t("github.remote.nocode")}
+          </Badge>
+          <Badge tone={x.handled ? undefined : "warning"}>{x.handled ? t("github.remote.handled") : t("github.remote.missed")}</Badge>
+        </span>
+      </TableCell>
+      <TableCell className="text-right">
+        {redeliver.isSuccess ? (
+          <span role="status" className="t-hint fade-in">
+            {t("github.remote.requested")}
+          </span>
+        ) : (
+          <AsyncButton size="sm" mutation={redeliver} onClick={() => redeliver.mutate({ path: { id: x.id }, body: { guid: x.guid } })}>
+            {t("github.remote.redeliver")}
+          </AsyncButton>
+        )}
+        <ErrorAlert error={redeliver.error} />
+      </TableCell>
+    </TableRow>
   );
 }

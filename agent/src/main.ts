@@ -229,12 +229,19 @@ export async function run(): Promise<number> {
         status: "ok",
         preview: `harness ${harness.name} ${harness.version}`,
       });
+      // With Skael, the no-op run is the Skael test: a dry-run pull of the set (§16.3).
+      const pulled = spec.skael
+        ? await pullSkael(spec.skael, join(workDir(), "skills"), (e) =>
+            events.emit(e),
+          )
+        : undefined;
       await finish({
         exit_status: "completed",
         result: {
           run_id: spec.run_id,
           kind: "noop",
           harness,
+          skael_manifest: pulled?.manifest,
           usage: { tokens_in: 0, tokens_out: 0 },
         },
       });

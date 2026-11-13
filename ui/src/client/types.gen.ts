@@ -601,6 +601,22 @@ export type QueueItem = {
     verdict?: string;
 };
 
+export type RedeliverGithubDeliveryRequest = {
+    guid: string;
+};
+
+export type RemoteDeliveryBody = {
+    action: string;
+    delivered_at: string;
+    event: string;
+    failed: boolean;
+    guid: string;
+    handled: boolean;
+    id: number;
+    redelivery: boolean;
+    status_code: number;
+};
+
 export type Reply = {
     body: string;
     finding_id: string;
@@ -723,6 +739,15 @@ export type RunBody = {
     tokens_out: number;
 };
 
+export type RunnerTestResult = {
+    duration_ms: number;
+    exit_reason: string;
+    harness_version: string;
+    run_id: string;
+    skael?: SkaelTest;
+    status: string;
+};
+
 export type ServerBody = {
     allow_tools: Array<string>;
     allow_write: boolean;
@@ -821,6 +846,12 @@ export type SkaelInput = {
     reporter_key?: Input;
     review_skill: string;
     url: string;
+};
+
+export type SkaelTest = {
+    detail: string;
+    ok: boolean;
+    set: string;
 };
 
 export type SkillRef = {
@@ -1589,6 +1620,56 @@ export type GetGithubResponses = {
 };
 
 export type GetGithubResponse = GetGithubResponses[keyof GetGithubResponses];
+
+export type ListGithubDeliveriesData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/github/deliveries';
+};
+
+export type ListGithubDeliveriesErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type ListGithubDeliveriesError = ListGithubDeliveriesErrors[keyof ListGithubDeliveriesErrors];
+
+export type ListGithubDeliveriesResponses = {
+    /**
+     * OK
+     */
+    200: Array<RemoteDeliveryBody>;
+};
+
+export type ListGithubDeliveriesResponse = ListGithubDeliveriesResponses[keyof ListGithubDeliveriesResponses];
+
+export type RedeliverGithubDeliveryData = {
+    body: RedeliverGithubDeliveryRequest;
+    path: {
+        id: number;
+    };
+    query?: never;
+    url: '/api/v1/github/deliveries/{id}/redeliver';
+};
+
+export type RedeliverGithubDeliveryErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type RedeliverGithubDeliveryError = RedeliverGithubDeliveryErrors[keyof RedeliverGithubDeliveryErrors];
+
+export type RedeliverGithubDeliveryResponses = {
+    /**
+     * Accepted
+     */
+    202: unknown;
+};
 
 export type GetGuidanceData = {
     body?: never;
@@ -2531,6 +2612,31 @@ export type SaveSteeringReviewResponses = {
 
 export type SaveSteeringReviewResponse = SaveSteeringReviewResponses[keyof SaveSteeringReviewResponses];
 
+export type TestRunnerData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/runner/test';
+};
+
+export type TestRunnerErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type TestRunnerError = TestRunnerErrors[keyof TestRunnerErrors];
+
+export type TestRunnerResponses = {
+    /**
+     * OK
+     */
+    200: RunnerTestResult;
+};
+
+export type TestRunnerResponse = TestRunnerResponses[keyof TestRunnerResponses];
+
 export type GetRunData = {
     body?: never;
     path: {
@@ -2824,6 +2930,31 @@ export type GetSetupStateResponses = {
 };
 
 export type GetSetupStateResponse = GetSetupStateResponses[keyof GetSetupStateResponses];
+
+export type TestSkaelData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/skael/test';
+};
+
+export type TestSkaelErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type TestSkaelError = TestSkaelErrors[keyof TestSkaelErrors];
+
+export type TestSkaelResponses = {
+    /**
+     * OK
+     */
+    200: RunnerTestResult;
+};
+
+export type TestSkaelResponse = TestSkaelResponses[keyof TestSkaelResponses];
 
 export type GetSkillsData = {
     body?: never;

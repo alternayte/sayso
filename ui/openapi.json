@@ -2035,6 +2035,65 @@
         ],
         "type": "object"
       },
+      "Redeliver-github-deliveryRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "guid": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "guid"
+        ],
+        "type": "object"
+      },
+      "RemoteDeliveryBody": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "type": "string"
+          },
+          "delivered_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "event": {
+            "type": "string"
+          },
+          "failed": {
+            "type": "boolean"
+          },
+          "guid": {
+            "type": "string"
+          },
+          "handled": {
+            "type": "boolean"
+          },
+          "id": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "redelivery": {
+            "type": "boolean"
+          },
+          "status_code": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "guid",
+          "event",
+          "action",
+          "delivered_at",
+          "status_code",
+          "redelivery",
+          "failed",
+          "handled"
+        ],
+        "type": "object"
+      },
       "Reply": {
         "additionalProperties": false,
         "properties": {
@@ -2530,6 +2589,38 @@
         ],
         "type": "object"
       },
+      "RunnerTestResult": {
+        "additionalProperties": false,
+        "properties": {
+          "duration_ms": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "exit_reason": {
+            "type": "string"
+          },
+          "harness_version": {
+            "type": "string"
+          },
+          "run_id": {
+            "type": "string"
+          },
+          "skael": {
+            "$ref": "#/components/schemas/SkaelTest"
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "run_id",
+          "status",
+          "exit_reason",
+          "harness_version",
+          "duration_ms"
+        ],
+        "type": "object"
+      },
       "ServerBody": {
         "additionalProperties": false,
         "properties": {
@@ -2842,6 +2933,26 @@
           "allowed_sets",
           "review_skill",
           "activation_hook"
+        ],
+        "type": "object"
+      },
+      "SkaelTest": {
+        "additionalProperties": false,
+        "properties": {
+          "detail": {
+            "type": "string"
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "set": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "set",
+          "ok",
+          "detail"
         ],
         "type": "object"
       },
@@ -4263,6 +4374,83 @@
               }
             },
             "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "tags": [
+          "github"
+        ]
+      }
+    },
+    "/api/v1/github/deliveries": {
+      "get": {
+        "operationId": "list-github-deliveries",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RemoteDeliveryBody"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "tags": [
+          "github"
+        ]
+      }
+    },
+    "/api/v1/github/deliveries/{id}/redeliver": {
+      "post": {
+        "operationId": "redeliver-github-delivery",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Redeliver-github-deliveryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Accepted"
           },
           "default": {
             "content": {
@@ -5842,6 +6030,36 @@
         ]
       }
     },
+    "/api/v1/runner/test": {
+      "post": {
+        "operationId": "test-runner",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunnerTestResult"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "tags": [
+          "runner"
+        ]
+      }
+    },
     "/api/v1/runs/{id}": {
       "get": {
         "operationId": "get-run",
@@ -6429,6 +6647,36 @@
         },
         "tags": [
           "setup"
+        ]
+      }
+    },
+    "/api/v1/skael/test": {
+      "post": {
+        "operationId": "test-skael",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunnerTestResult"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "tags": [
+          "skills"
         ]
       }
     },
