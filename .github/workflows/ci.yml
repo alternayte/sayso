@@ -53,7 +53,7 @@ jobs:
       - name: Run the recipes
         run: |
           if [ "${{ matrix.recipe }}" = static ]; then
-            just gen-check fmt-check lint
+            just gen-check fmt-check lint replay
           else
             just ${{ matrix.recipe }}
           fi
