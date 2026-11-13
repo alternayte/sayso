@@ -146,6 +146,17 @@ func findingBodies(fs []findings.Finding, keep func(findings.Finding) bool) []Fi
 // Register adds the review and round operations.
 func (a *API) Register(api huma.API, view, edit map[string]any, actor func(context.Context) audit.Actor) {
 	tags := []string{"reviews"}
+	huma.Register(api, huma.Operation{OperationID: "get-effective-config", Method: http.MethodGet, Path: "/repositories/{owner}/{name}/effective", Tags: []string{"repositories"}, Metadata: view},
+		func(ctx context.Context, in *struct {
+			Owner string `path:"owner"`
+			Name  string `path:"name"`
+		}) (*struct{ Body EffectiveBody }, error) {
+			b, err := a.Activities.EffectiveConfig(ctx, in.Owner+"/"+in.Name)
+			if errors.Is(err, pgx.ErrNoRows) {
+				return nil, huma.Error404NotFound("repository not found")
+			}
+			return &struct{ Body EffectiveBody }{b}, err
+		})
 	huma.Register(api, huma.Operation{OperationID: "list-reviews", Method: http.MethodGet, Path: "/reviews", Tags: tags, Metadata: view},
 		func(ctx context.Context, in *struct {
 			Repository string `query:"repository" doc:"owner/name"`

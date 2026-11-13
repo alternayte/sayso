@@ -164,6 +164,40 @@ export type DismissFindingRequest = {
     reason: string;
 };
 
+export type Effective = {
+    block: boolean;
+    challenge_min_severity: string;
+    execution: boolean;
+    extensions: Array<string>;
+    feeds: Array<string>;
+    ignore: Array<string>;
+    image: string;
+    instructions: string;
+    max_inline_comments: number;
+    mcp: Array<string>;
+    nits: string;
+    profiles: {
+        [key: string]: string;
+    };
+    restore: string;
+    setup: Array<string>;
+    skill: string;
+    sources: {
+        [key: string]: string;
+    };
+    toolchain: string;
+    warnings: Array<string>;
+};
+
+export type EffectiveBody = {
+    effective: Effective;
+    mode: string;
+    ref: string;
+    repository: string;
+    skill_name: string;
+    skill_source: 'repository' | 'skael' | 'builtin';
+};
+
 export type EntryBody = {
     action: string;
     actor_kind: string;
@@ -2065,6 +2099,34 @@ export type GetRepositoryResponses = {
 };
 
 export type GetRepositoryResponse = GetRepositoryResponses[keyof GetRepositoryResponses];
+
+export type GetEffectiveConfigData = {
+    body?: never;
+    path: {
+        owner: string;
+        name: string;
+    };
+    query?: never;
+    url: '/api/v1/repositories/{owner}/{name}/effective';
+};
+
+export type GetEffectiveConfigErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type GetEffectiveConfigError = GetEffectiveConfigErrors[keyof GetEffectiveConfigErrors];
+
+export type GetEffectiveConfigResponses = {
+    /**
+     * OK
+     */
+    200: EffectiveBody;
+};
+
+export type GetEffectiveConfigResponse = GetEffectiveConfigResponses[keyof GetEffectiveConfigResponses];
 
 export type SetRepositoryFeedsData = {
     body: SetRepositoryFeedsRequest;

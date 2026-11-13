@@ -613,6 +613,148 @@
         ],
         "type": "object"
       },
+      "Effective": {
+        "additionalProperties": false,
+        "properties": {
+          "block": {
+            "type": "boolean"
+          },
+          "challenge_min_severity": {
+            "type": "string"
+          },
+          "execution": {
+            "type": "boolean"
+          },
+          "extensions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "feeds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "ignore": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "image": {
+            "type": "string"
+          },
+          "instructions": {
+            "type": "string"
+          },
+          "max_inline_comments": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "mcp": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "nits": {
+            "type": "string"
+          },
+          "profiles": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "restore": {
+            "type": "string"
+          },
+          "setup": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "skill": {
+            "type": "string"
+          },
+          "sources": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "toolchain": {
+            "type": "string"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "execution",
+          "challenge_min_severity",
+          "profiles",
+          "mcp",
+          "extensions",
+          "feeds",
+          "skill",
+          "ignore",
+          "instructions",
+          "nits",
+          "block",
+          "max_inline_comments",
+          "image",
+          "toolchain",
+          "restore",
+          "setup",
+          "sources",
+          "warnings"
+        ],
+        "type": "object"
+      },
+      "EffectiveBody": {
+        "additionalProperties": false,
+        "properties": {
+          "effective": {
+            "$ref": "#/components/schemas/Effective"
+          },
+          "mode": {
+            "type": "string"
+          },
+          "ref": {
+            "type": "string"
+          },
+          "repository": {
+            "type": "string"
+          },
+          "skill_name": {
+            "type": "string"
+          },
+          "skill_source": {
+            "enum": [
+              "repository",
+              "skael",
+              "builtin"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "repository",
+          "mode",
+          "ref",
+          "effective",
+          "skill_source",
+          "skill_name"
+        ],
+        "type": "object"
+      },
       "EntryBody": {
         "additionalProperties": false,
         "properties": {
@@ -4834,6 +4976,54 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/RepositoryBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "tags": [
+          "repositories"
+        ]
+      }
+    },
+    "/api/v1/repositories/{owner}/{name}/effective": {
+      "get": {
+        "operationId": "get-effective-config",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "owner",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EffectiveBody"
                 }
               }
             },
