@@ -29,6 +29,8 @@ type RepositoryBody struct {
 	EnabledAt     *time.Time   `json:"enabled_at"`
 	Profiles      ProfilesBody `json:"profiles"`
 	MCPServers    []string     `json:"mcp_servers"`
+	// MCPAvailable are the servers that admins configured; only the detail has it.
+	MCPAvailable []string `json:"mcp_available,omitempty"`
 }
 
 // ProfilesBody is the profile of each stage of a repository.
@@ -86,7 +88,11 @@ func Register(api huma.API, pool *pgxpool.Pool, acc Access) {
 		if err != nil {
 			return nil, err
 		}
-		return &struct{ Body RepositoryBody }{body(r)}, nil
+		b := body(r)
+		if b.MCPAvailable, err = New(pool).MCPServerNames(ctx); err != nil {
+			return nil, err
+		}
+		return &struct{ Body RepositoryBody }{b}, nil
 	})
 
 	huma.Register(api, huma.Operation{

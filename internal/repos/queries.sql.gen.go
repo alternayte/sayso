@@ -193,6 +193,30 @@ func (q *Queries) List(ctx context.Context) ([]Repository, error) {
 	return items, nil
 }
 
+const mCPServerNames = `-- name: MCPServerNames :many
+SELECT name FROM mcp_servers ORDER BY name
+`
+
+func (q *Queries) MCPServerNames(ctx context.Context) ([]string, error) {
+	rows, err := q.db.Query(ctx, mCPServerNames)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return nil, err
+		}
+		items = append(items, name)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const removeInstallationRepositories = `-- name: RemoveInstallationRepositories :exec
 UPDATE repositories SET removed_at = now() WHERE installation_id = $1 AND removed_at IS NULL
 `

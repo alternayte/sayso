@@ -43,3 +43,6 @@ UPDATE repositories SET mcp_servers = @servers::text[] WHERE id = @id RETURNING 
 
 -- name: KnownMCPServers :many
 SELECT name FROM mcp_servers WHERE name = ANY(@names::text[]);
+
+-- name: MCPServerNames :many
+SELECT name FROM mcp_servers ORDER BY name;

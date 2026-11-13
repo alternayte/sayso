@@ -1,0 +1,98 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "sayso.name" . }}-worker
+  labels:
+    {{- include "sayso.labels" . | nindent 4 }}
+    app.kubernetes.io/component: worker
+spec:
+  replicas: {{ .Values.worker.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: worker
+  template:
+    metadata:
+      labels:
+        {{- include "sayso.labels" . | nindent 8 }}
+        app.kubernetes.io/component: worker
+    spec:
+      serviceAccountName: {{ include "sayso.name" . }}-worker
+      automountServiceAccountToken: true
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: sayso
+          image: {{ include "sayso.agentImage" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args: ["serve", "--role", "worker"]
+          env:
+            {{- include "sayso.env" . | nindent 12 }}
+          envFrom:
+            {{- include "sayso.secretEnv" . | nindent 12 }}
+          ports:
+            - { name: http, containerPort: 8080 }
+          readinessProbe:
+            httpGet: { path: /readyz, port: http }
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 10
+          securityContext:
+            {{- include "sayso.containerSecurity" . | nindent 12 }}
+          resources:
+            {{- toYaml .Values.worker.resources | nindent 12 }}
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+            {{- if .Values.temporal.tlsSecret }}
+            - { name: temporal-tls, mountPath: /etc/sayso/temporal-tls, readOnly: true }
+            {{- end }}
+      terminationGracePeriodSeconds: 40
+      volumes:
+        - { name: tmp, emptyDir: {} }
+        {{- if .Values.temporal.tlsSecret }}
+        - name: temporal-tls
+          secret: { secretName: {{ .Values.temporal.tlsSecret }} }
+        {{- end }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "sayso.name" . }}-worker
+  labels:
+    {{- include "sayso.labels" . | nindent 4 }}
+---
+# The worker runs agent Jobs in the runner namespace and reads their Pods and logs (§18.2).
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "sayso.name" . }}-runner
+  namespace: {{ include "sayso.runnerNamespace" . }}
+  labels:
+    {{- include "sayso.labels" . | nindent 4 }}
+rules:
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["create", "get", "list", "watch", "delete"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["create", "get", "list", "watch", "delete"]
+  - apiGroups: [""]
+    resources: ["pods/log"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "sayso.name" . }}-runner
+  namespace: {{ include "sayso.runnerNamespace" . }}
+  labels:
+    {{- include "sayso.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "sayso.name" . }}-runner
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "sayso.name" . }}-worker
+    namespace: {{ .Release.Namespace }}

@@ -121,7 +121,7 @@ func (s *Service) Test(ctx context.Context, name string) ([]ToolInfo, error) {
 	if err != nil {
 		return nil, fmt.Errorf("connect to %s: %w", srv.Url, err)
 	}
-	defer cs.Close()
+	defer func() { _ = cs.Close() }()
 	tools, err := listTools(tctx, cs)
 	if err != nil {
 		return nil, fmt.Errorf("list tools: %w", err)

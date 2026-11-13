@@ -55,6 +55,20 @@ else
   emit SCN-CORE-011 false "$(( $(now) - t0 ))" "ports=$ports write_off=$write"
   fail=1
 fi
+# SCN-CORE-011 (Helm part): with temporalUi.enabled, the chart has no Ingress for the Temporal UI.
+t0=$(now)
+manifests=$(docker run --rm -v "$root/deploy/helm/sayso:/chart:ro" alpine/helm:3.19.0 template sayso /chart \
+  --set temporalUi.enabled=true --set ingress.enabled=true --set relay.enabled=true --set relay.ingress.enabled=true)
+# Documents of kind Ingress that name the Temporal UI service.
+ingress_ui=$(printf '%s\n' "$manifests" | awk 'BEGIN{RS="\n---"} /\nkind: Ingress/ && /temporal-ui/ {n++} END{print n+0}')
+ingresses=$(printf '%s\n' "$manifests" | awk 'BEGIN{RS="\n---"} /\nkind: Ingress/ {n++} END{print n+0}')
+ui_service=$(printf '%s\n' "$manifests" | grep -c 'name: sayso-temporal-ui' || true)
+if [[ "$ingress_ui" == 0 && "$ingresses" -ge 2 && "$ui_service" -ge 1 ]]; then
+  emit SCN-CORE-011 true "$(( $(now) - t0 ))" "helm: Temporal UI has a Service and no Ingress ($ingresses other Ingresses)"
+else
+  emit SCN-CORE-011 false "$(( $(now) - t0 ))" "helm: $ingress_ui Ingresses for the Temporal UI, $ingresses in all"
+  fail=1
+fi
 # SCN-CORE-004 (user part): both images run as a non-root user.
 t0=$(now)
 u1=$(docker inspect -f '{{.Config.User}}' "$SAYSO_IMAGE")

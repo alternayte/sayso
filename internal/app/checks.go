@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"os/exec"
 	"strings"
 	"time"
 
@@ -122,6 +123,7 @@ func staticChecks(d *Deps, f *Features) []doctor.Check {
 			}
 			return "relay stream connected, " + when, nil
 		}},
+		{Name: "runner", Run: func(ctx context.Context) (string, error) { return runnerCheck(ctx, d.Config) }},
 		{Name: "outbound_proxy", Run: func(context.Context) (string, error) {
 			if _, err := HTTPClient(d.Config); err != nil {
 				return "", err
@@ -182,4 +184,35 @@ func registerDiagnostics(api huma.API, d *Deps, f *Features) {
 		rs := doctor.Run(ctx, Checks(ctx, d, f))
 		return &struct{ Body DiagnosticsBody }{DiagnosticsBody{OK: doctor.AllOK(rs), Checks: rs}}, nil
 	})
+}
+
+// AgentRuntime is the agent runtime entry point in the agent image.
+const AgentRuntime = "/opt/sayso/agent/dist/main.js"
+
+// runnerCheck checks that the configured runner can start agent runs.
+func runnerCheck(_ context.Context, cfg *Config) (string, error) {
+	if cfg.Runner == "kubernetes" {
+		return kubernetesCheck(cfg)
+	}
+	node, err := exec.LookPath("node")
+	if err != nil {
+		return "", errors.New("process runner: node is not on PATH; run the worker in the agent image")
+	}
+	if _, err := os.Stat(AgentRuntime); err != nil {
+		return "", fmt.Errorf("process runner: agent runtime %s: %w", AgentRuntime, err)
+	}
+	return "process runner, " + node, nil
+}
+
+func kubernetesCheck(cfg *Config) (string, error) {
+	k, err := KubernetesRunner(cfg)
+	if err != nil {
+		return "", err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+	defer cancel()
+	if err := k.CheckPermissions(ctx); err != nil {
+		return "", err
+	}
+	return "kubernetes runner, namespace " + k.Namespace + ", image " + k.Image, nil
 }

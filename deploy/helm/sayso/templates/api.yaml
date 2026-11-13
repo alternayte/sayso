@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "sayso.name" . }}-api
+  labels:
+    {{- include "sayso.labels" . | nindent 4 }}
+    app.kubernetes.io/component: api
+spec:
+  replicas: {{ .Values.api.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: api
+  template:
+    metadata:
+      labels:
+        {{- include "sayso.labels" . | nindent 8 }}
+        app.kubernetes.io/component: api
+    spec:
+      
+      automountServiceAccountToken: false
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: sayso
+          image: {{ include "sayso.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args: ["serve", "--role", "api"]
+          env:
+            {{- include "sayso.env" . | nindent 12 }}
+          envFrom:
+            {{- include "sayso.secretEnv" . | nindent 12 }}
+          ports:
+            - { name: http, containerPort: 8080 }
+          readinessProbe:
+            httpGet: { path: /readyz, port: http }
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 10
+          securityContext:
+            {{- include "sayso.containerSecurity" . | nindent 12 }}
+          resources:
+            {{- toYaml .Values.api.resources | nindent 12 }}
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+            {{- if .Values.temporal.tlsSecret }}
+            - { name: temporal-tls, mountPath: /etc/sayso/temporal-tls, readOnly: true }
+            {{- end }}
+      terminationGracePeriodSeconds: 40
+      volumes:
+        - { name: tmp, emptyDir: {} }
+        {{- if .Values.temporal.tlsSecret }}
+        - name: temporal-tls
+          secret: { secretName: {{ .Values.temporal.tlsSecret }} }
+        {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "sayso.name" . }}-api
+  labels:
+    {{- include "sayso.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  selector:
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: api
+  ports:
+    - { name: http, port: {{ .Values.service.port }}, targetPort: http }

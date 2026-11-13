@@ -46,6 +46,12 @@ var required = map[string]string{
 	"list-profiles":           "admin",
 	"put-profile":             "admin",
 	"delete-profile":          "admin",
+	"list-mcp-servers":        "admin",
+	"create-mcp-server":       "admin",
+	"update-mcp-server":       "admin",
+	"delete-mcp-server":       "admin",
+	"test-mcp-server":         "admin",
+	"set-repository-mcp":      "maintainer",
 }
 
 var rank = map[string]int{"anonymous": 0, "viewer": 1, "maintainer": 2, "admin": 3}

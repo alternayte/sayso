@@ -2,6 +2,7 @@ package github
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -273,4 +274,21 @@ type CheckRun struct {
 // rate limit is low.
 func (c *Client) UpdateCheckRun(ctx context.Context, token string, inst int64, fullName string, run CheckRun) error {
 	return c.call(ctx, call{method: http.MethodPatch, path: fmt.Sprintf("/repos/%s/check-runs/%d", fullName, run.ID), auth: "Bearer " + token, in: run, inst: inst, prio: High})
+}
+
+// FileAt reads one file of a repository at a commit. It returns ErrNotFound
+// when the file does not exist.
+func (c *Client) FileAt(ctx context.Context, token string, inst int64, fullName, path, ref string) ([]byte, error) {
+	var out struct {
+		Content  string `json:"content"`
+		Encoding string `json:"encoding"`
+	}
+	p := fmt.Sprintf("/repos/%s/contents/%s?ref=%s", fullName, strings.TrimLeft(path, "/"), url.QueryEscape(ref))
+	if err := c.call(ctx, call{method: http.MethodGet, path: p, auth: "Bearer " + token, out: &out, inst: inst}); err != nil {
+		return nil, err
+	}
+	if out.Encoding != "base64" {
+		return nil, fmt.Errorf("github: %s: encoding %q", path, out.Encoding)
+	}
+	return base64.StdEncoding.DecodeString(strings.ReplaceAll(out.Content, "\n", ""))
 }

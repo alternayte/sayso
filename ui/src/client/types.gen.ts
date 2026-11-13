@@ -252,6 +252,7 @@ export type RepositoryBody = {
     enabled_at: string | null;
     full_name: string;
     id: string;
+    mcp_available?: Array<string>;
     mcp_servers: Array<string>;
     mode: 'off' | 'shadow' | 'comment' | 'gate';
     private: boolean;

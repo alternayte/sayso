@@ -133,12 +133,13 @@ services:
       - "127.0.0.1:${SAYSO_RELAY_PORT:-8081}:8080"
     restart: unless-stopped
 
-  # Profile fakes: the fake GitHub for demos and e2e tests. The browser and the containers both
-  # reach it as github.fake.localhost:9001.
+  # Profile fakes: the fake GitHub, model and MCP servers for demos and e2e tests. The browser and
+  # the containers reach the fake GitHub as github.fake.localhost:9001 and the fake model on port
+  # 9002. It uses the agent image, which has git for the fake repositories.
   fake:
     profiles: ["fakes"]
-    image: ${SAYSO_IMAGE:-ghcr.io/alternayte/sayso:latest}
-    command: ["fake", "serve", "--github-listen", ":9001"]
+    image: ${SAYSO_AGENT_IMAGE:-ghcr.io/alternayte/sayso-agent:latest}
+    command: ["fake", "serve", "--github-listen", ":9001", "--model-listen", ":9002"]
     networks:
       default:
         aliases: [github.fake.localhost]

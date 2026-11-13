@@ -1,0 +1,84 @@
+# Images of the sayso binary and of the agent runtime.
+image:
+  repository: ghcr.io/alternayte/sayso
+  tag: ""
+  pullPolicy: IfNotPresent
+agentImage:
+  repository: ghcr.io/alternayte/sayso-agent
+  tag: ""
+
+# Public URL of the UI and API, used for sign-in and links.
+baseURL: http://localhost:8080
+# URL that GitHub calls. Empty: <baseURL>/webhooks/github.
+publicWebhookURL: ""
+# direct or relay.
+ingressMode: direct
+
+# Secrets: give the name of an existing Secret with these keys:
+#   SAYSO_DATABASE_URL, SAYSO_SECRET_KEY, and optionally SAYSO_SETUP_TOKEN,
+#   SAYSO_RELAY_TOKEN, SAYSO_TEMPORAL_API_KEY.
+existingSecret: sayso
+
+bootstrapAdmins: ""
+
+temporal:
+  address: temporal-frontend:7233
+  namespace: default
+  # Name of a Secret with tls.crt and tls.key for mTLS, or empty.
+  tlsSecret: ""
+
+api:
+  replicas: 1
+  resources:
+    requests: { cpu: 100m, memory: 128Mi }
+    limits: { memory: 512Mi }
+worker:
+  replicas: 1
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits: { memory: 1Gi }
+
+# Agent runs are Jobs in this namespace. Empty: the release namespace.
+runner:
+  namespace: ""
+  resources:
+    requests: { cpu: 500m, memory: 1Gi }
+    limits: { cpu: "2", memory: 4Gi }
+
+service:
+  type: ClusterIP
+  port: 8080
+
+ingress:
+  enabled: false
+  className: ""
+  host: sayso.example.test
+  annotations: {}
+  tls: []
+
+relay:
+  enabled: false
+  replicas: 1
+  ingress:
+    enabled: false
+    className: ""
+    host: relay.example.test
+    annotations: {}
+    tls: []
+
+# A read-only Temporal UI behind the API at /temporal for admins. It never gets an Ingress.
+temporalUi:
+  enabled: false
+  image: temporalio/ui:2.56.0
+
+# The NetworkPolicy of agent Jobs allows egress to the API, to DNS and to these CIDR blocks
+# (GitHub and your registry hosts). NetworkPolicy has no host names, so list the CIDRs.
+agentNetworkPolicy:
+  enabled: true
+  egressCIDRs: []
+  # Registry and other hosts as documentation; they need entries in egressCIDRs.
+  registryHosts: []
+
+podSecurityContext:
+  runAsNonRoot: true
+  seccompProfile: { type: RuntimeDefault }

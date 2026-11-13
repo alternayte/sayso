@@ -146,7 +146,7 @@ func (h *process) Wait(ctx context.Context) (string, error) {
 		_ = h.Stop(context.Background())
 		return ExitCancelled, ctx.Err()
 	}
-	defer os.RemoveAll(h.dir)
+	defer func() { _ = os.RemoveAll(h.dir) }()
 	if h.stopped.Load() {
 		return ExitCancelled, nil
 	}

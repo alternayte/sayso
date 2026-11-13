@@ -1,9 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { getRepositoryOptions, listRepositoriesQueryKey, setRepositoryModeMutation } from "@/client/@tanstack/react-query.gen";
+import {
+  getRepositoryOptions,
+  listRepositoriesQueryKey,
+  setRepositoryMcpMutation,
+  setRepositoryModeMutation,
+} from "@/client/@tanstack/react-query.gen";
 import type { RepositoryBody } from "@/client/types.gen";
-import { ErrorAlert, PageHead, Segmented } from "@/components/app-ui";
+import { Button, ErrorAlert, PageHead, Segmented } from "@/components/app-ui";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { t } from "@/lib/copy";
@@ -30,7 +35,15 @@ function Repository() {
       ) : repo.error ? (
         <ErrorAlert error={repo.error} onRetry={() => repo.refetch()} />
       ) : (
-        <ModeCard repo={repo.data} canEdit={atLeast(me.role, "maintainer")} queryKey={opts.queryKey} />
+        <div className="grid gap-5">
+          <ModeCard repo={repo.data} canEdit={atLeast(me.role, "maintainer")} queryKey={opts.queryKey} />
+          <McpCard
+            key={repo.data.mcp_servers.join(",")}
+            repo={repo.data}
+            canEdit={atLeast(me.role, "maintainer")}
+            queryKey={opts.queryKey}
+          />
+        </div>
       )}
     </>
   );
@@ -87,6 +100,48 @@ function ModeCard({ repo, canEdit, queryKey }: { repo: RepositoryBody; canEdit: 
             {t("repos.mode.failed")}
           </p>
         ) : null}
+      </div>
+    </Card>
+  );
+}
+
+function McpCard({ repo, canEdit, queryKey }: { repo: RepositoryBody; canEdit: boolean; queryKey: readonly unknown[] }) {
+  const qc = useQueryClient();
+  const [owner = "", name = ""] = repo.full_name.split("/");
+  const [chosen, setChosen] = useState<string[]>(repo.mcp_servers);
+  const save = useMutation({ ...setRepositoryMcpMutation(), onSuccess: () => qc.invalidateQueries({ queryKey }) });
+  const available = repo.mcp_available ?? [];
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{t("repos.mcp.label")}</CardTitle>
+      </CardHeader>
+      <div className="grid gap-3 p-4">
+        <p className="t-hint max-w-[640px]">{t("repos.mcp.hint")}</p>
+        {available.length === 0 ? <p className="t-hint">{t("repos.mcp.none")}</p> : null}
+        <ul className="grid gap-2">
+          {available.map((s) => (
+            <li key={s}>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  disabled={!canEdit}
+                  checked={chosen.includes(s)}
+                  onChange={(e) => setChosen(e.target.checked ? [...chosen, s] : chosen.filter((x) => x !== s))}
+                />
+                <span className="t-value text-ink">{s}</span>
+              </label>
+            </li>
+          ))}
+        </ul>
+        {canEdit && available.length > 0 ? (
+          <div className="flex items-center gap-3">
+            <Button mutation={save} onClick={() => save.mutate({ path: { owner, name }, body: { servers: chosen } })}>
+              {t("repos.mcp.save")}
+            </Button>
+          </div>
+        ) : null}
+        <ErrorAlert error={save.error} />
       </div>
     </Card>
   );

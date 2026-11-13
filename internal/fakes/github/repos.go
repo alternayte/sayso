@@ -1,6 +1,7 @@
 package github
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -328,6 +329,7 @@ func (f *Fake) instCall(w http.ResponseWriter, r *http.Request) bool {
 func (f *Fake) repoRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /repos/{owner}/{repo}/pulls", f.listPulls)
 	mux.HandleFunc("GET /repos/{owner}/{repo}/compare/{basehead}", f.compare)
+	mux.HandleFunc("GET /repos/{owner}/{repo}/contents/{path...}", f.contents)
 	mux.HandleFunc("GET /{owner}/{repo}/info/refs", f.gitHTTP)
 	mux.HandleFunc("POST /{owner}/{repo}/git-upload-pack", f.gitHTTP)
 	mux.HandleFunc("POST /{owner}/{repo}/git-receive-pack", f.gitHTTP)
@@ -439,4 +441,28 @@ func (f *Fake) patchCheckRun(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"id": id})
+}
+
+func (f *Fake) contents(w http.ResponseWriter, r *http.Request) {
+	if !f.instCall(w, r) {
+		return
+	}
+	f.mu.Lock()
+	repo := f.repoOf(r)
+	var out string
+	var err error
+	if repo != nil {
+		ref := r.URL.Query().Get("ref")
+		if ref == "" {
+			ref = "main"
+		}
+		out, err = f.git(repo.dir, "show", ref+":"+r.PathValue("path"))
+	}
+	f.mu.Unlock()
+	if repo == nil || err != nil {
+		writeJSON(w, http.StatusNotFound, map[string]string{"message": "Not Found"})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"type": "file", "encoding": "base64", "path": r.PathValue("path"),
+		"content": base64.StdEncoding.EncodeToString([]byte(out + "\n"))})
 }

@@ -131,7 +131,7 @@ func TestSCN_MCP_003_ProxyFiltersToolsAndLogsCalls(t *testing.T) {
 	tok := newRun("acme/payments", "catalog")
 	ctx := context.Background()
 	cs := connect(t, e.Base+"/mcp/catalog", tok)
-	defer cs.Close()
+	defer func() { _ = cs.Close() }()
 	var names []string
 	for tl, err := range cs.Tools(ctx, nil) {
 		if err != nil {

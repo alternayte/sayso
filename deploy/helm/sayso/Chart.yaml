@@ -1,0 +1,7 @@
+apiVersion: v2
+name: sayso
+description: Self-hosted GitHub pull request reviewer. The chart runs the api and worker roles, and optionally the relay and a read-only Temporal UI. It runs no Temporal server and no PostgreSQL.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+license: MIT

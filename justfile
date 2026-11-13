@@ -78,6 +78,10 @@ images:
     docker build -q -f deploy/docker/Dockerfile -t sayso:dev . >/dev/null
     docker build -q -f deploy/agent/Dockerfile -t sayso-agent:dev . >/dev/null
 
+# Kubernetes runner and Helm chart on k3s (layer K)
+k8s: images
+    ./scripts/layer-test.sh k8s -timeout 40m
+
 # Image and Compose smoke tests (layer S)
 smoke: images
     mkdir -p "$(just _reports)"
@@ -87,7 +91,7 @@ _reports:
     @if [ -d .build ]; then echo .build/reports; else echo tmp/reports; fi
 
 # The full gate
-ci: gen-check fmt-check lint test contract e2e smoke
+ci: gen-check fmt-check lint test contract e2e k8s smoke
 
 # The owner's gate name; runs the same recipes as ci
 check: ci
