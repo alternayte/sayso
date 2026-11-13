@@ -587,4 +587,3 @@ func (a *Activities) RoundStatus(ctx context.Context, roundID uuid.UUID) (string
 func (a *Activities) UpdateStatusLine(ctx context.Context, roundID uuid.UUID) error {
 	return a.Publisher.StatusLine(ctx, roundID)
 }
-
