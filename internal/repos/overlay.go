@@ -135,7 +135,7 @@ func Resolve(repo Repository, o Overlay, fileWarnings []string, lim Limits) Effe
 		Restore:      "auto",
 		Image:        repo.AgentImage,
 		Sources: map[string]string{
-			"execution": SourceUI, "challenge_min_severity": SourceUI, "profiles": SourceUI, "mcp": SourceUI, "extensions": SourceUI,
+			"execution": SourceUI, "challenge_min_severity": SourceUI, "profiles.review": SourceUI, "profiles.challenge": SourceUI, "profiles.reply": SourceUI, "profiles.fix": SourceUI, "mcp": SourceUI, "extensions": SourceUI,
 			"feeds": SourceUI, "skill": SourceDefault, "nits": SourceDefault, "block": SourceDefault, "toolchain": SourceDefault,
 			"restore": SourceDefault, "max_inline_comments": SourceDefault, "image": SourceUI,
 		},

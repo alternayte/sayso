@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import {
+  getEffectiveConfigOptions,
   getRepositoryGuidanceOptions,
   getRepositoryOptions,
   listRepositoriesQueryKey,
@@ -11,7 +12,7 @@ import {
   setRepositoryModeMutation,
 } from "@/client/@tanstack/react-query.gen";
 import { putRepositoryGuidance } from "@/client/sdk.gen";
-import type { RepositoryBody } from "@/client/types.gen";
+import type { EffectiveBody, RepositoryBody } from "@/client/types.gen";
 import { GuidanceEditor, PromptPreview } from "@/components/guidance";
 import { Button, ErrorAlert, PageHead, Segmented } from "@/components/app-ui";
 import { Alert } from "@/components/ui/alert";
@@ -58,10 +59,85 @@ function Repository() {
             queryKey={opts.queryKey}
           />
           <FeedsCard key={repo.data.feeds.join(",")} repo={repo.data} canEdit={atLeast(me.role, "maintainer")} queryKey={opts.queryKey} />
+          <EffectiveCard owner={owner} name={name} />
           <GuidanceCard owner={owner} name={name} canEdit={atLeast(me.role, "maintainer")} />
         </div>
       )}
     </>
+  );
+}
+
+const sourceTone = { file: "accent", ui: undefined, default: undefined } as const;
+
+/** EffectiveCard shows the config of a round on the default branch and where each value comes from (REQ-CFG-006). */
+function EffectiveCard({ owner, name }: { owner: string; name: string }) {
+  const q = useQuery(getEffectiveConfigOptions({ path: { owner, name } }));
+  const rows = (e: EffectiveBody["effective"]): [string, string, string][] => [
+    ...(["review", "challenge", "reply", "fix"] as const).map((s): [string, string, string] => [
+      t("repos.effective.profile", { stage: s }),
+      e.profiles[s] ?? "",
+      e.sources[`profiles.${s}`] ?? "ui",
+    ]),
+    [t("repos.effective.mcp"), e.mcp.join(", ") || "–", e.sources.mcp ?? "ui"],
+    [t("repos.effective.extensions"), e.extensions.join(", ") || "–", e.sources.extensions ?? "ui"],
+    [t("repos.effective.feeds"), e.feeds.join(", ") || "–", e.sources.feeds ?? "ui"],
+    [t("repos.effective.image"), e.image || t("repos.effective.image.default"), e.sources.image ?? "default"],
+    [t("repos.effective.execution"), e.execution ? t("repos.effective.on") : t("repos.effective.off"), e.sources.execution ?? "ui"],
+    [t("repos.effective.challenge"), e.challenge_min_severity, e.sources.challenge_min_severity ?? "ui"],
+    [t("repos.effective.inline"), String(e.max_inline_comments), e.sources.max_inline_comments ?? "default"],
+  ];
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{t("repos.effective.label")}</CardTitle>
+      </CardHeader>
+      <div className="grid gap-3 p-4">
+        {q.isPending ? (
+          <Skeleton className="h-32 w-full" />
+        ) : q.error ? (
+          <ErrorAlert error={q.error} onRetry={() => void q.refetch()} />
+        ) : (
+          <>
+            <p className="t-hint max-w-[640px]">{t("repos.effective.hint", { ref: q.data.ref })}</p>
+            <dl
+              aria-label={t("repos.effective.label")}
+              className="grid grid-cols-[minmax(9rem,auto)_minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 text-[13px]"
+            >
+              <dt className="t-hint">{t("repos.effective.mode")}</dt>
+              <dd className="t-value text-ink">{modeLabel(q.data.mode as Mode)}</dd>
+              <dd>
+                <Badge>{t("repos.effective.source.ui")}</Badge>
+              </dd>
+              <dt className="t-hint">{t("repos.effective.skill")}</dt>
+              <dd className="t-value min-w-0 truncate text-ink">{q.data.skill_name}</dd>
+              <dd>
+                <Badge>{t(`repos.effective.skill.${q.data.skill_source}`)}</Badge>
+              </dd>
+              {rows(q.data.effective).map(([k, v, src]) => (
+                <div key={k} className="contents">
+                  <dt className="t-hint">{k}</dt>
+                  <dd className="t-value min-w-0 truncate text-ink">{v}</dd>
+                  <dd>
+                    <Badge tone={sourceTone[src as keyof typeof sourceTone]}>
+                      {t(`repos.effective.source.${src as "ui" | "file" | "default"}`)}
+                    </Badge>
+                  </dd>
+                </div>
+              ))}
+            </dl>
+            {q.data.effective.warnings.length > 0 ? (
+              <Alert tone="warning">
+                <ul aria-label={t("repos.effective.warnings")} className="grid gap-1">
+                  {q.data.effective.warnings.map((w) => (
+                    <li key={w}>{w}</li>
+                  ))}
+                </ul>
+              </Alert>
+            ) : null}
+          </>
+        )}
+      </div>
+    </Card>
   );
 }
 

@@ -405,6 +405,38 @@ func (a *Activities) reader(gh publish.Session, fullName string) skills.FileRead
 	}
 }
 
+// EffectiveBody is the effective config of a repository at the head of
+// its default branch, with the source of each value (§16.3).
+type EffectiveBody struct {
+	Repository  string          `json:"repository"`
+	Mode        string          `json:"mode"`
+	Ref         string          `json:"ref"`
+	Effective   repos.Effective `json:"effective"`
+	SkillSource string          `json:"skill_source" enum:"repository,skael,builtin"`
+	SkillName   string          `json:"skill_name"`
+}
+
+// EffectiveConfig resolves the config that a round on the default branch uses.
+func (a *Activities) EffectiveConfig(ctx context.Context, fullName string) (EffectiveBody, error) {
+	repo, err := repos.New(a.Pool).ByFullName(ctx, fullName)
+	if err != nil {
+		return EffectiveBody{}, err
+	}
+	gh, err := a.GitHub(ctx, repo.InstallationID, repo.FullName)
+	if err != nil {
+		return EffectiveBody{}, err
+	}
+	eff, skill, skael, err := a.repoConfig(ctx, gh, repo, repo.DefaultBranch)
+	if err != nil {
+		return EffectiveBody{}, err
+	}
+	b := EffectiveBody{Repository: repo.FullName, Mode: repo.Mode, Ref: repo.DefaultBranch, Effective: eff, SkillSource: skill.Source, SkillName: skill.Name}
+	if skael != nil {
+		b.SkillName = skael.SkillName + " (" + skael.Set + ")"
+	}
+	return b, nil
+}
+
 // PreviewInputs returns the repository parts of the prompt preview at the
 // head of the default branch (REQ-CFG-011).
 func (a *Activities) PreviewInputs(ctx context.Context, fullName string) (guidance.Inputs, error) {
