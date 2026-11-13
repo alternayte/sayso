@@ -95,14 +95,14 @@ func NewFeatures(ctx context.Context, d *Deps) (*Features, error) {
 	tokens := github.NewTokens()
 	ingest := &github.Ingest{Pool: d.Pool, Secrets: sec, Temporal: d.Temporal, GitHub: gh, Tokens: tokens, Log: d.Log, Signaled: signaled}
 	f := &Features{Settings: st, Secrets: sec, Auth: a, GitHubClient: gh, RateLimits: limits, Tokens: tokens, Ingest: ingest,
-		Models: models.NewService(d.Pool, sec, hc, d.Redactor.Redact, d.Log), ProxyMetrics: models.NewProxyMetrics(d.Metrics),
+		Models: models.NewService(d.Pool, sec, hc, runRedact(d), d.Log), ProxyMetrics: models.NewProxyMetrics(d.Metrics),
 		MCP: mcpproxy.NewService(d.Pool, sec, hc, d.Log)}
 	f.Stores = &storage.Registry{Pool: d.Pool, Secret: func(ctx context.Context, id uuid.UUID) (string, error) { return sec.ValueOf(ctx, &id) }}
-	f.MCPProxy = f.MCP.NewProxy(d.Redactor.Redact)
+	f.MCPProxy = f.MCP.NewProxy(runRedact(d))
 	f.Skills = &skills.Resolver{Settings: st, Secrets: sec}
 	f.Extensions = &skills.Extensions{Pool: d.Pool, Secrets: sec, Baked: skills.BakedExtensions()}
 	f.Reporter = &skills.Reporter{Pool: d.Pool, Secrets: sec, Settings: st, Stores: f.Stores, HTTP: hc, BaseURL: d.Config.BaseURL}
-	f.Feeds = feeds.NewService(d.Pool, sec, f.Stores, hc, d.Log, d.Redactor.Redact, d.Config.RunnerAPIURL,
+	f.Feeds = feeds.NewService(d.Pool, sec, f.Stores, hc, d.Log, runRedact(d), d.Config.RunnerAPIURL,
 		func(ctx context.Context, repos []string) (string, string, error) {
 			return feedGitHubToken(ctx, d, f, repos)
 		})
@@ -240,4 +240,10 @@ func securityHeaders(next http.Handler) http.Handler {
 		h.Set("X-Frame-Options", "DENY")
 		next.ServeHTTP(w, r)
 	})
+}
+
+// runRedact hides the known secrets and the token patterns in text that a
+// proxy records for a run (SI-05).
+func runRedact(d *Deps) func(string) string {
+	return func(s string) string { return d.Redactor.Redact(runner.RedactTokens(s)) }
 }

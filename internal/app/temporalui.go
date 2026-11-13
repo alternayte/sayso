@@ -28,6 +28,11 @@ func temporalUI(target string) http.Handler {
 			http.NotFound(w, r)
 			return
 		}
+		// Read only on the Sayso side too (SI-18).
+		if r.Method != http.MethodGet && r.Method != http.MethodHead {
+			http.Error(w, "the Temporal UI is read only", http.StatusMethodNotAllowed)
+			return
+		}
 		// The Temporal UI sets its own policy for its pages.
 		w.Header().Del("Content-Security-Policy")
 		proxy.ServeHTTP(w, r)

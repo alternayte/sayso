@@ -3,6 +3,7 @@ package app
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -31,5 +32,24 @@ func HTTPClient(cfg *Config) (*http.Client, error) {
 	t := http.DefaultTransport.(*http.Transport).Clone()
 	t.Proxy = http.ProxyFromEnvironment
 	t.TLSClientConfig = &tls.Config{RootCAs: pool, MinVersion: tls.VersionTLS12}
-	return &http.Client{Transport: t, Timeout: 60 * time.Second}, nil
+	return &http.Client{Transport: t, Timeout: 60 * time.Second, CheckRedirect: keepCredentialsOnHost}, nil
+}
+
+// redirectHeaders are the request headers that may follow a redirect to
+// another host. Go drops Authorization there, but not x-api-key, api-key or
+// a custom feed header, which would hand the credential to the new host.
+var redirectHeaders = map[string]bool{"Accept": true, "Accept-Encoding": true, "Accept-Language": true, "User-Agent": true, "Content-Type": true, "Range": true}
+
+func keepCredentialsOnHost(req *http.Request, via []*http.Request) error {
+	if len(via) >= 10 {
+		return errors.New("stopped after 10 redirects")
+	}
+	if req.URL.Host != via[0].URL.Host {
+		for k := range req.Header {
+			if !redirectHeaders[http.CanonicalHeaderKey(k)] {
+				req.Header.Del(k)
+			}
+		}
+	}
+	return nil
 }

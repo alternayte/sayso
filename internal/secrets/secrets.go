@@ -11,6 +11,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -174,10 +175,23 @@ func (s *Store) Put(ctx context.Context, by audit.Actor, name, value string) (Me
 	return s.meta(row), nil
 }
 
+// CheckEnvName refuses the variables of Sayso itself: a secret field that
+// names SAYSO_SECRET_KEY or SAYSO_DATABASE_URL would hand them to a
+// provider, an MCP server or an agent run (SI-01).
+func CheckEnvName(envName string) error {
+	if envName == "" {
+		return errors.New("empty variable name")
+	}
+	if strings.HasPrefix(strings.ToUpper(envName), "SAYSO_") {
+		return fmt.Errorf("the variable %s belongs to Sayso; use another variable", envName)
+	}
+	return nil
+}
+
 // PutEnvRef stores a reference to an environment variable of the API process.
 func (s *Store) PutEnvRef(ctx context.Context, by audit.Actor, name, envName string) (Meta, error) {
-	if envName == "" {
-		return Meta{}, fmt.Errorf("secret %s: empty variable name", name)
+	if err := CheckEnvName(envName); err != nil {
+		return Meta{}, fmt.Errorf("secret %s: %w", name, err)
 	}
 	var row Secret
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {

@@ -112,7 +112,7 @@ func TestSCN_CFG_002_ProviderKeyNeverReturned(t *testing.T) {
 	const plain = "sk-acme-provider-secret-7731"
 	e.provider(t, models.ProviderInput{Name: "main", APIType: models.OpenAICompletions, AuthStyle: models.AuthBearer, Key: key(plain), Models: []string{"fake-large"}})
 	e.provider(t, models.ProviderInput{Name: "from-env", APIType: models.OpenAICompletions, AuthStyle: models.AuthBearer,
-		Key: &secrets.Input{Env: "SAYSO_TEST_UNSET_PROVIDER_KEY"}, Models: []string{"fake-large"}})
+		Key: &secrets.Input{Env: "ACME_TEST_UNSET_PROVIDER_KEY"}, Models: []string{"fake-large"}})
 
 	if n := e.Count(t, `SELECT count(*) FROM secrets WHERE name = 'provider.main.key' AND position(convert_to($1, 'UTF8') in ciphertext) = 0`, plain); n != 1 {
 		t.Fatal("the stored value is not encrypted")
@@ -139,7 +139,7 @@ func TestSCN_CFG_002_ProviderKeyNeverReturned(t *testing.T) {
 	if k := byName["main"].Key; !k.Set || k.Last4 != "7731" || k.Status != "stored" || k.UpdatedAt == nil {
 		t.Fatalf("main key field %+v", k)
 	}
-	if k := byName["from-env"].Key; k.Kind != "env_ref" || k.Status != "not set" || k.EnvName != "SAYSO_TEST_UNSET_PROVIDER_KEY" {
+	if k := byName["from-env"].Key; k.Kind != "env_ref" || k.Status != "not set" || k.EnvName != "ACME_TEST_UNSET_PROVIDER_KEY" {
 		t.Fatalf("env key field %+v", k)
 	}
 	raw, _ := json.Marshal(list)

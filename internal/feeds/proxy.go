@@ -100,6 +100,12 @@ func (s *Service) Proxy(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	name := chi.URLParam(r, "feed")
 	path := "/" + chi.URLParam(r, "*")
+	// A dot segment would reach another path of the feed host with the
+	// feed credential (SI-17).
+	if !plainPath(path) || !plainPath(r.URL.EscapedPath()) {
+		perr(w, http.StatusBadRequest, "the path has a dot segment")
+		return
+	}
 	run, err := runner.Active(ctx, s.pool, runToken(r), time.Now())
 	if err != nil {
 		w.Header().Set("WWW-Authenticate", `Basic realm="sayso package proxy"`)
@@ -409,4 +415,18 @@ func (s *Service) Summary(ctx context.Context, runID uuid.UUID) error {
 	}
 	return runner.New(s.pool).InsertServerEvent(ctx, runner.InsertServerEventParams{RunID: runID, Type: "pkg_summary", Name: "package proxy",
 		Status: fmt.Sprintf("%d requests", req), TokensIn: bytes, TokensOut: hits, Preview: preview})
+}
+
+// plainPath reports whether no segment of p is "." or "..", also when
+// the dots are percent-encoded.
+func plainPath(p string) bool {
+	for _, seg := range strings.Split(p, "/") {
+		if d, err := url.PathUnescape(seg); err == nil {
+			seg = d
+		}
+		if seg == "." || seg == ".." || strings.Contains(seg, "\\") {
+			return false
+		}
+	}
+	return true
 }

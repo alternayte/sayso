@@ -6,6 +6,7 @@ import {
   mkdirSync,
   readFileSync,
   readdirSync,
+  lstatSync,
   statSync,
 } from "node:fs";
 import { homedir } from "node:os";
@@ -13,6 +14,7 @@ import { join, relative } from "node:path";
 import { gzipSync } from "node:zlib";
 import { VERSION } from "@mariozechner/pi-coding-agent";
 import { EventStream, RunnerClient } from "./api.js";
+import { inside } from "./paths.js";
 import { loadExtensions } from "./extensions.js";
 import { configureFeeds } from "./feeds.js";
 import { connectMcp, mcpToolName, mcpTools } from "./mcp.js";
@@ -519,11 +521,15 @@ async function uploadArtifacts(
   }
   const tests = join(headDir, ".sayso-tests");
   if (existsSync(tests)) {
+    // The directory comes from the pull request: skip symlinks and
+    // anything that resolves outside it (SI-05).
     const walk = async (d: string) => {
       for (const n of readdirSync(d).sort()) {
         const p = join(d, n);
-        if (statSync(p).isDirectory()) await walk(p);
-        else if (statSync(p).size < 1 << 20)
+        const st = lstatSync(p);
+        if (st.isSymbolicLink() || !inside(p, tests)) continue;
+        if (st.isDirectory()) await walk(p);
+        else if (st.isFile() && st.size < 1 << 20)
           await api.artifact(
             `tests/${relative(tests, p)}`,
             readFileSync(p),

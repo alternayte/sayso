@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"path"
 	"regexp"
 	"strings"
@@ -61,12 +62,18 @@ func NewService(pool *pgxpool.Pool, sec *secrets.Store, hc *http.Client, log *sl
 var serverName = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,62}$`)
 
 // headerTransport adds the stored headers to each upstream request.
+// headerTransport adds the stored headers to requests to the server host
+// only, so a redirect does not carry the credential to another host.
 type headerTransport struct {
 	base    http.RoundTripper
+	host    string
 	headers map[string]string
 }
 
 func (h headerTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	if r.URL.Host != h.host {
+		return h.base.RoundTrip(r)
+	}
 	r = r.Clone(r.Context())
 	for k, v := range h.headers {
 		r.Header.Set(k, v)
@@ -91,7 +98,11 @@ func (s *Service) connect(ctx context.Context, srv McpServer) (*mcp.ClientSessio
 	if base == nil {
 		base = http.DefaultTransport
 	}
-	hc := &http.Client{Transport: headerTransport{base: base, headers: headers}}
+	u, err := url.Parse(srv.Url)
+	if err != nil {
+		return nil, err
+	}
+	hc := &http.Client{Transport: headerTransport{base: base, host: u.Host, headers: headers}, CheckRedirect: s.http.CheckRedirect}
 	c := mcp.NewClient(&mcp.Implementation{Name: "sayso", Version: "1"}, nil)
 	return c.Connect(ctx, &mcp.StreamableClientTransport{Endpoint: srv.Url, HTTPClient: hc, MaxRetries: -1}, nil)
 }

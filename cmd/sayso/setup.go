@@ -19,6 +19,9 @@ func setup(need app.Need) (*app.Config, *slog.Logger, *app.Redactor, error) {
 	red.Add("setup_token", cfg.SetupToken)
 	red.Add("relay_token", cfg.RelayToken)
 	red.Add("temporal_api_key", cfg.TemporalAPIKey)
+	// The key as the variable holds it; stored text never shows it (SI-05).
+	red.Add("secret_key", os.Getenv("SAYSO_SECRET_KEY"))
+	red.Add("secret_key_new", os.Getenv("SAYSO_SECRET_KEY_NEW"))
 	log := app.NewLogger(os.Stderr, cfg.LogLevel, red)
 	for _, name := range unknown {
 		log.Warn("unknown variable", "name", name)

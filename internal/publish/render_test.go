@@ -30,7 +30,7 @@ func TestSCN_PUB_004_CheckConclusion(t *testing.T) {
 
 func TestSafeNeutralizesMentionsAndHTML(t *testing.T) {
 	got := Safe("Ask @octo-admin and @acme/platform. <script>alert(1)</script> mail a@b.c `@x`")
-	for _, want := range []string{"`@octo-admin`", "`@acme/platform`", "&lt;script&gt;", "a@b.c", "`@x`"} {
+	for _, want := range []string{"`@\u2060octo-admin`", "`@\u2060acme/platform`", "&lt;script&gt;", "a@\u2060b.c", "`@\u2060x`"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("Safe: %q has no %q", got, want)
 		}

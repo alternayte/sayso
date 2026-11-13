@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"log/slog"
+	"sort"
 	"strings"
 	"sync"
 )
@@ -40,9 +41,21 @@ func (r *Redactor) Remove(value string) {
 func (r *Redactor) Redact(s string) string {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	for v, name := range r.values {
+	// The longest value first, so a secret that contains another one is
+	// replaced whole, the same way each time.
+	vals := make([]string, 0, len(r.values))
+	for v := range r.values {
+		vals = append(vals, v)
+	}
+	sort.Slice(vals, func(i, j int) bool {
+		if len(vals[i]) != len(vals[j]) {
+			return len(vals[i]) > len(vals[j])
+		}
+		return vals[i] < vals[j]
+	})
+	for _, v := range vals {
 		if strings.Contains(s, v) {
-			s = strings.ReplaceAll(s, v, "[redacted:"+name+"]")
+			s = strings.ReplaceAll(s, v, "[redacted:"+r.values[v]+"]")
 		}
 	}
 	return s

@@ -15,6 +15,7 @@ import (
 
 	"github.com/alternayte/sayso/internal/audit"
 	"github.com/alternayte/sayso/internal/models"
+	"github.com/alternayte/sayso/internal/secrets"
 	"github.com/alternayte/sayso/internal/settings"
 )
 
@@ -190,42 +191,54 @@ func validate(ctx context.Context, db DB, cur, next Doc) error {
 			return fmt.Errorf("repository %s: agent image %s does not exist", r.FullName, r.AgentImage)
 		}
 	}
-	var check []Secret
-	add := func(s *Secret) {
+	// Each secret field names its own secret: a field cannot take the
+	// secret of another field, such as the App private key (SI-01).
+	type ref struct {
+		field string
+		s     Secret
+	}
+	var check []ref
+	add := func(field string, s *Secret) {
 		if s != nil {
-			check = append(check, *s)
+			check = append(check, ref{field, *s})
 		}
 	}
 	for _, p := range next.Providers {
-		add(p.Key)
+		add("provider."+p.Name+".key", p.Key)
 	}
 	for _, m := range next.MCPServers {
-		add(m.Secret)
+		add("mcp."+m.Name+".secret", m.Secret)
 	}
 	for _, f := range next.PackageFeeds {
-		add(f.Secret)
+		add("feed."+f.Name+".secret", f.Secret)
 	}
 	for _, s := range next.Stores {
-		add(s.Secret)
+		add("store."+s.Name+".secret", s.Secret)
 	}
 	for _, x := range next.Extensions {
-		for _, s := range x.Secrets {
-			add(&s)
+		for env, s := range x.Secrets {
+			add("extension."+x.Name+"."+strings.ToLower(env), &s)
 		}
 	}
-	for _, s := range check {
-		if (s.Secret == "") == (s.Env == "") {
-			return errors.New("a secret field needs exactly one of secret or env")
+	for _, c := range check {
+		if (c.s.Secret == "") == (c.s.Env == "") {
+			return fmt.Errorf("%s: a secret field needs exactly one of secret or env", c.field)
 		}
-		if s.Secret == "" {
+		if c.s.Env != "" {
+			if err := secrets.CheckEnvName(c.s.Env); err != nil {
+				return fmt.Errorf("%s: %w", c.field, err)
+			}
 			continue
 		}
+		if c.s.Secret != c.field {
+			return fmt.Errorf("%s: the secret must be %s, not %s; store the value under that name first", c.field, c.field, c.s.Secret)
+		}
 		var n int
-		if err := db.QueryRow(ctx, `SELECT count(*) FROM secrets WHERE name = $1`, s.Secret).Scan(&n); err != nil {
+		if err := db.QueryRow(ctx, `SELECT count(*) FROM secrets WHERE name = $1`, c.s.Secret).Scan(&n); err != nil {
 			return err
 		}
 		if n == 0 {
-			return fmt.Errorf("secret %s does not exist; store it before you apply", s.Secret)
+			return fmt.Errorf("secret %s does not exist; store it before you apply", c.s.Secret)
 		}
 	}
 	return nil
@@ -420,12 +433,13 @@ func (a *applier) apply(ctx context.Context, d Doc, changes []ConfigChange) erro
 		if op("repositories", strings.ToLower(r.FullName)) == "" {
 			continue
 		}
+		exec := r.Execution == nil || *r.Execution
 		if _, err := a.tx.Exec(ctx, `UPDATE repositories SET mode = $2, profile_review = $3, profile_challenge = $4, profile_reply = $5, profile_fix = $6, skael_set = $7,
 			agent_image = $8, mcp_servers = $9, feeds = $10, max_concurrent_rounds = $11, execution = $12, challenge_min_severity = $13,
 			enabled_at = CASE WHEN $2 <> 'off' THEN coalesce(enabled_at, now()) ELSE enabled_at END
 			WHERE lower(full_name) = lower($1) AND removed_at IS NULL`,
 			r.FullName, r.Mode, r.Profiles.Review, r.Profiles.Challenge, r.Profiles.Reply, r.Profiles.Fix, r.SkaelSet, r.AgentImage,
-			list(r.MCPServers), list(r.Feeds), r.MaxConcurrentRounds, r.Execution, r.ChallengeMinSeverity); err != nil {
+			list(r.MCPServers), list(r.Feeds), r.MaxConcurrentRounds, exec, r.ChallengeMinSeverity); err != nil {
 			return fmt.Errorf("repository %s: %w", r.FullName, err)
 		}
 	}

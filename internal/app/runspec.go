@@ -35,6 +35,28 @@ func enrichSpec(d *Deps, f *Features) func(context.Context, runner.AgentRun, *ru
 		for i := range spec.MCP {
 			spec.MCP[i].URL = base + "/mcp/" + spec.MCP[i].Name
 		}
+		// Extension secrets and feed credentials are never in the stored spec.
+		if len(spec.Extensions) > 0 {
+			names := make([]string, 0, len(spec.Extensions))
+			for _, e := range spec.Extensions {
+				names = append(names, e.Name)
+			}
+			if spec.Extensions, err = f.Extensions.Spec(ctx, names); err != nil {
+				return err
+			}
+		}
+		if len(spec.Feeds) > 0 {
+			names := make([]string, 0, len(spec.Feeds))
+			for _, x := range spec.Feeds {
+				names = append(names, x.Name)
+			}
+			if spec.Feeds, err = f.Feeds.SpecFeeds(ctx, spec.Repository.FullName, names); err != nil {
+				return err
+			}
+			if spec.Feeds == nil {
+				spec.Feeds = []runner.SpecFeed{}
+			}
+		}
 		// The agent key is the only Skael credential in a run (§14.1).
 		if spec.Skael != nil {
 			key, err := f.Secrets.Value(ctx, skills.AgentKeySecret)
