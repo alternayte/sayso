@@ -128,10 +128,24 @@ func (f *Fake) publishRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /repos/{owner}/{repo}/issues/{n}/comments", f.createIssueComment)
 	mux.HandleFunc("PATCH /repos/{owner}/{repo}/issues/comments/{id}", f.editIssueComment)
 	mux.HandleFunc("POST /repos/{owner}/{repo}/issues/{n}/reactions", f.createReaction)
-	mux.HandleFunc("GET /repos/{owner}/{repo}/pulls/{n}/files", f.pullFiles)
-	mux.HandleFunc("GET /repos/{owner}/{repo}/pulls/{n}/reviews", f.listReviews)
+	mux.HandleFunc("GET /repos/{owner}/{repo}/pulls/{n}", f.getPull)
+	// One pattern for GET /pulls/{n}/{sub}: it overlaps /pulls/comments/{id}.
+	mux.HandleFunc("GET /repos/{owner}/{repo}/pulls/{n}/{sub}", func(w http.ResponseWriter, r *http.Request) {
+		switch n, sub := r.PathValue("n"), r.PathValue("sub"); {
+		case n == "comments":
+			r.SetPathValue("id", sub)
+			f.getComment(w, r)
+		case sub == "files":
+			f.pullFiles(w, r)
+		case sub == "reviews":
+			f.listReviews(w, r)
+		case sub == "comments":
+			f.listReviewComments(w, r)
+		default:
+			writeJSON(w, http.StatusNotFound, map[string]string{"message": "Not Found"})
+		}
+	})
 	mux.HandleFunc("POST /repos/{owner}/{repo}/pulls/{n}/reviews", f.createReview)
-	mux.HandleFunc("GET /repos/{owner}/{repo}/pulls/{n}/comments", f.listReviewComments)
 	mux.HandleFunc("POST /repos/{owner}/{repo}/pulls/{n}/comments/{id}/replies", f.reply)
 	mux.HandleFunc("POST /repos/{owner}/{repo}/check-runs", f.createCheckRun)
 	mux.HandleFunc("GET /repos/{owner}/{repo}/commits/{ref}/check-runs", f.listCheckRuns)
@@ -216,6 +230,21 @@ func (f *Fake) createReaction(w http.ResponseWriter, r *http.Request) {
 	}
 	f.mu.Unlock()
 	writeJSON(w, status, map[string]any{"content": in.Content})
+}
+
+func (f *Fake) getPull(w http.ResponseWriter, r *http.Request) {
+	if !f.instCall(w, r) {
+		return
+	}
+	n, err := strconv.Atoi(r.PathValue("n"))
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	repo := f.repoOf(r)
+	if err != nil || repo == nil || repo.Pulls[n] == nil {
+		writeJSON(w, http.StatusNotFound, map[string]string{"message": "Not Found"})
+		return
+	}
+	writeJSON(w, http.StatusOK, f.pullJSON(repo, repo.Pulls[n]))
 }
 
 // pullFiles lists the changed files with their patches, from git.

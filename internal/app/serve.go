@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/alternayte/sayso/internal/runner"
+
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
@@ -26,6 +28,8 @@ type Deps struct {
 	Pool     *pgxpool.Pool
 	Temporal client.Client
 	Metrics  *prometheus.Registry
+	// Runner starts agent runs. Nil: the runner of SAYSO_RUNNER.
+	Runner runner.Runner
 }
 
 // Serve runs the process in its role until ctx ends, then shuts down

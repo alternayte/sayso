@@ -16,7 +16,7 @@ import (
 	"github.com/alternayte/sayso/internal/auth"
 	fakegh "github.com/alternayte/sayso/internal/fakes/github"
 	"github.com/alternayte/sayso/internal/github"
-	"github.com/alternayte/sayso/internal/review"
+	"github.com/alternayte/sayso/internal/review/signals"
 )
 
 func TestSCN_GH_001_ManifestFlowStoresSecrets(t *testing.T) {
@@ -173,8 +173,8 @@ func TestSCN_GH_004_DeliveryHandledOnce(t *testing.T) {
 			t.Fatalf("delivery %d: status %d", i, code)
 		}
 	}
-	got := signals(t, e.Temporal, wfID(e, "acme/payments", pr.Number))
-	if len(got) != 1 || got[0].Name != review.SignalHeadUpdated || got[0].DeliveryID != "same-delivery-id" {
+	got := historySignals(t, e.Temporal, wfID(e, "acme/payments", pr.Number))
+	if len(got) != 1 || got[0].Name != signals.SignalHeadUpdated || got[0].DeliveryID != "same-delivery-id" {
 		t.Fatalf("signals: %+v", got)
 	}
 }
@@ -226,24 +226,24 @@ func TestSCN_GH_006_EventsMapToSignals(t *testing.T) {
 			t.Fatalf("delivery %s %s: status %d", d.Event, d.Action, d.StatusCode)
 		}
 	}
-	got := signals(t, e.Temporal, id)
+	got := historySignals(t, e.Temporal, id)
 	want := []struct {
 		name  string
-		check func(review.Signal) bool
+		check func(signals.Signal) bool
 	}{
-		{review.SignalHeadUpdated, func(s review.Signal) bool { return s.Trigger == review.TriggerOpened && s.HeadSHA != "" }},
-		{review.SignalHeadUpdated, func(s review.Signal) bool { return s.Trigger == review.TriggerOpened }},
-		{review.SignalHeadUpdated, func(s review.Signal) bool { return s.Trigger == review.TriggerReady }},
-		{review.SignalHeadUpdated, func(s review.Signal) bool { return s.Trigger == review.TriggerPush && !s.Forced }},
-		{review.SignalHeadUpdated, func(s review.Signal) bool { return s.Trigger == review.TriggerPush && s.Forced }},
-		{review.SignalPausedDraft, func(review.Signal) bool { return true }},
-		{review.SignalCommand, func(s review.Signal) bool { return s.CommentID == 501 && s.CommentSource == "issue" }},
-		{review.SignalThreadReply, func(s review.Signal) bool { return s.CommentID == 601 && s.InReplyTo == finding }},
-		{review.SignalCommand, func(s review.Signal) bool { return s.CommentID == 602 && s.CommentSource == "review" }},
-		{review.SignalHumanComment, func(s review.Signal) bool { return s.CommentID == 603 }},
-		{review.SignalThreadState, func(s review.Signal) bool { return s.ThreadNodeID == "PRRT_1" && s.Resolved }},
-		{review.SignalHeadUpdated, func(s review.Signal) bool { return s.Trigger == review.TriggerCheckRerequest && s.HeadSHA == "abc123" }},
-		{review.SignalClosed, func(s review.Signal) bool { return s.Merged }},
+		{signals.SignalHeadUpdated, func(s signals.Signal) bool { return s.Trigger == signals.TriggerOpened && s.HeadSHA != "" }},
+		{signals.SignalHeadUpdated, func(s signals.Signal) bool { return s.Trigger == signals.TriggerOpened }},
+		{signals.SignalHeadUpdated, func(s signals.Signal) bool { return s.Trigger == signals.TriggerReady }},
+		{signals.SignalHeadUpdated, func(s signals.Signal) bool { return s.Trigger == signals.TriggerPush && !s.Forced }},
+		{signals.SignalHeadUpdated, func(s signals.Signal) bool { return s.Trigger == signals.TriggerPush && s.Forced }},
+		{signals.SignalPausedDraft, func(signals.Signal) bool { return true }},
+		{signals.SignalCommand, func(s signals.Signal) bool { return s.CommentID == 501 && s.CommentSource == "issue" }},
+		{signals.SignalThreadReply, func(s signals.Signal) bool { return s.CommentID == 601 && s.InReplyTo == finding }},
+		{signals.SignalCommand, func(s signals.Signal) bool { return s.CommentID == 602 && s.CommentSource == "review" }},
+		{signals.SignalHumanComment, func(s signals.Signal) bool { return s.CommentID == 603 }},
+		{signals.SignalThreadState, func(s signals.Signal) bool { return s.ThreadNodeID == "PRRT_1" && s.Resolved }},
+		{signals.SignalHeadUpdated, func(s signals.Signal) bool { return s.Trigger == signals.TriggerCheckRerequest && s.HeadSHA == "abc123" }},
+		{signals.SignalClosed, func(s signals.Signal) bool { return s.Merged }},
 	}
 	if len(got) != len(want) {
 		t.Fatalf("got %d signals, want %d: %+v", len(got), len(want), got)

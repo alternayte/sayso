@@ -17,7 +17,7 @@ import (
 
 	"github.com/alternayte/sayso/internal/audit"
 	"github.com/alternayte/sayso/internal/repos"
-	"github.com/alternayte/sayso/internal/review"
+	"github.com/alternayte/sayso/internal/review/signals"
 )
 
 const (
@@ -172,8 +172,8 @@ func (a *ReconcileActivities) StartMissingRounds(ctx context.Context) (int, erro
 			if has {
 				continue
 			}
-			s := review.Signal{Trigger: review.TriggerReconcile, HeadSHA: pr.Head.SHA, BaseSHA: pr.Base.SHA}
-			if err := SignalReview(ctx, a.Temporal, r, pr.Number, review.SignalHeadUpdated, s, nil); err != nil {
+			s := signals.Signal{Trigger: signals.TriggerReconcile, HeadSHA: pr.Head.SHA, BaseSHA: pr.Base.SHA}
+			if err := SignalReview(ctx, a.Temporal, r, pr.Number, signals.SignalHeadUpdated, s, nil); err != nil {
 				return n, err
 			}
 			n++
@@ -192,7 +192,7 @@ func EnsureReconcileSchedule(ctx context.Context, tc client.Client, every time.D
 		Spec:    spec,
 		Overlap: enums.SCHEDULE_OVERLAP_POLICY_SKIP,
 		Action: &client.ScheduleWorkflowAction{
-			ID: "reconciler", Workflow: ReconcilerWorkflow, TaskQueue: review.TaskQueue,
+			ID: "reconciler", Workflow: ReconcilerWorkflow, TaskQueue: signals.TaskQueue,
 			WorkflowRunTimeout: 30 * time.Minute,
 		},
 	})

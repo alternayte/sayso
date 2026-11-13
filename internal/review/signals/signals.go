@@ -1,7 +1,6 @@
-// Package review holds the PRReview and ReviewRound workflows and their
-// activities. The webhook handler and the reconciler start or signal the
-// PRReview workflow with the names and payloads in this file.
-package review
+// Package signals holds the names and payloads of the PRReview signals. The
+// webhook handler and the reconciler start or signal the workflow with them.
+package signals
 
 import (
 	"fmt"
@@ -27,6 +26,8 @@ const (
 	SignalThreadReply  = "thread_reply"
 	SignalHumanComment = "human_comment"
 	SignalThreadState  = "thread_state"
+	// SignalCancelRound comes from the UI: a maintainer cancels a round (§7.1).
+	SignalCancelRound = "cancel_round"
 )
 
 // Triggers of a round.
@@ -69,4 +70,7 @@ type Signal struct {
 	// thread_state
 	ThreadNodeID string `json:"thread_node_id,omitempty"`
 	Resolved     bool   `json:"resolved,omitempty"`
+	// cancel_round
+	RoundID string `json:"round_id,omitempty"`
+	Actor   string `json:"actor,omitempty"`
 }

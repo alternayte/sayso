@@ -22,7 +22,7 @@ import (
 
 	"github.com/alternayte/sayso/internal/audit"
 	"github.com/alternayte/sayso/internal/repos"
-	"github.com/alternayte/sayso/internal/review"
+	"github.com/alternayte/sayso/internal/review/signals"
 )
 
 // MaxWebhookBody is the largest payload GitHub sends (25 MB).
@@ -262,11 +262,11 @@ func (in *Ingest) dispatch(ctx context.Context, h Headers, body []byte, start ti
 			if pr.Draft || strings.EqualFold(pr.User.Login, bot) {
 				return nil
 			}
-			trigger := review.TriggerOpened
+			trigger := signals.TriggerOpened
 			if p.Action == "ready_for_review" {
-				trigger = review.TriggerReady
+				trigger = signals.TriggerReady
 			}
-			return ev.signal(review.SignalHeadUpdated, review.Signal{Trigger: trigger, HeadSHA: pr.Head.SHA, BaseSHA: pr.Base.SHA})
+			return ev.signal(signals.SignalHeadUpdated, signals.Signal{Trigger: trigger, HeadSHA: pr.Head.SHA, BaseSHA: pr.Base.SHA})
 		case "synchronize":
 			if pr.Draft || strings.EqualFold(pr.User.Login, bot) {
 				return nil
@@ -275,11 +275,11 @@ func (in *Ingest) dispatch(ctx context.Context, h Headers, body []byte, start ti
 			if err != nil {
 				return err
 			}
-			return ev.signal(review.SignalHeadUpdated, review.Signal{Trigger: review.TriggerPush, HeadSHA: pr.Head.SHA, BaseSHA: pr.Base.SHA, Forced: forced})
+			return ev.signal(signals.SignalHeadUpdated, signals.Signal{Trigger: signals.TriggerPush, HeadSHA: pr.Head.SHA, BaseSHA: pr.Base.SHA, Forced: forced})
 		case "converted_to_draft":
-			return ev.signal(review.SignalPausedDraft, review.Signal{})
+			return ev.signal(signals.SignalPausedDraft, signals.Signal{})
 		case "closed":
-			return ev.signal(review.SignalClosed, review.Signal{Merged: pr.Merged})
+			return ev.signal(signals.SignalClosed, signals.Signal{Merged: pr.Merged})
 		}
 	case "issue_comment":
 		if p.Action != "created" || p.Issue == nil || p.Issue.PullRequest == nil || p.Comment == nil || strings.EqualFold(p.Comment.User.Login, bot) {
@@ -287,7 +287,7 @@ func (in *Ingest) dispatch(ctx context.Context, h Headers, body []byte, start ti
 		}
 		if isCommand(p.Comment.Body) {
 			ev.number = p.Issue.Number
-			return ev.signal(review.SignalCommand, review.Signal{CommentID: p.Comment.ID, CommentSource: "issue"})
+			return ev.signal(signals.SignalCommand, signals.Signal{CommentID: p.Comment.ID, CommentSource: "issue"})
 		}
 	case "pull_request_review_comment":
 		if p.Action != "created" || p.PullRequest == nil || p.Comment == nil || strings.EqualFold(p.Comment.User.Login, bot) {
@@ -296,7 +296,7 @@ func (in *Ingest) dispatch(ctx context.Context, h Headers, body []byte, start ti
 		ev.number = p.PullRequest.Number
 		c := p.Comment
 		if isCommand(c.Body) {
-			return ev.signal(review.SignalCommand, review.Signal{CommentID: c.ID, CommentSource: "review", InReplyTo: c.InReplyTo})
+			return ev.signal(signals.SignalCommand, signals.Signal{CommentID: c.ID, CommentSource: "review", InReplyTo: c.InReplyTo})
 		}
 		if c.InReplyTo != 0 {
 			ours, err := ev.saysoComment(c.InReplyTo, bot)
@@ -304,13 +304,13 @@ func (in *Ingest) dispatch(ctx context.Context, h Headers, body []byte, start ti
 				return err
 			}
 			if ours {
-				return ev.signal(review.SignalThreadReply, review.Signal{CommentID: c.ID, CommentSource: "review", InReplyTo: c.InReplyTo})
+				return ev.signal(signals.SignalThreadReply, signals.Signal{CommentID: c.ID, CommentSource: "review", InReplyTo: c.InReplyTo})
 			}
 		}
 		if strings.HasSuffix(c.User.Login, "[bot]") {
 			return nil
 		}
-		return ev.signal(review.SignalHumanComment, review.Signal{CommentID: c.ID, CommentSource: "review", InReplyTo: c.InReplyTo})
+		return ev.signal(signals.SignalHumanComment, signals.Signal{CommentID: c.ID, CommentSource: "review", InReplyTo: c.InReplyTo})
 	case "pull_request_review_thread":
 		if (p.Action != "resolved" && p.Action != "unresolved") || p.PullRequest == nil || p.Thread == nil || len(p.Thread.Comments) == 0 {
 			return nil
@@ -320,14 +320,14 @@ func (in *Ingest) dispatch(ctx context.Context, h Headers, body []byte, start ti
 			return nil
 		}
 		ev.number = p.PullRequest.Number
-		return ev.signal(review.SignalThreadState, review.Signal{ThreadNodeID: p.Thread.NodeID, CommentID: first.ID, Resolved: p.Action == "resolved"})
+		return ev.signal(signals.SignalThreadState, signals.Signal{ThreadNodeID: p.Thread.NodeID, CommentID: first.ID, Resolved: p.Action == "resolved"})
 	case "check_run":
 		cr := p.CheckRun
 		if p.Action != "rerequested" || cr == nil || cr.App.ID != app.AppID || cr.Name != CheckName || len(cr.PullRequests) == 0 {
 			return nil
 		}
 		ev.number = cr.PullRequests[0].Number
-		return ev.signal(review.SignalHeadUpdated, review.Signal{Trigger: review.TriggerCheckRerequest, HeadSHA: cr.HeadSHA})
+		return ev.signal(signals.SignalHeadUpdated, signals.Signal{Trigger: signals.TriggerCheckRerequest, HeadSHA: cr.HeadSHA})
 	}
 	return nil
 }
@@ -346,7 +346,7 @@ type event struct {
 	start    time.Time
 }
 
-func (e *event) signal(name string, s review.Signal) error {
+func (e *event) signal(name string, s signals.Signal) error {
 	s.DeliveryID = e.delivery
 	return SignalReview(e.ctx, e.in.Temporal, e.repo, e.number, name, s, func() {
 		if e.in.Signaled != nil && !e.start.IsZero() {
@@ -357,11 +357,11 @@ func (e *event) signal(name string, s review.Signal) error {
 
 // SignalReview sends one signal to the PRReview workflow of a pull request
 // with signal-with-start (§6.3).
-func SignalReview(ctx context.Context, tc client.Client, repo repos.Repository, number int, name string, s review.Signal, done func()) error {
-	id := review.WorkflowID(repo.GithubID, number)
+func SignalReview(ctx context.Context, tc client.Client, repo repos.Repository, number int, name string, s signals.Signal, done func()) error {
+	id := signals.WorkflowID(repo.GithubID, number)
 	_, err := tc.SignalWithStartWorkflow(ctx, id, name, s, client.StartWorkflowOptions{
-		ID: id, TaskQueue: review.TaskQueue,
-	}, review.WorkflowType, review.Start{RepositoryID: uuid.UUID(repo.ID), RepoGitHubID: repo.GithubID, Number: number})
+		ID: id, TaskQueue: signals.TaskQueue,
+	}, signals.WorkflowType, signals.Start{RepositoryID: uuid.UUID(repo.ID), RepoGitHubID: repo.GithubID, Number: number})
 	if err != nil {
 		return fmt.Errorf("signal %s to %s: %w", name, id, err)
 	}

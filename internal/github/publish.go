@@ -211,3 +211,10 @@ func (c *Client) ReviewThreadID(ctx context.Context, token string, inst int64, f
 		after = t.PageInfo.EndCursor
 	}
 }
+
+// GetPull reads one pull request.
+func (c *Client) GetPull(ctx context.Context, token string, inst int64, fullName string, number int) (PullRequest, error) {
+	var out PullRequest
+	err := c.call(ctx, call{method: http.MethodGet, path: fmt.Sprintf("/repos/%s/pulls/%d", fullName, number), auth: "Bearer " + token, out: &out, inst: inst, prio: High})
+	return out, err
+}

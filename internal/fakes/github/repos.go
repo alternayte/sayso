@@ -343,7 +343,6 @@ func (f *Fake) repoRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /{owner}/{repo}/info/refs", f.gitHTTP)
 	mux.HandleFunc("POST /{owner}/{repo}/git-upload-pack", f.gitHTTP)
 	mux.HandleFunc("POST /{owner}/{repo}/git-receive-pack", f.gitHTTP)
-	mux.HandleFunc("GET /repos/{owner}/{repo}/pulls/comments/{id}", f.getComment)
 	mux.HandleFunc("PATCH /repos/{owner}/{repo}/check-runs/{id}", f.patchCheckRun)
 	f.publishRoutes(mux)
 }

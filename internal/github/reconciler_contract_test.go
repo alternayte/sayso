@@ -17,7 +17,7 @@ import (
 	"github.com/alternayte/sayso/internal/app/apptest"
 	fakegh "github.com/alternayte/sayso/internal/fakes/github"
 	"github.com/alternayte/sayso/internal/github"
-	"github.com/alternayte/sayso/internal/review"
+	"github.com/alternayte/sayso/internal/review/signals"
 )
 
 func TestSCN_GH_007_ReconcilerRedeliversAndStartsRounds(t *testing.T) {
@@ -43,7 +43,7 @@ func TestSCN_GH_007_ReconcilerRedeliversAndStartsRounds(t *testing.T) {
 	e.SQL(t, `UPDATE repositories SET mode = 'off' WHERE full_name = 'acme/web'`)
 	gh.OpenPull("acme/web", fakegh.PullOptions{Author: "dev-alice"})
 
-	w := worker.New(e.Temporal, review.TaskQueue, worker.Options{})
+	w := worker.New(e.Temporal, signals.TaskQueue, worker.Options{})
 	w.RegisterWorkflowWithOptions(github.Reconciler, workflow.RegisterOptions{Name: github.ReconcilerWorkflow})
 	w.RegisterActivity(&github.ReconcileActivities{Pool: e.Deps.Pool, Secrets: e.F.Secrets, GitHub: e.F.GitHubClient, Temporal: e.Temporal})
 	if err := w.Start(); err != nil {
@@ -53,7 +53,7 @@ func TestSCN_GH_007_ReconcilerRedeliversAndStartsRounds(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
-	run, err := e.Temporal.ExecuteWorkflow(ctx, client.StartWorkflowOptions{ID: "reconciler-test", TaskQueue: review.TaskQueue}, github.ReconcilerWorkflow)
+	run, err := e.Temporal.ExecuteWorkflow(ctx, client.StartWorkflowOptions{ID: "reconciler-test", TaskQueue: signals.TaskQueue}, github.ReconcilerWorkflow)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -73,8 +73,8 @@ func TestSCN_GH_007_ReconcilerRedeliversAndStartsRounds(t *testing.T) {
 	if attempts != 1 {
 		t.Fatalf("redelivery requests: %d", attempts)
 	}
-	got := signals(t, e.Temporal, wfID(e, "acme/payments", pr.Number))
-	if len(got) != 1 || got[0].Name != review.SignalHeadUpdated || got[0].Trigger != review.TriggerReconcile || got[0].HeadSHA != pr.HeadSHA {
+	got := historySignals(t, e.Temporal, wfID(e, "acme/payments", pr.Number))
+	if len(got) != 1 || got[0].Name != signals.SignalHeadUpdated || got[0].Trigger != signals.TriggerReconcile || got[0].HeadSHA != pr.HeadSHA {
 		t.Fatalf("signals: %+v", got)
 	}
 	if exists(t, e.Temporal, wfID(e, "acme/payments", done.Number)) {
@@ -89,7 +89,7 @@ func TestSCN_GH_007_ReconcilerRedeliversAndStartsRounds(t *testing.T) {
 		time.Sleep(50 * time.Millisecond)
 	}
 	// A second run finds nothing to do.
-	run, err = e.Temporal.ExecuteWorkflow(ctx, client.StartWorkflowOptions{ID: "reconciler-test-2", TaskQueue: review.TaskQueue}, github.ReconcilerWorkflow)
+	run, err = e.Temporal.ExecuteWorkflow(ctx, client.StartWorkflowOptions{ID: "reconciler-test-2", TaskQueue: signals.TaskQueue}, github.ReconcilerWorkflow)
 	if err != nil {
 		t.Fatal(err)
 	}

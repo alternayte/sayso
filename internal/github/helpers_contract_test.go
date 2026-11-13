@@ -14,16 +14,16 @@ import (
 	"go.temporal.io/sdk/converter"
 
 	"github.com/alternayte/sayso/internal/app/apptest"
-	"github.com/alternayte/sayso/internal/review"
+	"github.com/alternayte/sayso/internal/review/signals"
 )
 
 type sig struct {
 	Name string
-	review.Signal
+	signals.Signal
 }
 
-// signals returns the signals in the history of a workflow, in order.
-func signals(t *testing.T, tc client.Client, id string) []sig {
+// historySignals returns the signals in the history of a workflow, in order.
+func historySignals(t *testing.T, tc client.Client, id string) []sig {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -38,7 +38,7 @@ func signals(t *testing.T, tc client.Client, id string) []sig {
 		if a == nil {
 			continue
 		}
-		var s review.Signal
+		var s signals.Signal
 		if err := converter.GetDefaultDataConverter().FromPayloads(a.Input, &s); err != nil {
 			t.Fatal(err)
 		}
@@ -83,5 +83,5 @@ func installAcme(t *testing.T, e *apptest.Env) {
 }
 
 func wfID(e *apptest.Env, repo string, n int) string {
-	return review.WorkflowID(e.GitHub.Repo(repo).ID, n)
+	return signals.WorkflowID(e.GitHub.Repo(repo).ID, n)
 }
