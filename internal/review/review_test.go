@@ -5,6 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
 	"slices"
 	"sync"
 	"testing"
@@ -12,6 +15,9 @@ import (
 
 	"github.com/google/uuid"
 	"go.temporal.io/api/enums/v1"
+	historypb "go.temporal.io/api/history/v1"
+	"go.temporal.io/api/workflowservice/v1"
+	"google.golang.org/protobuf/encoding/protojson"
 
 	"github.com/alternayte/sayso/internal/app"
 	"github.com/alternayte/sayso/internal/app/apptest"
@@ -68,6 +74,10 @@ func start(t *testing.T, script func(runner.Spec) runnertest.Answer, set map[str
 		t.Fatal(err)
 	}
 	t.Cleanup(stop)
+	if dir := os.Getenv("SAYSO_RECORD_REPLAY"); dir != "" {
+		since := time.Now()
+		t.Cleanup(func() { record(t, e, dir, since) })
+	}
 	dump = func() string {
 		var out string
 		rows, err := e.Deps.Pool.Query(ctx, `SELECT ro.status, ro.failure_reason, coalesce(ar.status, '-'), coalesce(ar.exit_reason, '-') FROM rounds ro
@@ -356,5 +366,42 @@ func TestSCN_LIFE_011_FairAdmission(t *testing.T) {
 	_ = e.Deps.Pool.QueryRow(context.Background(), `SELECT admitted_at FROM admissions WHERE kind = 'round' ORDER BY admitted_at OFFSET 3 LIMIT 1`).Scan(&thirdAt)
 	if !replyAt.Before(thirdAt) {
 		t.Fatalf("the reply was admitted at %s, after the fourth round at %s", replyAt, thirdAt)
+	}
+}
+
+// record writes the history of each workflow of a test to dir, for the
+// replay test (§7.1, REQ-LIFE-013). Run the tests with SAYSO_RECORD_REPLAY
+// after a change to workflow code.
+func record(t *testing.T, e *apptest.Env, dir string, since time.Time) {
+	ctx := context.Background()
+	resp, err := e.Temporal.ListWorkflow(ctx, &workflowservice.ListWorkflowExecutionsRequest{PageSize: 1000})
+	if err != nil {
+		t.Errorf("list workflows: %v", err)
+		return
+	}
+	name := strings.TrimPrefix(t.Name(), "TestSCN_")
+	for i, w := range resp.Executions {
+		typ := w.Type.GetName()
+		if (typ != signals.WorkflowType && typ != review.RoundWorkflowType) || w.StartTime.AsTime().Before(since) {
+			continue
+		}
+		it := e.Temporal.GetWorkflowHistory(ctx, w.Execution.WorkflowId, w.Execution.RunId, false, enums.HISTORY_EVENT_FILTER_TYPE_ALL_EVENT)
+		h := &historypb.History{}
+		for it.HasNext() {
+			ev, err := it.Next()
+			if err != nil {
+				t.Errorf("history: %v", err)
+				return
+			}
+			h.Events = append(h.Events, ev)
+		}
+		b, err := protojson.MarshalOptions{Indent: "  "}.Marshal(h)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		if err := os.WriteFile(filepath.Join(dir, fmt.Sprintf("%s-%s-%02d.json", name, typ, i)), b, 0o644); err != nil {
+			t.Error(err)
+		}
 	}
 }

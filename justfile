@@ -91,6 +91,14 @@ smoke: images
 _reports:
     @if [ -d .build ]; then echo .build/reports; else echo tmp/reports; fi
 
+# Replay the recorded workflow histories in tests/replay against the workflow code
+replay:
+    go test -count=1 -run 'TestSCN_LIFE_012' ./internal/review/
+
+# Record new workflow histories after a change to workflow code
+replay-record:
+    SAYSO_RECORD_REPLAY="$PWD/tests/replay" go test -count=1 -timeout 30m -run 'TestSCN_(LIFE|FND|PUB)' ./internal/review/
+
 # The full gate
 ci: gen-check fmt-check lint test contract e2e k8s smoke
 
