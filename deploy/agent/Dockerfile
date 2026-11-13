@@ -1,3 +1,6 @@
+# SAYSO_BINARY selects the source of the sayso binary: "build" compiles it from the
+# source tree; "prebuilt" takes the release binary from <platform>/sayso in the context.
+ARG SAYSO_BINARY=build
 # The sayso-agent image: the worker with the process runner, and the agent runtime for Kubernetes
 # Jobs. Debian slim with Node 22, git, ripgrep and mise, as a non-root user. mise has the current
 # LTS versions of Go, Node and the .NET SDK preinstalled (§8.10).
@@ -16,9 +19,16 @@ RUN go mod download
 COPY cmd ./cmd
 COPY internal ./internal
 COPY skills ./skills
+COPY agent/prompts ./agent/prompts
 COPY ui/embed.go ./ui/embed.go
 COPY --from=ui /src/ui/dist ./ui/dist
 RUN CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.version=${VERSION}" -o /out/sayso ./cmd/sayso
+
+FROM scratch AS prebuilt
+ARG TARGETPLATFORM
+COPY ${TARGETPLATFORM}/sayso /out/sayso
+
+FROM ${SAYSO_BINARY} AS bin
 
 FROM node:22.23.5-bookworm-slim AS runtime
 WORKDIR /opt/sayso/agent
@@ -67,7 +77,7 @@ RUN mise install "go@${GO_VERSION}" "node@${NODE_LTS}" "dotnet@${DOTNET_SDK}" \
  && rm -rf /home/sayso/.config /home/sayso/.cache
 COPY --from=runtime --chown=0:0 /opt/sayso/agent /opt/sayso/agent
 COPY --from=runtime --chown=0:0 /opt/sayso/extensions /opt/sayso/extensions
-COPY --from=build /out/sayso /usr/local/bin/sayso
+COPY --from=bin /out/sayso /usr/local/bin/sayso
 # The global mise defaults of the image; a repository's version files change them per run.
 ENV MISE_GLOBAL_CONFIG_FILE=/opt/mise/default-config/config.toml
 WORKDIR /home/sayso

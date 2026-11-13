@@ -214,6 +214,7 @@ type RelayClient struct {
 	Log    *slog.Logger
 
 	mu        sync.Mutex
+	running   bool
 	connected bool
 	lastErr   string
 	lastEvent time.Time
@@ -221,6 +222,9 @@ type RelayClient struct {
 
 // RelayState is the stream state for diagnostics.
 type RelayState struct {
+	// Running is false in a process that does not hold the stream, for
+	// example the doctor command.
+	Running   bool
 	Connected bool
 	LastError string
 	LastEvent time.Time
@@ -230,7 +234,7 @@ type RelayState struct {
 func (c *RelayClient) State() RelayState {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	return RelayState{Connected: c.connected, LastError: c.lastErr, LastEvent: c.lastEvent}
+	return RelayState{Running: c.running, Connected: c.connected, LastError: c.lastErr, LastEvent: c.lastEvent}
 }
 
 func (c *RelayClient) set(connected bool, err error) {
@@ -244,6 +248,9 @@ func (c *RelayClient) set(connected bool, err error) {
 
 // Run keeps the stream open until ctx ends, and reconnects with backoff.
 func (c *RelayClient) Run(ctx context.Context) {
+	c.mu.Lock()
+	c.running = true
+	c.mu.Unlock()
 	wait := time.Second
 	for ctx.Err() == nil {
 		err := c.once(ctx)

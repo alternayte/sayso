@@ -88,6 +88,11 @@ k8s: images
 smoke: images
     mkdir -p "$(just _reports)"
     ./tests/smoke/compose.sh "$(just _reports)/smoke.jsonl"
+    ./tests/smoke/release.sh "$(just _reports)/smoke.jsonl"
+
+# Build the release artifacts without publishing (goreleaser snapshot)
+release-snapshot:
+    go run github.com/goreleaser/goreleaser/v2@v2.19.0 release --snapshot --clean --skip=sign
 
 _reports:
     @if [ -d .build ]; then echo .build/reports; else echo tmp/reports; fi

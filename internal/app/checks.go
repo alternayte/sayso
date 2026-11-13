@@ -20,6 +20,8 @@ import (
 	"github.com/alternayte/sayso/internal/doctor"
 	"github.com/alternayte/sayso/internal/github"
 	"github.com/alternayte/sayso/internal/settings"
+	"github.com/alternayte/sayso/internal/skills"
+	"github.com/alternayte/sayso/internal/storage"
 )
 
 // Checks returns the diagnostics of the features that exist in this build,
@@ -40,6 +42,24 @@ func Checks(ctx context.Context, d *Deps, f *Features) []doctor.Check {
 			cs = append(cs, doctor.Check{Name: "mcp " + n, Run: func(ctx context.Context) (string, error) { return f.MCP.Check(ctx, n) }})
 		}
 	}
+	if stores, err := storage.New(d.Pool).ListStores(ctx); err != nil {
+		cs = append(cs, doctor.Check{Name: "stores", Run: func(context.Context) (string, error) { return "", err }})
+	} else {
+		for _, st := range stores {
+			cs = append(cs, doctor.Check{Name: "store " + st.Name, Run: func(ctx context.Context) (string, error) {
+				s, err := f.Stores.ByID(ctx, st.ID)
+				if err != nil {
+					return "", err
+				}
+				r := storage.Probe(ctx, s)
+				if !r.OK {
+					return "", errors.New(r.Detail)
+				}
+				return fmt.Sprintf("%s: write, read and delete in %d ms", st.Driver, r.MS), nil
+			}})
+		}
+	}
+	cs = append(cs, doctor.Check{Name: "skael", Run: func(ctx context.Context) (string, error) { return skaelCheck(ctx, d, f) }})
 	for i := range cs {
 		run := cs[i].Run
 		cs[i].Run = func(ctx context.Context) (string, error) {
@@ -118,6 +138,10 @@ func staticChecks(d *Deps, f *Features) []doctor.Check {
 				return "", errors.New("relay ingress without a relay client")
 			}
 			st := f.Relay.State()
+			if !st.Running {
+				// This process does not hold the stream: check that the relay answers.
+				return relayReachable(ctx, d, when)
+			}
 			if !st.Connected {
 				return "", fmt.Errorf("relay stream to %s is not connected: %s", d.Config.RelayURL, st.LastError)
 			}
@@ -215,4 +239,56 @@ func kubernetesCheck(cfg *Config) (string, error) {
 		return "", err
 	}
 	return "kubernetes runner, namespace " + k.Namespace + ", image " + k.Image, nil
+}
+
+func relayReachable(ctx context.Context, d *Deps, when string) (string, error) {
+	hc, err := HTTPClient(d.Config)
+	if err != nil {
+		return "", err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, strings.TrimRight(d.Config.RelayURL, "/")+"/healthz", nil)
+	if err != nil {
+		return "", err
+	}
+	resp, err := hc.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("relay %s: %w", d.Config.RelayURL, err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("relay %s: health returned %d", d.Config.RelayURL, resp.StatusCode)
+	}
+	return "relay answers; the API process holds the stream (see Diagnostics), " + when, nil
+}
+
+// skaelCheck reports whether Skael is off, or reachable with an agent key.
+func skaelCheck(ctx context.Context, d *Deps, f *Features) (string, error) {
+	url, err := f.Settings.String(ctx, settings.SkaelURL)
+	if err != nil {
+		return "", err
+	}
+	if url == "" {
+		return "Skael is off", nil
+	}
+	set, _ := f.Settings.String(ctx, settings.SkaelDefaultSet)
+	if _, err := f.Secrets.Value(ctx, skills.AgentKeySecret); err != nil {
+		return "", fmt.Errorf("the Skael agent key: %w", err)
+	}
+	hc, err := HTTPClient(d.Config)
+	if err != nil {
+		return "", err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, strings.TrimRight(url, "/")+"/api/health", nil)
+	if err != nil {
+		return "", err
+	}
+	resp, err := hc.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("the Skael server %s: %w", url, err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("the Skael server %s: health returned %d", url, resp.StatusCode)
+	}
+	return fmt.Sprintf("Skael %s answers, default set %q, agent key stored", url, set), nil
 }

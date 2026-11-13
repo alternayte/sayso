@@ -74,12 +74,16 @@ func configCmd() *cobra.Command {
 				return err
 			}
 			out := c.OutOrStdout()
-			printPlan(out, plan)
+			if _, err := io.WriteString(out, planText(plan)); err != nil {
+				return err
+			}
 			if len(plan) == 0 {
 				return nil
 			}
 			if !yes {
-				fmt.Fprint(out, "Apply these changes? Type yes: ")
+				if _, err := io.WriteString(out, "Apply these changes? Type yes: "); err != nil {
+					return err
+				}
 				line, _ := bufio.NewReader(c.InOrStdin()).ReadString('\n')
 				if strings.TrimSpace(line) != "yes" {
 					return fmt.Errorf("apply cancelled; nothing changed")
@@ -88,8 +92,8 @@ func configCmd() *cobra.Command {
 			if _, err := svc.Apply(c.Context(), audit.Actor{Kind: "system", Login: "cli"}, b, plan); err != nil {
 				return err
 			}
-			fmt.Fprintf(out, "Applied %d changes.\n", len(plan))
-			return nil
+			_, err = fmt.Fprintf(out, "Applied %d changes.\n", len(plan))
+			return err
 		},
 	}
 	apply.Flags().StringVar(&file, "file", "", "YAML file to apply")
@@ -99,23 +103,23 @@ func configCmd() *cobra.Command {
 	return c
 }
 
-func printPlan(w io.Writer, plan []config.ConfigChange) {
+func planText(plan []config.ConfigChange) string {
 	if len(plan) == 0 {
-		fmt.Fprintln(w, "No changes.")
-		return
+		return "No changes.\n"
 	}
+	var b strings.Builder
 	mark := map[string]string{"add": "+", "change": "~", "remove": "-"}
 	for _, ch := range plan {
-		fmt.Fprintf(w, "%s %s %s\n", mark[ch.Op], ch.Section, ch.Name)
+		fmt.Fprintf(&b, "%s %s %s\n", mark[ch.Op], ch.Section, ch.Name)
 		for _, f := range ch.Fields {
-			switch ch.Op {
-			case "add":
-				fmt.Fprintf(w, "    %s: %s\n", f.Field, oneLine(f.New))
-			default:
-				fmt.Fprintf(w, "    %s: %s -> %s\n", f.Field, oneLine(f.Old), oneLine(f.New))
+			if ch.Op == "add" {
+				fmt.Fprintf(&b, "    %s: %s\n", f.Field, oneLine(f.New))
+			} else {
+				fmt.Fprintf(&b, "    %s: %s -> %s\n", f.Field, oneLine(f.Old), oneLine(f.New))
 			}
 		}
 	}
+	return b.String()
 }
 
 func oneLine(s string) string {
