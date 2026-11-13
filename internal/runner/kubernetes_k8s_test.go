@@ -84,7 +84,7 @@ func (k *cluster) apply(t *testing.T, manifest []byte) {
 }
 
 func TestSCN_RUN_003_KubernetesJob(t *testing.T) {
-	k := newCluster(t, "sayso-agent:dev")
+	k := newCluster(t)
 	ctx := context.Background()
 	kr := &runner.Kubernetes{Client: k.client, Namespace: "default", Image: "sayso-agent:dev", Poll: time.Second,
 		Resources: runner.Resources{CPURequest: "100m", CPULimit: "1", MemoryRequest: "128Mi", MemoryLimit: "1Gi"}}
@@ -238,7 +238,7 @@ spec: { selector: { app: temporal }, ports: [{ port: 7233 }] }
 `
 
 func TestSCN_CORE_003_HelmInstall(t *testing.T) {
-	k := newCluster(t, "sayso:dev", "sayso-agent:dev", "postgres:16", "temporalio/temporal:1.4.1")
+	k := newCluster(t, "sayso:dev", "postgres:16", "temporalio/temporal:1.4.1")
 	ctx := context.Background()
 	k.apply(t, []byte(backing))
 	k.apply(t, helmTemplate(t, "--namespace", "default", "--set", "image.repository=sayso", "--set", "image.tag=dev",
@@ -311,7 +311,7 @@ func podInfo(ctx context.Context, c kubernetes.Interface) string {
 	}
 	var b strings.Builder
 	for _, p := range pods.Items {
-		fmt.Fprintf(&b, "%s %s", p.Name, p.Status.Phase)
+		fmt.Fprintf(&b, "%s %s %s %s", p.Name, p.Status.Phase, p.Status.Reason, p.Status.Message)
 		for _, cs := range p.Status.ContainerStatuses {
 			if cs.State.Waiting != nil {
 				fmt.Fprintf(&b, " waiting %s %s", cs.State.Waiting.Reason, cs.State.Waiting.Message)
