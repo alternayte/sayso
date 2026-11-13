@@ -144,7 +144,9 @@ func TestSCN_LIFE_005_RepliesWaitCommandsDoNot(t *testing.T) {
 		t.Fatal(code)
 	}
 	e.comment(t, pr.Number, "dev-alice", "/sayso dismiss S-1 the remainder is added in the caller")
-	waitFor(t, 30*time.Second, "the dismiss", func() bool { return e.Count(t, `SELECT count(*) FROM findings WHERE seq = 1 AND status = 'dismissed'`) == 1 })
+	waitFor(t, 30*time.Second, "the dismiss", func() bool {
+		return e.Count(t, `SELECT count(*) FROM findings WHERE seq = 1 AND status = 'dismissed'`) == 1
+	})
 	if n := e.Count(t, `SELECT count(*) FROM agent_work WHERE status = 'queued'`); n != 1 {
 		t.Fatalf("queued work while the round runs: %d", n)
 	}

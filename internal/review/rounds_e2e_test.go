@@ -132,7 +132,6 @@ func (e *env) check(head string) fakegh.CheckRun {
 	return out
 }
 
-
 func TestSCN_E2E_001_GateBlocksThenFixPasses(t *testing.T) {
 	e := real(t, "gate")
 	pr := e.script(t, "e2e-caller", map[string]string{"ledger/ledger.go": noCheck})
