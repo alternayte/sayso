@@ -76,7 +76,7 @@ func (k *Kubernetes) Job(j Job) (*batchv1.Job, error) {
 		return corev1.Volume{Name: name, VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}}
 	}
 	return &batchv1.Job{
-		ObjectMeta: metav1.ObjectMeta{Name: "sayso-run-" + strings.ReplaceAll(j.RunID, "-", "")[:20], Namespace: k.Namespace, Labels: labels},
+		ObjectMeta: metav1.ObjectMeta{Name: "sayso-run-" + strings.ReplaceAll(j.RunID, "-", ""), Namespace: k.Namespace, Labels: labels},
 		Spec: batchv1.JobSpec{
 			BackoffLimit:            &backoff,
 			ActiveDeadlineSeconds:   &deadline,

@@ -110,3 +110,41 @@ func (r *Registry) open(row StoreRow) (Store, error) {
 	}
 	return nil, errors.New("store driver " + row.Driver + " is not available")
 }
+
+// Object is one object of a batch put.
+type Object struct {
+	Key  string
+	Data []byte
+}
+
+// PutAll stores a batch of objects. The postgres driver writes them in one
+// round trip; other drivers write up to 8 at a time.
+func PutAll(ctx context.Context, s Store, objs []Object) error {
+	if len(objs) == 0 {
+		return nil
+	}
+	if p, ok := s.(Postgres); ok {
+		b := &pgx.Batch{}
+		for _, o := range objs {
+			if len(o.Data) > MaxPostgresObject {
+				return errors.New("object is larger than the postgres store allows")
+			}
+			b.Queue(`INSERT INTO blobs (key, data) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET data = EXCLUDED.data, created_at = now()`, o.Key, o.Data)
+		}
+		return p.Pool.SendBatch(ctx, b).Close()
+	}
+	sem := make(chan struct{}, 8)
+	errs := make(chan error, len(objs))
+	for _, o := range objs {
+		sem <- struct{}{}
+		go func() {
+			defer func() { <-sem }()
+			errs <- s.Put(ctx, o.Key, bytes.NewReader(o.Data), int64(len(o.Data)))
+		}()
+	}
+	var all []error
+	for range objs {
+		all = append(all, <-errs)
+	}
+	return errors.Join(all...)
+}

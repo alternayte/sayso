@@ -260,6 +260,7 @@ func (a *API) storeEvents(ctx context.Context, run AgentRun, events []Event) err
 		return err
 	}
 	rows := make([][]any, 0, len(events))
+	var objs []storage.Object
 	for _, e := range events {
 		at, err := time.Parse(time.RFC3339Nano, e.At)
 		if err != nil {
@@ -280,9 +281,7 @@ func (a *API) storeEvents(ctx context.Context, run AgentRun, events []Event) err
 				return err
 			}
 			k := fmt.Sprintf("runs/%s/events/%d.json.gz", run.ID, e.Seq)
-			if err := store.Put(ctx, k, bytes.NewReader(gz), int64(len(gz))); err != nil {
-				return err
-			}
+			objs = append(objs, storage.Object{Key: k, Data: gz})
 			key = &k
 		}
 		var sid *uuid.UUID
@@ -291,6 +290,10 @@ func (a *API) storeEvents(ctx context.Context, run AgentRun, events []Event) err
 		}
 		rows = append(rows, []any{run.ID, e.Seq, at, e.Stage, e.Type, e.Name, e.Status, int32(e.DurationMS), e.TokensIn, e.TokensOut,
 			clip(a.RedactRun(e.Preview), 500), key, sid})
+	}
+	// Payloads go to the store before the index rows that point at them.
+	if err := storage.PutAll(ctx, store, objs); err != nil {
+		return err
 	}
 	return pgx.BeginFunc(ctx, a.Pool, func(tx pgx.Tx) error {
 		// A retried batch has the same sequence numbers; keep the first copy.

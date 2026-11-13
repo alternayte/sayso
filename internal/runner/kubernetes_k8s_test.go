@@ -47,6 +47,14 @@ func newCluster(t *testing.T, images ...string) *cluster {
 	}
 	t.Cleanup(func() { _ = c.Terminate(context.Background()) })
 	if len(images) > 0 {
+		// LoadImages saves local images; pull the ones a fresh machine lacks.
+		for _, img := range images {
+			if exec.Command("docker", "image", "inspect", img).Run() != nil {
+				if out, err := exec.Command("docker", "pull", "-q", img).CombinedOutput(); err != nil {
+					t.Fatalf("pull %s: %v %s", img, err, out)
+				}
+			}
+		}
 		if err := c.LoadImages(ctx, images...); err != nil {
 			t.Fatalf("load images: %v", err)
 		}
@@ -62,6 +70,18 @@ func newCluster(t *testing.T, images ...string) *cluster {
 	cs, err := kubernetes.NewForConfig(rc)
 	if err != nil {
 		t.Fatal(err)
+	}
+	// Pods are refused until the namespace has its default service account,
+	// and the Job controller then backs off for minutes.
+	deadline := time.Now().Add(2 * time.Minute)
+	for {
+		if _, err := cs.CoreV1().ServiceAccounts("default").Get(ctx, "default", metav1.GetOptions{}); err == nil {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("the default service account did not appear")
+		}
+		time.Sleep(time.Second)
 	}
 	return &cluster{c: c, client: cs}
 }
