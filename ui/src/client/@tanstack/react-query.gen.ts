@@ -3,8 +3,8 @@
 import { type InfiniteData, infiniteQueryOptions, queryOptions, type UseMutationOptions } from '@tanstack/react-query';
 
 import { client } from '../client.gen';
-import { createAppManifest, createMcpServer, createProvider, createSetupSession, deleteGrant, deleteMcpServer, deleteProfile, deleteProvider, deleteTeamRole, getAccess, getDiagnostics, getGithub, getMe, getRepository, getSettingHistory, getSetupState, listAudit, listAuditActions, listMcpServers, listProfiles, listProviderModels, listProviderPresets, listProviders, listRepositories, listSettings, type Options, putGrant, putProfile, putSetting, putTeamRole, setRepositoryMcp, setRepositoryMode, setRepositoryProfiles, testMcpServer, testProvider, updateMcpServer, updateProvider } from '../sdk.gen';
-import type { CreateAppManifestData, CreateAppManifestError, CreateAppManifestResponse, CreateMcpServerData, CreateMcpServerError, CreateMcpServerResponse, CreateProviderData, CreateProviderError, CreateProviderResponse, CreateSetupSessionData, CreateSetupSessionError, CreateSetupSessionResponse, DeleteGrantData, DeleteGrantError, DeleteGrantResponse, DeleteMcpServerData, DeleteMcpServerError, DeleteMcpServerResponse, DeleteProfileData, DeleteProfileError, DeleteProfileResponse, DeleteProviderData, DeleteProviderError, DeleteProviderResponse, DeleteTeamRoleData, DeleteTeamRoleError, DeleteTeamRoleResponse, GetAccessData, GetAccessError, GetAccessResponse, GetDiagnosticsData, GetDiagnosticsError, GetDiagnosticsResponse, GetGithubData, GetGithubError, GetGithubResponse, GetMeData, GetMeError, GetMeResponse, GetRepositoryData, GetRepositoryError, GetRepositoryResponse, GetSettingHistoryData, GetSettingHistoryError, GetSettingHistoryResponse, GetSetupStateData, GetSetupStateError, GetSetupStateResponse, ListAuditActionsData, ListAuditActionsError, ListAuditActionsResponse, ListAuditData, ListAuditError, ListAuditResponse, ListMcpServersData, ListMcpServersError, ListMcpServersResponse, ListProfilesData, ListProfilesError, ListProfilesResponse, ListProviderModelsData, ListProviderModelsError, ListProviderModelsResponse, ListProviderPresetsData, ListProviderPresetsError, ListProviderPresetsResponse, ListProvidersData, ListProvidersError, ListProvidersResponse, ListRepositoriesData, ListRepositoriesError, ListRepositoriesResponse, ListSettingsData, ListSettingsError, ListSettingsResponse, PutGrantData, PutGrantError, PutGrantResponse, PutProfileData, PutProfileError, PutProfileResponse, PutSettingData, PutSettingError, PutSettingResponse, PutTeamRoleData, PutTeamRoleError, PutTeamRoleResponse, SetRepositoryMcpData, SetRepositoryMcpError, SetRepositoryMcpResponse, SetRepositoryModeData, SetRepositoryModeError, SetRepositoryModeResponse, SetRepositoryProfilesData, SetRepositoryProfilesError, SetRepositoryProfilesResponse, TestMcpServerData, TestMcpServerError, TestMcpServerResponse, TestProviderData, TestProviderError, TestProviderResponse, UpdateMcpServerData, UpdateMcpServerError, UpdateMcpServerResponse, UpdateProviderData, UpdateProviderError, UpdateProviderResponse } from '../types.gen';
+import { createAppManifest, createMcpServer, createProvider, createSetupSession, deleteFeed, deleteGrant, deleteMcpServer, deleteProfile, deleteProvider, deleteTeamRole, getAccess, getDiagnostics, getGithub, getMe, getRepository, getSettingHistory, getSetupState, listAudit, listAuditActions, listFeeds, listMcpServers, listProfiles, listProviderModels, listProviderPresets, listProviders, listRepositories, listSettings, type Options, putFeed, putGrant, putProfile, putSetting, putTeamRole, setRepositoryMcp, setRepositoryMode, setRepositoryProfiles, testFeed, testMcpServer, testProvider, updateMcpServer, updateProvider } from '../sdk.gen';
+import type { CreateAppManifestData, CreateAppManifestError, CreateAppManifestResponse, CreateMcpServerData, CreateMcpServerError, CreateMcpServerResponse, CreateProviderData, CreateProviderError, CreateProviderResponse, CreateSetupSessionData, CreateSetupSessionError, CreateSetupSessionResponse, DeleteFeedData, DeleteFeedError, DeleteFeedResponse, DeleteGrantData, DeleteGrantError, DeleteGrantResponse, DeleteMcpServerData, DeleteMcpServerError, DeleteMcpServerResponse, DeleteProfileData, DeleteProfileError, DeleteProfileResponse, DeleteProviderData, DeleteProviderError, DeleteProviderResponse, DeleteTeamRoleData, DeleteTeamRoleError, DeleteTeamRoleResponse, GetAccessData, GetAccessError, GetAccessResponse, GetDiagnosticsData, GetDiagnosticsError, GetDiagnosticsResponse, GetGithubData, GetGithubError, GetGithubResponse, GetMeData, GetMeError, GetMeResponse, GetRepositoryData, GetRepositoryError, GetRepositoryResponse, GetSettingHistoryData, GetSettingHistoryError, GetSettingHistoryResponse, GetSetupStateData, GetSetupStateError, GetSetupStateResponse, ListAuditActionsData, ListAuditActionsError, ListAuditActionsResponse, ListAuditData, ListAuditError, ListAuditResponse, ListFeedsData, ListFeedsError, ListFeedsResponse, ListMcpServersData, ListMcpServersError, ListMcpServersResponse, ListProfilesData, ListProfilesError, ListProfilesResponse, ListProviderModelsData, ListProviderModelsError, ListProviderModelsResponse, ListProviderPresetsData, ListProviderPresetsError, ListProviderPresetsResponse, ListProvidersData, ListProvidersError, ListProvidersResponse, ListRepositoriesData, ListRepositoriesError, ListRepositoriesResponse, ListSettingsData, ListSettingsError, ListSettingsResponse, PutFeedData, PutFeedError, PutFeedResponse, PutGrantData, PutGrantError, PutGrantResponse, PutProfileData, PutProfileError, PutProfileResponse, PutSettingData, PutSettingError, PutSettingResponse, PutTeamRoleData, PutTeamRoleError, PutTeamRoleResponse, SetRepositoryMcpData, SetRepositoryMcpError, SetRepositoryMcpResponse, SetRepositoryModeData, SetRepositoryModeError, SetRepositoryModeResponse, SetRepositoryProfilesData, SetRepositoryProfilesError, SetRepositoryProfilesResponse, TestFeedData, TestFeedError, TestFeedResponse2, TestMcpServerData, TestMcpServerError, TestMcpServerResponse, TestProviderData, TestProviderError, TestProviderResponse, UpdateMcpServerData, UpdateMcpServerError, UpdateMcpServerResponse, UpdateProviderData, UpdateProviderError, UpdateProviderResponse } from '../types.gen';
 
 export type QueryKey<TOptions extends Options> = [
     Pick<TOptions, 'baseUrl' | 'body' | 'headers' | 'path' | 'query'> & {
@@ -210,6 +210,63 @@ export const getDiagnosticsOptions = (options?: Options<GetDiagnosticsData>) => 
     },
     queryKey: getDiagnosticsQueryKey(options)
 });
+
+export const listFeedsQueryKey = (options?: Options<ListFeedsData>) => createQueryKey('listFeeds', options);
+
+export const listFeedsOptions = (options?: Options<ListFeedsData>) => queryOptions<ListFeedsResponse, ListFeedsError, ListFeedsResponse, ReturnType<typeof listFeedsQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await listFeeds({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: listFeedsQueryKey(options)
+});
+
+export const deleteFeedMutation = (options?: Partial<Options<DeleteFeedData>>): UseMutationOptions<DeleteFeedResponse, DeleteFeedError, Options<DeleteFeedData>> => {
+    const mutationOptions: UseMutationOptions<DeleteFeedResponse, DeleteFeedError, Options<DeleteFeedData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await deleteFeed({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const putFeedMutation = (options?: Partial<Options<PutFeedData>>): UseMutationOptions<PutFeedResponse, PutFeedError, Options<PutFeedData>> => {
+    const mutationOptions: UseMutationOptions<PutFeedResponse, PutFeedError, Options<PutFeedData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await putFeed({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const testFeedMutation = (options?: Partial<Options<TestFeedData>>): UseMutationOptions<TestFeedResponse2, TestFeedError, Options<TestFeedData>> => {
+    const mutationOptions: UseMutationOptions<TestFeedResponse2, TestFeedError, Options<TestFeedData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await testFeed({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
 
 export const getGithubQueryKey = (options?: Options<GetGithubData>) => createQueryKey('getGithub', options);
 

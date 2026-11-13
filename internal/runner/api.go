@@ -39,6 +39,8 @@ type API struct {
 	// Redact replaces known secret values.
 	Redact func(string) string
 	Now    func() time.Time
+	// OnComplete runs after a run ended, for the summary events.
+	OnComplete func(ctx context.Context, run uuid.UUID) error
 }
 
 type runKey struct{}
@@ -225,6 +227,9 @@ func (a *API) register(api huma.API) {
 				reason = "completed"
 			}
 			_, err := New(a.Pool).FinishRun(ctx, FinishRunParams{ID: run.ID, Status: status, ExitReason: reason})
+			if err == nil && a.OnComplete != nil {
+				err = a.OnComplete(ctx, run.ID)
+			}
 			if err == nil && c.Error != "" {
 				err = New(a.Pool).InsertServerEvent(ctx, InsertServerEventParams{RunID: run.ID, Type: "error", Name: "complete", Status: c.ExitStatus,
 					Preview: clip(a.RedactRun(c.Error), 500)})

@@ -261,6 +261,181 @@
         },
         "type": "object"
       },
+      "FeedBody": {
+        "additionalProperties": false,
+        "properties": {
+          "allowed_repositories": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "auth_header": {
+            "type": "string"
+          },
+          "auth_style": {
+            "type": "string"
+          },
+          "cache_enabled": {
+            "type": "boolean"
+          },
+          "cache_max_mb": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "checked_at": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "credential_exposed": {
+            "description": "Inject mode: the credential reaches agent runs",
+            "type": "boolean"
+          },
+          "inject_confirmed_by": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "match_urls": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "mode": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "proxy_url": {
+            "type": "string"
+          },
+          "repos": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "secret": {
+            "$ref": "#/components/schemas/Field"
+          },
+          "upstream_url": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "kind",
+          "upstream_url",
+          "auth_style",
+          "auth_header",
+          "username",
+          "secret",
+          "mode",
+          "credential_exposed",
+          "inject_confirmed_by",
+          "match_urls",
+          "repos",
+          "allowed_repositories",
+          "cache_enabled",
+          "cache_max_mb",
+          "proxy_url",
+          "checked_at"
+        ],
+        "type": "object"
+      },
+      "FeedInput": {
+        "additionalProperties": false,
+        "properties": {
+          "allowed_repositories": {
+            "description": "Empty: all repositories",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "auth_header": {
+            "type": "string"
+          },
+          "auth_style": {
+            "enum": [
+              "basic",
+              "bearer",
+              "header"
+            ],
+            "type": "string"
+          },
+          "cache_enabled": {
+            "type": "boolean"
+          },
+          "cache_max_mb": {
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "confirm_inject": {
+            "description": "Inject mode gives the credential to agent runs; confirm it",
+            "type": "boolean"
+          },
+          "kind": {
+            "enum": [
+              "npm",
+              "nuget",
+              "pypi",
+              "maven",
+              "goproxy",
+              "github"
+            ],
+            "type": "string"
+          },
+          "match_urls": {
+            "description": "Upstream URLs as repository files write them",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "mode": {
+            "enum": [
+              "proxy",
+              "inject"
+            ],
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "repos": {
+            "description": "Kind github: owner/name of the readable repositories",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "secret": {
+            "$ref": "#/components/schemas/Input"
+          },
+          "upstream_url": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "kind"
+        ],
+        "type": "object"
+      },
       "Field": {
         "additionalProperties": false,
         "properties": {
@@ -1158,6 +1333,22 @@
         ],
         "type": "object"
       },
+      "Test-feedResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "detail": {
+            "type": "string"
+          },
+          "ok": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ok",
+          "detail"
+        ],
+        "type": "object"
+      },
       "Test-providerRequest": {
         "additionalProperties": false,
         "properties": {
@@ -1541,6 +1732,160 @@
         },
         "tags": [
           "diagnostics"
+        ]
+      }
+    },
+    "/api/v1/feeds": {
+      "get": {
+        "operationId": "list-feeds",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/FeedBody"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "tags": [
+          "feeds"
+        ]
+      }
+    },
+    "/api/v1/feeds/{name}": {
+      "delete": {
+        "operationId": "delete-feed",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "tags": [
+          "feeds"
+        ]
+      },
+      "put": {
+        "operationId": "put-feed",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeedInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "tags": [
+          "feeds"
+        ]
+      }
+    },
+    "/api/v1/feeds/{name}/test": {
+      "post": {
+        "operationId": "test-feed",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Test-feedResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "tags": [
+          "feeds"
         ]
       }
     },

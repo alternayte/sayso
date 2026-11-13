@@ -29,6 +29,7 @@ type Spec struct {
 	Models      []SpecModel       `json:"models" doc:"Targets of the profiles, in fallback order per profile."`
 	MCP         []SpecMCP         `json:"mcp"`
 	Extensions  []SpecExtension   `json:"extensions"`
+	Feeds       []SpecFeed        `json:"feeds"`
 	Limits      Limits            `json:"limits"`
 	Prompts     Prompts           `json:"prompts"`
 	Execution   bool              `json:"execution" doc:"False: no stage may run a command or write a file (SI-21)."`
@@ -126,6 +127,20 @@ type SpecExtension struct {
 	Name    string            `json:"name"`
 	Package string            `json:"package"`
 	Env     map[string]string `json:"env,omitempty"`
+}
+
+// SpecFeed is one package feed of a run (§8.11). URL is the package proxy,
+// except in inject mode, where the credential reaches the run.
+type SpecFeed struct {
+	Name       string   `json:"name"`
+	Kind       string   `json:"kind" enum:"npm,nuget,pypi,maven,goproxy,github"`
+	Mode       string   `json:"mode" enum:"proxy,inject"`
+	URL        string   `json:"url"`
+	MatchURLs  []string `json:"match_urls"`
+	Repos      []string `json:"repos"`
+	Credential string   `json:"credential,omitempty"`
+	Username   string   `json:"username,omitempty"`
+	AuthStyle  string   `json:"auth_style,omitempty"`
 }
 
 // Limits of a run (§8.8).
@@ -347,6 +362,9 @@ func (s *Spec) normalize() {
 	}
 	if s.Extensions == nil {
 		s.Extensions = []SpecExtension{}
+	}
+	if s.Feeds == nil {
+		s.Feeds = []SpecFeed{}
 	}
 	if s.Profiles == nil {
 		s.Profiles = map[string]string{}

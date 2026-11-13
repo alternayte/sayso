@@ -294,6 +294,7 @@ export type Spec = {
      */
     execution: boolean;
     extensions: Array<SpecExtension>;
+    feeds: Array<SpecFeed>;
     fix?: FixInput;
     head_sha: string;
     kind: 'round' | 'reply' | 'fix' | 'noop';
@@ -327,6 +328,18 @@ export type SpecExtension = {
     };
     name: string;
     package: string;
+};
+
+export type SpecFeed = {
+    auth_style?: string;
+    credential?: string;
+    kind: 'npm' | 'nuget' | 'pypi' | 'maven' | 'goproxy' | 'github';
+    match_urls: Array<string>;
+    mode: 'proxy' | 'inject';
+    name: string;
+    repos: Array<string>;
+    url: string;
+    username?: string;
 };
 
 export type SpecMcp = {

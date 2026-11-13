@@ -68,3 +68,28 @@ func enrichSpec(d *Deps, f *Features) func(context.Context, runner.AgentRun, *ru
 		return nil
 	}
 }
+
+// feedGitHubToken mints an installation token with contents:read for the
+// repositories of a github feed (§8.11).
+func feedGitHubToken(ctx context.Context, d *Deps, f *Features, full []string) (string, string, error) {
+	app, err := github.LoadApp(ctx, d.Pool, f.Secrets)
+	if err != nil {
+		return "", "", err
+	}
+	gh, err := f.GitHubClient(ctx)
+	if err != nil {
+		return "", "", err
+	}
+	var inst int64
+	var names []string
+	for _, r := range full {
+		repo, err := repos.New(d.Pool).ByFullName(ctx, r)
+		if err != nil {
+			return "", "", fmt.Errorf("feed repository %s: %w", r, err)
+		}
+		inst = repo.InstallationID
+		names = append(names, r[strings.IndexByte(r, '/')+1:])
+	}
+	tok, err := gh.InstallationToken(ctx, app, inst, github.TokenRequest{Repositories: names, Permissions: map[string]string{"contents": "read", "metadata": "read"}})
+	return tok, gh.WebURL, err
+}
