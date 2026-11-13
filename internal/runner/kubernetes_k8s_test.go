@@ -20,6 +20,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/alternayte/sayso/internal/runner"
@@ -33,6 +34,8 @@ const (
 type cluster struct {
 	c      *k3s.K3sContainer
 	client kubernetes.Interface
+	// kube is the runner's own client; the clientset only inspects the cluster.
+	kube *runner.KubeClient
 }
 
 func newCluster(t *testing.T, images ...string) *cluster {
@@ -83,7 +86,12 @@ func newCluster(t *testing.T, images ...string) *cluster {
 		}
 		time.Sleep(time.Second)
 	}
-	return &cluster{c: c, client: cs}
+	hc, err := rest.HTTPClientFor(rc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	kube := runner.NewKubeClient(rc.Host, hc)
+	return &cluster{c: c, client: cs, kube: kube}
 }
 
 // apply runs kubectl apply inside the k3s container.
@@ -106,7 +114,7 @@ func (k *cluster) apply(t *testing.T, manifest []byte) {
 func TestSCN_RUN_003_KubernetesJob(t *testing.T) {
 	k := newCluster(t)
 	ctx := context.Background()
-	kr := &runner.Kubernetes{Client: k.client, Namespace: "default", Image: "sayso-agent:dev", Poll: time.Second,
+	kr := &runner.Kubernetes{Client: k.kube, Namespace: "default", Image: "sayso-agent:dev", Poll: time.Second,
 		Resources: runner.Resources{CPURequest: "100m", CPULimit: "1", MemoryRequest: "128Mi", MemoryLimit: "1Gi"}}
 	if err := kr.CheckPermissions(ctx); err != nil {
 		t.Fatalf("permissions of the test admin: %v", err)

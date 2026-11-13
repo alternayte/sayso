@@ -3,9 +3,6 @@ package app
 import (
 	"errors"
 
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
-
 	"github.com/alternayte/sayso/internal/runner"
 )
 
@@ -15,13 +12,14 @@ func KubernetesRunner(cfg *Config) (*runner.Kubernetes, error) {
 	if cfg.K8sNamespace == "" {
 		return nil, errors.New("SAYSO_K8S_NAMESPACE is required for the kubernetes runner")
 	}
-	rc, err := rest.InClusterConfig()
+	c, err := runner.InClusterKubeClient()
 	if err != nil {
 		return nil, err
 	}
-	c, err := kubernetes.NewForConfig(rc)
-	if err != nil {
+	k := &runner.Kubernetes{Client: c, Namespace: cfg.K8sNamespace, Image: cfg.AgentImage, Resources: cfg.K8sResources}
+	// A wrong quantity fails at start, not at the first round.
+	if _, err := k.Job(runner.Job{RunID: "check", Image: "check"}); err != nil {
 		return nil, err
 	}
-	return &runner.Kubernetes{Client: c, Namespace: cfg.K8sNamespace, Image: cfg.AgentImage}, nil
+	return k, nil
 }
