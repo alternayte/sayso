@@ -19,6 +19,13 @@ function anyRun(): string {
   );
 }
 
+// Slow rounds of the earlier specs can still hold the admission slots.
+test.beforeAll(async () => {
+  await expect
+    .poll(() => sql(`SELECT count(*) FROM agent_runs WHERE status IN ('queued', 'running')`), { timeout: 240_000, intervals: [2000] })
+    .toBe("0");
+});
+
 test("SCN-OBS-005 the run page shows new events without reload", async ({
   page,
 }) => {
