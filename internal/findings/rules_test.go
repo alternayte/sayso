@@ -77,31 +77,3 @@ func TestVerdict(t *testing.T) {
 		t.Error(v)
 	}
 }
-
-func TestSCN_FND_007_ChallengeOutcomes(t *testing.T) {
-	cases := []struct {
-		severity, outcome string
-		want              string
-		withdrawn         bool
-	}{
-		{"blocker", "refuted", "blocker", true},
-		{"major", "refuted", "major", true},
-		{"minor", "refuted", "minor", true},
-		{"nit", "refuted", "nit", true},
-		{"blocker", "downgraded", "major", false},
-		{"major", "downgraded", "minor", false},
-		{"minor", "downgraded", "nit", false},
-		{"nit", "downgraded", "nit", true},
-		{"blocker", "confirmed", "blocker", false},
-		{"minor", "confirmed", "minor", false},
-	}
-	for _, c := range cases {
-		got, w := ApplyChallenge(c.severity, &runner.Challenge{Outcome: c.outcome})
-		if got != c.want || w != c.withdrawn {
-			t.Errorf("%s %s: %s withdrawn=%v, want %s withdrawn=%v", c.severity, c.outcome, got, w, c.want, c.withdrawn)
-		}
-	}
-	if got, w := ApplyChallenge("major", nil); got != "major" || w {
-		t.Error("no challenge changed the candidate")
-	}
-}

@@ -1,0 +1,182 @@
+marker: '[script:e2e-many]'
+stages:
+  review:
+  - tools:
+    - name: record_finding
+      args:
+        severity: major
+        category: c0
+        title: Unused import of strconv
+        body: Finding 0 body.
+        path: ledger/fees.go
+        start_line: 3
+        end_line: 3
+        evidence:
+          kind: reasoning
+          detail: Detail 0.
+    - name: record_finding
+      args:
+        severity: major
+        category: c1
+        title: Function too long to follow
+        body: Finding 1 body.
+        path: ledger/fees.go
+        start_line: 4
+        end_line: 4
+        evidence:
+          kind: reasoning
+          detail: Detail 1.
+    - name: record_finding
+      args:
+        severity: major
+        category: c2
+        title: Magic number for rate
+        body: Finding 2 body.
+        path: ledger/fees.go
+        start_line: 5
+        end_line: 5
+        evidence:
+          kind: reasoning
+          detail: Detail 2.
+    - name: record_finding
+      args:
+        severity: major
+        category: c3
+        title: Shadowed error variable
+        body: Finding 3 body.
+        path: ledger/fees.go
+        start_line: 6
+        end_line: 6
+        evidence:
+          kind: reasoning
+          detail: Detail 3.
+    - name: record_finding
+      args:
+        severity: major
+        category: c4
+        title: Exported type lacks docs
+        body: Finding 4 body.
+        path: ledger/fees.go
+        start_line: 7
+        end_line: 7
+        evidence:
+          kind: reasoning
+          detail: Detail 4.
+    - name: record_finding
+      args:
+        severity: minor
+        category: c5
+        title: Duplicated rounding branch
+        body: Finding 5 body.
+        path: ledger/fees.go
+        start_line: 8
+        end_line: 8
+        evidence:
+          kind: reasoning
+          detail: Detail 5.
+    - name: record_finding
+      args:
+        severity: minor
+        category: c6
+        title: Error wrap loses cause
+        body: Finding 6 body.
+        path: ledger/fees.go
+        start_line: 9
+        end_line: 9
+        evidence:
+          kind: reasoning
+          detail: Detail 6.
+    - name: record_finding
+      args:
+        severity: minor
+        category: c7
+        title: Ignored close error
+        body: Finding 7 body.
+        path: ledger/fees.go
+        start_line: 10
+        end_line: 10
+        evidence:
+          kind: reasoning
+          detail: Detail 7.
+    - name: record_finding
+      args:
+        severity: minor
+        category: c8
+        title: Unclear parameter name
+        body: Finding 8 body.
+        path: ledger/fees.go
+        start_line: 11
+        end_line: 11
+        evidence:
+          kind: reasoning
+          detail: Detail 8.
+    - name: record_finding
+      args:
+        severity: minor
+        category: c9
+        title: Unreachable return path
+        body: Finding 9 body.
+        path: ledger/fees.go
+        start_line: 12
+        end_line: 12
+        evidence:
+          kind: reasoning
+          detail: Detail 9.
+    - name: record_finding
+      args:
+        severity: nit
+        category: c10
+        title: Trailing whitespace
+        body: Finding 10 body.
+        path: ledger/fees.go
+        start_line: 14
+        end_line: 14
+        evidence:
+          kind: reasoning
+          detail: Detail 10.
+    - name: record_finding
+      args:
+        severity: nit
+        category: c11
+        title: Odd brace spacing
+        body: Finding 11 body.
+        path: ledger/fees.go
+        start_line: 15
+        end_line: 15
+        evidence:
+          kind: reasoning
+          detail: Detail 11.
+    - name: record_finding
+      args:
+        severity: nit
+        category: c12
+        title: Comment typo cents
+        body: Finding 12 body.
+        path: ledger/fees.go
+        start_line: 16
+        end_line: 16
+        evidence:
+          kind: reasoning
+          detail: Detail 12.
+    - name: record_finding
+      args:
+        severity: major
+        category: c13
+        title: Handler ignores new fee
+        body: Finding 13 body.
+        path: api/handler.go
+        start_line: 3
+        end_line: 3
+        evidence:
+          kind: reasoning
+          detail: Detail 13.
+  - tools:
+    - name: set_assessment
+      args:
+        tldr: The change adds fees.
+        risk: low
+        risk_reasons:
+        - new file
+        where_to_look: []
+        impact: []
+  - text: Review done.

@@ -1,0 +1,14 @@
+marker: '[script:e2e-slow-start]'
+stages:
+  review:
+  - delay_ms: 8000
+    tools:
+    - name: set_assessment
+      args:
+        tldr: The change is small.
+        risk: low
+        risk_reasons:
+        - small change
+        where_to_look: []
+        impact: []
+  - text: Review done.

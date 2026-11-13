@@ -175,7 +175,7 @@ func (f *Fake) decide(p parsed, noTools bool) (reply, bool) {
 		return r, false
 	}
 	if sc := f.script(p.System + "\n" + p.Prompt); sc != nil {
-		st := sc.step(p.System, p.Turns)
+		st := sc.step(p.System, p.Prompt, p.Turns)
 		r.Text, r.Delay = st.Text, time.Duration(st.DelayMS)*time.Millisecond
 		for _, c := range st.Tools {
 			b, _ := json.Marshal(c.Args)
