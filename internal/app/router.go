@@ -7,6 +7,8 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/google/uuid"
+
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humachi"
 	"github.com/go-chi/chi/v5"
@@ -25,6 +27,7 @@ import (
 	"github.com/alternayte/sayso/internal/secrets"
 	"github.com/alternayte/sayso/internal/settings"
 	"github.com/alternayte/sayso/internal/skills"
+	"github.com/alternayte/sayso/internal/steering"
 	"github.com/alternayte/sayso/internal/storage"
 )
 
@@ -46,6 +49,7 @@ type Features struct {
 	Skills       *skills.Resolver
 	Extensions   *skills.Extensions
 	Reporter     *skills.Reporter
+	Stores       *storage.Registry
 }
 
 // NewFeatures builds the feature services on the shared resources.
@@ -89,11 +93,12 @@ func NewFeatures(ctx context.Context, d *Deps) (*Features, error) {
 	f := &Features{Settings: st, Secrets: sec, Auth: a, GitHubClient: gh, RateLimits: limits, Tokens: tokens, Ingest: ingest,
 		Models: models.NewService(d.Pool, sec, hc, d.Redactor.Redact, d.Log), ProxyMetrics: models.NewProxyMetrics(d.Metrics),
 		MCP: mcpproxy.NewService(d.Pool, sec, hc, d.Log)}
+	f.Stores = &storage.Registry{Pool: d.Pool, Secret: func(ctx context.Context, id uuid.UUID) (string, error) { return sec.ValueOf(ctx, &id) }}
 	f.MCPProxy = f.MCP.NewProxy(d.Redactor.Redact)
 	f.Skills = &skills.Resolver{Settings: st, Secrets: sec}
 	f.Extensions = &skills.Extensions{Pool: d.Pool, Secrets: sec, Baked: skills.BakedExtensions()}
-	f.Reporter = &skills.Reporter{Pool: d.Pool, Secrets: sec, Settings: st, Stores: &storage.Registry{Pool: d.Pool}, HTTP: hc, BaseURL: d.Config.BaseURL}
-	f.Feeds = feeds.NewService(d.Pool, sec, &storage.Registry{Pool: d.Pool}, hc, d.Log, d.Redactor.Redact, d.Config.RunnerAPIURL,
+	f.Reporter = &skills.Reporter{Pool: d.Pool, Secrets: sec, Settings: st, Stores: f.Stores, HTTP: hc, BaseURL: d.Config.BaseURL}
+	f.Feeds = feeds.NewService(d.Pool, sec, f.Stores, hc, d.Log, d.Redactor.Redact, d.Config.RunnerAPIURL,
 		func(ctx context.Context, repos []string) (string, string, error) {
 			return feedGitHubToken(ctx, d, f, repos)
 		})
@@ -132,7 +137,7 @@ func NewHandler(d *Deps, f *Features) http.Handler {
 	r.Get("/setup/github/callback", f.Auth.ManifestCallback)
 	r.Post("/webhooks/github", f.Ingest.ServeHTTP)
 	r.Handle("/llm/{provider}/*", f.Models.Proxy(f.ProxyMetrics))
-	ra := &runner.API{Pool: d.Pool, Stores: &storage.Registry{Pool: d.Pool}, Enrich: enrichSpec(d, f), Redact: d.Redactor.Redact,
+	ra := &runner.API{Pool: d.Pool, Stores: f.Stores, Enrich: enrichSpec(d, f), Redact: d.Redactor.Redact,
 		OnComplete: f.Feeds.Summary}
 	r.Mount("/api/runner/v1", ra.Handler())
 	r.Handle("/mcp/{name}", f.MCPProxy)
@@ -160,6 +165,12 @@ func registerOperations(api huma.API, d *Deps, f *Features) {
 		rv.Namespace = d.Config.TemporalNamespace
 	}
 	rv.Register(v1, auth.Op(auth.Viewer), auth.Op(auth.Maintainer), actor)
+	(&runner.RunsAPI{Pool: d.Pool, Stores: f.Stores}).Register(v1, auth.Op(auth.Viewer))
+	(&storage.API{Registry: f.Stores, Secrets: f.Secrets}).Register(v1, auth.Op(auth.Admin), actor)
+	(&steering.API{Pool: d.Pool}).Register(v1, auth.Op(auth.Viewer), auth.Op(auth.Maintainer), func(ctx context.Context) string {
+		u, _ := f.Settings.String(ctx, settings.GitHubWebURL)
+		return u
+	}, actor)
 	repos.Register(v1, d.Pool, repos.Access{View: auth.Op(auth.Viewer), Edit: auth.Op(auth.Maintainer), Actor: actor,
 		AllowedProfiles: func(ctx context.Context) ([]string, error) {
 			var allowed []string

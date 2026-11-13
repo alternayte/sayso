@@ -19,3 +19,9 @@ SELECT * FROM stores WHERE is_default;
 
 -- name: StoreByID :one
 SELECT * FROM stores WHERE id = $1;
+
+-- name: ListStores :many
+SELECT * FROM stores ORDER BY is_default DESC, name;
+
+-- name: StoreByName :one
+SELECT * FROM stores WHERE name = $1;

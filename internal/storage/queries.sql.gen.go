@@ -76,6 +76,39 @@ func (q *Queries) ListBlobs(ctx context.Context, prefix string) ([]string, error
 	return items, nil
 }
 
+const listStores = `-- name: ListStores :many
+SELECT id, name, driver, config, secret_id, is_default, retention_days, created_at FROM stores ORDER BY is_default DESC, name
+`
+
+func (q *Queries) ListStores(ctx context.Context) ([]StoreRow, error) {
+	rows, err := q.db.Query(ctx, listStores)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []StoreRow
+	for rows.Next() {
+		var i StoreRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Driver,
+			&i.Config,
+			&i.SecretID,
+			&i.IsDefault,
+			&i.RetentionDays,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const putBlob = `-- name: PutBlob :exec
 INSERT INTO blobs (key, data) VALUES ($1, $2)
 ON CONFLICT (key) DO UPDATE SET data = EXCLUDED.data, created_at = now()
@@ -113,6 +146,26 @@ SELECT id, name, driver, config, secret_id, is_default, retention_days, created_
 
 func (q *Queries) StoreByID(ctx context.Context, id uuid.UUID) (StoreRow, error) {
 	row := q.db.QueryRow(ctx, storeByID, id)
+	var i StoreRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Driver,
+		&i.Config,
+		&i.SecretID,
+		&i.IsDefault,
+		&i.RetentionDays,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const storeByName = `-- name: StoreByName :one
+SELECT id, name, driver, config, secret_id, is_default, retention_days, created_at FROM stores WHERE name = $1
+`
+
+func (q *Queries) StoreByName(ctx context.Context, name string) (StoreRow, error) {
+	row := q.db.QueryRow(ctx, storeByName, name)
 	var i StoreRow
 	err := row.Scan(
 		&i.ID,

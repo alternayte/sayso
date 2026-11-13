@@ -17,7 +17,7 @@ import (
 var ErrNoResult = errors.New("the agent run stored no result.json")
 
 // ReadResult reads result.json of an agent run from its store.
-func ReadResult(ctx context.Context, pool *pgxpool.Pool, runID uuid.UUID) (*Result, error) {
+func ReadResult(ctx context.Context, pool *pgxpool.Pool, stores *storage.Registry, runID uuid.UUID) (*Result, error) {
 	var storeID uuid.UUID
 	var key string
 	err := pool.QueryRow(ctx, `SELECT store_id, key FROM artifacts WHERE run_id = $1 AND name = 'result.json'`, runID).Scan(&storeID, &key)
@@ -27,7 +27,7 @@ func ReadResult(ctx context.Context, pool *pgxpool.Pool, runID uuid.UUID) (*Resu
 	if err != nil {
 		return nil, err
 	}
-	st, err := (&storage.Registry{Pool: pool}).ByID(ctx, storeID)
+	st, err := stores.ByID(ctx, storeID)
 	if err != nil {
 		return nil, err
 	}

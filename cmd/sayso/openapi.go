@@ -23,8 +23,10 @@ func openapiCmd() *cobra.Command {
 			b, err = runner.OpenAPI()
 		case "result":
 			b, err = resultSchema()
+		case "case":
+			b, err = caseSchema()
 		default:
-			return fmt.Errorf("--doc: use api, runner or result")
+			return fmt.Errorf("--doc: use api, runner, result or case")
 		}
 		if err != nil {
 			return err
@@ -32,7 +34,7 @@ func openapiCmd() *cobra.Command {
 		_, err = c.OutOrStdout().Write(append(b, '\n'))
 		return err
 	}}
-	c.Flags().StringVar(&doc, "doc", "api", "api, runner, or result (the JSON Schema of result.json)")
+	c.Flags().StringVar(&doc, "doc", "api", "api, runner, result (the JSON Schema of result.json) or case (the export case file, §15.4)")
 	return c
 }
 
@@ -43,6 +45,21 @@ func resultSchema() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	return standalone(raw, "Result", "https://sayso.dev/schemas/result.schema.json", "Sayso agent run result")
+}
+
+// caseSchema is the JSON Schema of the export case file (§15.4).
+func caseSchema() ([]byte, error) {
+	raw, err := app.OpenAPI()
+	if err != nil {
+		return nil, err
+	}
+	return standalone(raw, "CaseFile", "https://sayso.dev/schemas/case.schema.json", "Sayso steering case")
+}
+
+// standalone turns one schema of an OpenAPI document into a JSON Schema
+// with its referenced schemas under $defs.
+func standalone(raw []byte, rootName, id, title string) ([]byte, error) {
 	var doc struct {
 		Components struct {
 			Schemas map[string]map[string]any `json:"schemas"`
@@ -77,12 +94,12 @@ func resultSchema() ([]byte, error) {
 			}
 		}
 	}
-	root := all["Result"]
+	root := all[rootName]
 	if root == nil {
-		return nil, fmt.Errorf("the runner API has no Result schema")
+		return nil, fmt.Errorf("the API document has no %s schema", rootName)
 	}
 	walk(root)
-	out := map[string]any{"$schema": "https://json-schema.org/draft/2020-12/schema", "$id": "https://sayso.dev/schemas/result.schema.json", "title": "Sayso agent run result"}
+	out := map[string]any{"$schema": "https://json-schema.org/draft/2020-12/schema", "$id": id, "title": title}
 	for k, v := range root {
 		out[k] = v
 	}

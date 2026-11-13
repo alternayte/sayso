@@ -168,3 +168,10 @@ func TestSCN_LIFE_005_RepliesWaitCommandsDoNot(t *testing.T) {
 		t.Fatalf("Sayso replies in the thread: %d", replies)
 	}
 }
+
+func (e *env) reply(t *testing.T, n int, top int64, author, body string) {
+	t.Helper()
+	if _, code := e.GitHub.AddReviewComment("acme/payments", n, author, body, "", 0, top); code != http.StatusOK {
+		t.Fatalf("reply: %d", code)
+	}
+}
