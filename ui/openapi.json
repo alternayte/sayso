@@ -481,6 +481,20 @@
         ],
         "type": "object"
       },
+      "Dismiss-findingRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "reason": {
+            "maxLength": 500,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "type": "object"
+      },
       "EntryBody": {
         "additionalProperties": false,
         "properties": {
@@ -1980,11 +1994,20 @@
           "risk": {
             "type": "string"
           },
+          "signals": {
+            "items": {
+              "$ref": "#/components/schemas/SignalBody"
+            },
+            "type": "array"
+          },
           "skill_ref": {
             "$ref": "#/components/schemas/SkillRef"
           },
           "status": {
             "type": "string"
+          },
+          "steering_review": {
+            "$ref": "#/components/schemas/SteeringNote"
           },
           "temporal_url": {
             "type": "string"
@@ -2002,6 +2025,7 @@
           "mode",
           "findings",
           "can_cancel",
+          "signals",
           "id",
           "head_sha",
           "trigger",
@@ -2565,6 +2589,34 @@
           "budget_spent",
           "monthly_budget_usd",
           "month_spent_usd"
+        ],
+        "type": "object"
+      },
+      "SteeringNote": {
+        "additionalProperties": false,
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "author": {
+            "type": "string"
+          },
+          "note": {
+            "type": "string"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "tags",
+          "note",
+          "author",
+          "at"
         ],
         "type": "object"
       },
@@ -3600,6 +3652,57 @@
         },
         "tags": [
           "feeds"
+        ]
+      }
+    },
+    "/api/v1/findings/{id}/dismiss": {
+      "post": {
+        "operationId": "dismiss-finding",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Dismiss-findingRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FindingBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "tags": [
+          "reviews"
         ]
       }
     },

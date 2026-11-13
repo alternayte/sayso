@@ -1,7 +1,9 @@
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { listReviewsOptions } from "@/client/@tanstack/react-query.gen";
-import { ErrorAlert, PageHead } from "@/components/app-ui";
+import { ErrorAlert, PageHead, Segmented } from "@/components/app-ui";
+import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -10,11 +12,35 @@ import { RoundStatus, sha7, Verdict } from "@/lib/review";
 
 export const Route = createFileRoute("/_app/")({ component: Home });
 
+type State = "" | "open" | "paused" | "closed" | "merged";
+
 function Home() {
-  const list = useQuery(listReviewsOptions());
+  const [state, setState] = useState<State>("");
+  const [repo, setRepo] = useState("");
+  const list = useQuery({
+    ...listReviewsOptions({ query: { state: state || undefined, repository: repo || undefined } }),
+    placeholderData: keepPreviousData,
+  });
   return (
     <>
       <PageHead title={t("home.title")} hint={t("home.hint")} />
+      <div className="mb-4 flex flex-wrap items-end gap-4">
+        <Segmented
+          label={t("reviews.filter.state")}
+          options={(["", "open", "paused", "closed", "merged"] as const).map((v) => ({
+            value: v,
+            label: v ? t(`review.state.${v}`) : t("reviews.filter.all"),
+          }))}
+          value={state}
+          onChange={setState}
+        />
+        <div className="grid gap-1.5">
+          <label className="t-label" htmlFor="reviews-repo">
+            {t("reviews.filter.repository")}
+          </label>
+          <Input mono id="reviews-repo" value={repo} placeholder="acme/payments" onChange={(e) => setRepo(e.target.value.trim())} />
+        </div>
+      </div>
       {list.isPending ? (
         <Skeleton className="h-40 w-full" />
       ) : list.error ? (
@@ -24,7 +50,8 @@ function Home() {
           <p className="t-hint">{t("home.empty")}</p>
         </Card>
       ) : (
-        <Card className="overflow-x-auto">
+        <Card className="relative overflow-x-auto">
+          {list.isFetching ? <div className="progress-line" role="progressbar" aria-label={t("loading.list")} /> : null}
           <Table>
             <TableHeader>
               <TableRow>

@@ -1,8 +1,12 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type React from "react";
+import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { getReviewOptions } from "@/client/@tanstack/react-query.gen";
-import type { FindingBody } from "@/client/types.gen";
-import { ErrorAlert, PageHead } from "@/components/app-ui";
+import { dismissFindingMutation, getReviewOptions } from "@/client/@tanstack/react-query.gen";
+import type { FindingBody, ReviewBody } from "@/client/types.gen";
+import { Button, ErrorAlert, PageHead } from "@/components/app-ui";
+import { Input } from "@/components/ui/input";
+import { atLeast } from "@/lib/session";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -10,9 +14,71 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { t, type CopyKey } from "@/lib/copy";
 import { RoundStatus, sha7, Verdict } from "@/lib/review";
 
-export const Route = createFileRoute("/_app/reviews/$owner/$name/$number")({ component: Review });
+export const Route = createFileRoute("/_app/reviews/$owner/$name/$number")({
+  loader: ({ context, params }) =>
+    void context.queryClient.prefetchQuery(
+      getReviewOptions({ path: { owner: params.owner, name: params.name, number: Number(params.number) } }),
+    ),
+  component: Review,
+});
 
-export function FindingRow({ f }: { f: FindingBody }) {
+/**
+ * DismissControl dismisses a finding at once (optimistic). On an error the row returns to open,
+ * the control shakes and an inline error shows (§16.5).
+ */
+function DismissControl({ f, queryKey }: { f: FindingBody; queryKey: readonly unknown[] }) {
+  const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [reason, setReason] = useState("");
+  const [shake, setShake] = useState(0);
+  const dismiss = useMutation({
+    ...dismissFindingMutation(),
+    onMutate: async () => {
+      await qc.cancelQueries({ queryKey });
+      const prev = qc.getQueryData<ReviewBody>(queryKey);
+      qc.setQueryData<ReviewBody>(queryKey, (r) =>
+        r ? { ...r, findings: r.findings.map((x) => (x.id === f.id ? { ...x, status: "dismissed" } : x)) } : r,
+      );
+      setOpen(false);
+      return { prev };
+    },
+    onError: (_e, _v, ctx) => {
+      if (ctx?.prev) qc.setQueryData(queryKey, ctx.prev);
+      setShake((n) => n + 1);
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey }),
+  });
+  if (f.status !== "open" && !dismiss.isError) return null;
+  return (
+    <div key={shake} className={`grid gap-1 ${shake ? "shake" : ""}`} data-shake={shake || undefined}>
+      {open ? (
+        <form
+          className="flex items-center gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            dismiss.mutate({ path: { id: f.id }, body: { reason } });
+          }}
+        >
+          <Input aria-label={t("finding.dismiss.reason")} value={reason} onChange={(e) => setReason(e.target.value)} />
+          <Button size="sm" type="submit" disabled={reason.trim() === ""}>
+            {t("finding.dismiss.save")}
+          </Button>
+        </form>
+      ) : f.status === "open" ? (
+        <Button size="sm" variant="ghost" onClick={() => setOpen(true)}>
+          {t("finding.dismiss")}
+        </Button>
+      ) : null}
+      {dismiss.isError ? (
+        <span role="alert" className="text-[12px] text-danger">
+          {t("finding.dismiss.failed")}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+export function FindingRow({ f, action }: { f: FindingBody; action?: React.ReactNode }) {
   return (
     <TableRow>
       <TableCell className="t-value">{f.label}</TableCell>
@@ -27,13 +93,17 @@ export function FindingRow({ f }: { f: FindingBody }) {
         {f.path}:{f.start_line}
       </TableCell>
       <TableCell>{t(`finding.status.${f.status}` as CopyKey)}</TableCell>
+      {action !== undefined ? <TableCell>{action}</TableCell> : null}
     </TableRow>
   );
 }
 
 function Review() {
   const { owner, name, number } = Route.useParams();
-  const q = useQuery(getReviewOptions({ path: { owner, name, number: Number(number) } }));
+  const { me } = Route.useRouteContext();
+  const opts = getReviewOptions({ path: { owner, name, number: Number(number) } });
+  const q = useQuery(opts);
+  const canEdit = atLeast(me.role, "maintainer");
   return (
     <>
       <p className="t-crumb mb-2">
@@ -105,11 +175,12 @@ function Review() {
                     <TableHead>{t("finding.title")}</TableHead>
                     <TableHead>{t("finding.location")}</TableHead>
                     <TableHead>{t("finding.status")}</TableHead>
+                    {canEdit ? <TableHead /> : null}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {q.data.findings.map((f) => (
-                    <FindingRow key={f.id} f={f} />
+                    <FindingRow key={f.id} f={f} action={canEdit ? <DismissControl f={f} queryKey={opts.queryKey} /> : undefined} />
                   ))}
                 </TableBody>
               </Table>

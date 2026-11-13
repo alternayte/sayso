@@ -1,6 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { cancelRoundMutation, getRoundOptions, getRoundQueryKey } from "@/client/@tanstack/react-query.gen";
+import { cancelRoundMutation, getRoundOptions, getRoundQueryKey, saveSteeringReviewMutation } from "@/client/@tanstack/react-query.gen";
+import type { SignalBody, SteeringNote } from "@/client/types.gen";
+import { Input } from "@/components/ui/input";
+import { atLeast } from "@/lib/session";
 import { Button, ErrorAlert, PageHead } from "@/components/app-ui";
 import { SafeMarkdown } from "@/components/markdown";
 import { Alert } from "@/components/ui/alert";
@@ -11,10 +15,81 @@ import { t } from "@/lib/copy";
 import { RoundStatus, sha7, Verdict } from "@/lib/review";
 import { FindingRow } from "../reviews/$owner.$name.$number";
 
-export const Route = createFileRoute("/_app/rounds/$id")({ component: Round });
+export const Route = createFileRoute("/_app/rounds/$id")({
+  loader: ({ context, params }) => void context.queryClient.prefetchQuery(getRoundOptions({ path: { id: params.id } })),
+  component: Round,
+});
+
+function SteeringCard({ id, signals, saved, canEdit }: { id: string; signals: SignalBody[]; saved?: SteeringNote; canEdit: boolean }) {
+  const qc = useQueryClient();
+  const [tags, setTags] = useState((saved?.tags ?? []).join(", "));
+  const [note, setNote] = useState(saved?.note ?? "");
+  const save = useMutation({
+    ...saveSteeringReviewMutation(),
+    onSuccess: () => qc.invalidateQueries({ queryKey: getRoundQueryKey({ path: { id } }) }),
+  });
+  if (signals.length === 0 && !saved) return null;
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{t("round.steering")}</CardTitle>
+      </CardHeader>
+      <div className="grid gap-4 p-4">
+        <ul aria-label={t("review.signals")} className="grid gap-1 text-[13px]">
+          {signals.map((s) => (
+            <li key={`${s.type}-${s.at}`} className="flex flex-wrap gap-3">
+              <span className="t-value text-ink">{s.type}</span>
+              {s.finding ? <span className="t-value">{s.finding}</span> : null}
+              <span className="t-hint">{s.actor}</span>
+            </li>
+          ))}
+        </ul>
+        {saved ? <p className="t-hint">{t("round.steering.saved", { author: saved.author })}</p> : null}
+        {canEdit ? (
+          <form
+            className="grid max-w-[640px] gap-3"
+            onSubmit={(e) => {
+              e.preventDefault();
+              save.mutate({
+                path: { id },
+                body: {
+                  tags: tags
+                    .split(",")
+                    .map((x) => x.trim())
+                    .filter(Boolean),
+                  note,
+                },
+              });
+            }}
+          >
+            <div className="grid gap-1.5">
+              <label className="t-label" htmlFor="steer-tags">
+                {t("round.steering.tags")}
+              </label>
+              <Input mono id="steer-tags" value={tags} onChange={(e) => setTags(e.target.value)} />
+            </div>
+            <div className="grid gap-1.5">
+              <label className="t-label" htmlFor="steer-note">
+                {t("round.steering.note")}
+              </label>
+              <textarea id="steer-note" className="control min-h-20" value={note} onChange={(e) => setNote(e.target.value)} />
+            </div>
+            <ErrorAlert error={save.error} />
+            <div>
+              <Button type="submit" variant="primary" mutation={save}>
+                {t("round.steering.save")}
+              </Button>
+            </div>
+          </form>
+        ) : null}
+      </div>
+    </Card>
+  );
+}
 
 function Round() {
   const { id } = Route.useParams();
+  const { me } = Route.useRouteContext();
   const qc = useQueryClient();
   const live = (s?: string) => s === "queued" || s === "running" || s === "publishing";
   const q = useQuery({ ...getRoundOptions({ path: { id } }), refetchInterval: (query) => (live(query.state.data?.status) ? 2000 : false) });
@@ -38,6 +113,14 @@ function Round() {
         actions={
           r ? (
             <div className="flex items-center gap-3">
+              {r.agent_run_id ? (
+                <Link to="/runs/$id" params={{ id: r.agent_run_id }} className="link">
+                  {t("round.run")}
+                </Link>
+              ) : null}
+              <a className="link" href={`/api/v1/rounds/${id}/case`} download>
+                {t("round.export")}
+              </a>
               {r.temporal_url ? (
                 <a className="link" href={r.temporal_url}>
                   {t("temporal.link")}
@@ -107,6 +190,7 @@ function Round() {
               </Table>
             </Card>
           ) : null}
+          <SteeringCard id={id} signals={q.data.signals} saved={q.data.steering_review} canEdit={atLeast(me.role, "maintainer")} />
           {q.data.preview ? (
             <Card>
               <CardHeader>

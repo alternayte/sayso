@@ -162,6 +162,9 @@ func registerOperations(api huma.API, d *Deps, f *Features) {
 	review.RegisterStatus(v1, d.Pool, f.Settings, auth.Op(auth.Viewer))
 	rv := &review.API{Pool: d.Pool, Temporal: d.Temporal}
 	if d.Config != nil {
+		rv.Activities = ReviewActivities(d, f)
+	}
+	if d.Config != nil {
 		rv.Namespace = d.Config.TemporalNamespace
 	}
 	rv.Register(v1, auth.Op(auth.Viewer), auth.Op(auth.Maintainer), actor)

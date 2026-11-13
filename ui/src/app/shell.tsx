@@ -1,11 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   Activity,
+  BarChart3,
   BookOpen,
+  Compass,
   Container,
   Cpu,
   FolderGit2,
+  HardDrive,
   Home,
   LogOut,
   Package,
@@ -16,7 +19,7 @@ import {
   Users,
   Webhook,
 } from "lucide-react";
-import { useId, type ReactNode } from "react";
+import { useId, useRef, type ReactNode } from "react";
 import { Brand } from "@/app/brand";
 import { getStatusOptions } from "@/client/@tanstack/react-query.gen";
 import { Alert } from "@/components/ui/alert";
@@ -24,13 +27,15 @@ import { Button, ErrorAlert } from "@/components/app-ui";
 import { Skeleton } from "@/components/ui/skeleton";
 import { t, type CopyKey } from "@/lib/copy";
 import { atLeast, signOut, type Me } from "@/lib/session";
-import { usePress } from "@/motion";
+import { useIndicator, usePress } from "@/motion";
 
 type NavItem = { to: string; label: CopyKey; Icon: typeof Home; min: Me["role"] };
 
 const nav: NavItem[] = [
   { to: "/", label: "nav.home", Icon: Home, min: "viewer" },
   { to: "/repositories", label: "nav.repositories", Icon: FolderGit2, min: "viewer" },
+  { to: "/steering", label: "nav.steering", Icon: Compass, min: "maintainer" },
+  { to: "/usage", label: "nav.usage", Icon: BarChart3, min: "maintainer" },
   { to: "/settings/github", label: "nav.github", Icon: Webhook, min: "admin" },
   { to: "/settings/models", label: "nav.models", Icon: Cpu, min: "admin" },
   { to: "/settings/mcp", label: "nav.mcp", Icon: Plug, min: "admin" },
@@ -38,6 +43,7 @@ const nav: NavItem[] = [
   { to: "/settings/extensions", label: "nav.extensions", Icon: Puzzle, min: "admin" },
   { to: "/settings/feeds", label: "nav.feeds", Icon: Package, min: "admin" },
   { to: "/settings/images", label: "nav.images", Icon: Container, min: "admin" },
+  { to: "/settings/storage", label: "nav.storage", Icon: HardDrive, min: "admin" },
   { to: "/settings/general", label: "nav.general", Icon: Settings2, min: "admin" },
   { to: "/settings/access", label: "nav.access", Icon: Users, min: "admin" },
   { to: "/audit", label: "nav.audit", Icon: ScrollText, min: "admin" },
@@ -92,20 +98,25 @@ function NavLink({ item }: { item: NavItem }) {
   );
 }
 
+function NavList({ me }: { me: Me }) {
+  const path = useRouterState({ select: (s) => s.location.pathname });
+  const group = useRef<HTMLDivElement>(null);
+  const indicator = useIndicator(group, '[aria-current="page"]', [path]);
+  return (
+    <div ref={group} className="has-indicator flex gap-0.5 sm:flex-col">
+      <span ref={indicator} className="indicator indicator-fill" data-indicator="" aria-hidden="true" />
+      {nav
+        .filter((i) => atLeast(me.role, i.min))
+        .map((i) => (
+          <NavLink key={i.to} item={i} />
+        ))}
+    </div>
+  );
+}
+
 export function AppShell({ me, children }: { me: Me; children: ReactNode }) {
   return (
-    <Frame
-      account={<UserMenu me={me} />}
-      nav={
-        <div className="flex gap-0.5 sm:flex-col">
-          {nav
-            .filter((i) => atLeast(me.role, i.min))
-            .map((i) => (
-              <NavLink key={i.to} item={i} />
-            ))}
-        </div>
-      }
-    >
+    <Frame account={<UserMenu me={me} />} nav={<NavList me={me} />}>
       {children}
     </Frame>
   );
