@@ -54,6 +54,8 @@ var required = map[string]string{
 	"set-repository-mcp":        "maintainer",
 	"set-repository-feeds":      "maintainer",
 	"dismiss-finding":           "maintainer",
+	"fix-findings":              "maintainer",
+	"retry-failed-command":      "maintainer",
 	"list-stores":               "admin",
 	"get-guidance":              "admin",
 	"test-runner":               "admin",
