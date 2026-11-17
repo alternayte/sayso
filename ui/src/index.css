@@ -170,6 +170,8 @@
     background: var(--panel);
     border: 1px solid var(--hairline);
     border-radius: var(--radius);
+    /* A wide table scrolls inside the card; it never widens the grid. */
+    min-width: 0;
   }
   .card-head {
     display: flex;
