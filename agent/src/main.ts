@@ -22,6 +22,7 @@ import type {
   Complete,
   EnvironmentOk,
   Finding,
+  FixResult,
   PromptRef,
   Result,
   SkaelManifest,
@@ -36,13 +37,27 @@ import {
   applyChallenge,
   challengeCandidates,
   challengeInput,
+  fixCheckInput,
   fixInput,
   replyInput,
   reviewInput,
 } from "./stages.js";
 import { prepareEnvironment } from "./toolchain.js";
-import { Collector, headFiles, missingOutput, saysoTools } from "./tools.js";
-import { diffOf, diffStat, prepare, type Workspace } from "./workspace.js";
+import {
+  applyPatch,
+  Collector,
+  headFiles,
+  missingOutput,
+  saysoTools,
+} from "./tools.js";
+import {
+  addTree,
+  diffOf,
+  diffStat,
+  prepare,
+  resetTree,
+  type Workspace,
+} from "./workspace.js";
 
 export const harness = { name: "pi", version: VERSION };
 
@@ -50,7 +65,8 @@ const saysoToolNames: Record<Stage, string[]> = {
   review: ["record_finding", "update_finding", "set_assessment"],
   challenge: ["challenge_result"],
   reply: ["reply"],
-  fix: ["propose_patch"],
+  fix: ["propose_patch", "skip_finding"],
+  fix_check: ["fix_check_result"],
 };
 
 /** builtinTools are the pi tools of a stage. Execution off gives the read-only tools only (SI-21). */
@@ -340,6 +356,7 @@ async function stages(
     stage: Stage,
     prompt: string,
     candidates: Finding[] = [],
+    fix: { ids: string[]; dir: string } | undefined = undefined,
   ) => {
     const targets = targetsOf(spec, stage);
     if (targets.length === 0) return `no model target for stage ${stage}`;
@@ -347,7 +364,7 @@ async function stages(
     promptRef.stages[stage] = assembled.sha256;
     const res = await runStage({
       stage,
-      cwd: ws.head,
+      cwd: stage === "fix_check" && fix ? fix.dir : ws.head,
       workRoot: ws.root,
       agentDir,
       sessionDir: join(sessionsDir(ws.root), stage),
@@ -366,7 +383,9 @@ async function stages(
           execution: spec.execution,
           maxFindings: spec.limits.max_findings || 25,
           candidates,
-          findingId: (spec.reply ?? spec.fix)?.finding.id,
+          findingId: spec.reply?.finding.id,
+          fixIds: fix?.ids,
+          fixDir: fix?.dir,
           emit: (e) => events.emit(e),
         }),
         mcpTools(mcp.tools),
@@ -403,7 +422,7 @@ async function stages(
         status: "failed",
         preview: res.error,
       });
-    return missingOutput(stage, collector, candidates);
+    return missingOutput(stage, collector, candidates, fix?.ids);
   };
 
   try {
@@ -444,12 +463,18 @@ async function stages(
           challengeInput(candidates, diff),
           candidates,
         );
-        if (missingC)
+        if (missingC) {
+          // The review stage finished: its findings go back unchallenged,
+          // for the round preview only.
+          result.findings = collector.findings;
+          result.assessment = collector.assessment;
           return {
             exit_status:
               missingC === "cancelled" ? "cancelled" : "incomplete_output",
             error: missingC,
+            result,
           };
+        }
       }
       result.assessment = collector.assessment;
       result.findings = applyChallenge(collector.findings, collector.challenge);
@@ -472,14 +497,80 @@ async function stages(
         };
       result.reply = collector.reply;
     } else if (spec.kind === "fix") {
-      const missing = await runOne("fix", fixInput(spec));
+      const ids = spec.fix!.findings.map((t) => t.finding.id);
+      const dir = await addTree(ws, "fix", spec.head_sha);
+      const missing = await runOne("fix", fixInput(spec, dir), [], {
+        ids,
+        dir,
+      });
       if (missing)
         return {
           exit_status:
             missing === "cancelled" ? "cancelled" : "incomplete_output",
           error: missing,
         };
-      result.patch = collector.patch;
+      const results = new Map<string, FixResult>();
+      for (const [id, reason] of collector.skipped)
+        results.set(id, { finding_id: id, status: "skipped", reason });
+      let kept = collector.patches;
+      if (kept.length) {
+        const checked = kept.map((p) => p.finding_id);
+        const missingC = await runOne(
+          "fix_check",
+          fixCheckInput(spec, kept, dir),
+          [],
+          { ids: checked, dir },
+        );
+        if (missingC)
+          return {
+            exit_status:
+              missingC === "cancelled" ? "cancelled" : "incomplete_output",
+            error: missingC,
+          };
+        kept = kept.filter((p) => {
+          const r = collector.fixChecks.get(p.finding_id)!;
+          const reason =
+            r.outcome !== "resolved"
+              ? r.reason
+              : r.new_blocker
+                ? `the patch adds a blocker: ${r.new_blocker}`
+                : undefined;
+          if (reason)
+            results.set(p.finding_id, {
+              finding_id: p.finding_id,
+              status: "dropped",
+              reason,
+            });
+          return !reason;
+        });
+        // Apply the kept patches again on a clean tree: a patch that needs
+        // a dropped one no longer applies.
+        await resetTree(dir, spec.head_sha);
+        kept = kept.filter((p) => {
+          const err = applyPatch(dir, p.diff, false);
+          if (err)
+            results.set(p.finding_id, {
+              finding_id: p.finding_id,
+              status: "dropped",
+              reason: `the patch does not apply without the dropped fixes: ${err}`,
+            });
+          return !err;
+        });
+        for (const p of kept)
+          results.set(p.finding_id, {
+            finding_id: p.finding_id,
+            status: "fixed",
+          });
+      }
+      result.patches = kept;
+      result.fix_results = ids.map(
+        (id) =>
+          results.get(id) ?? {
+            finding_id: id,
+            status: "skipped",
+            reason: "the fix run gave no result for it",
+          },
+      );
     }
   } finally {
     await mcp.close();

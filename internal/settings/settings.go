@@ -27,6 +27,7 @@ const (
 	MaxFindingsPerRound      = "max_findings_per_round"
 	MaxToolCallsPerStage     = "max_tool_calls_per_stage"
 	MaxInlineComments        = "max_inline_comments"
+	MaxFixBatch              = "max_fix_batch"
 	MatchSimilarity          = "match_similarity"
 	MonthlyBudgetUSD         = "monthly_budget_usd"
 	OverrideTeams            = "override_teams"
@@ -55,6 +56,7 @@ var Defaults = map[string]json.RawMessage{
 	MaxFindingsPerRound:      json.RawMessage(`25`),
 	MaxToolCallsPerStage:     json.RawMessage(`200`),
 	MaxInlineComments:        json.RawMessage(`10`),
+	MaxFixBatch:              json.RawMessage(`10`),
 	MatchSimilarity:          json.RawMessage(`0.6`),
 	MonthlyBudgetUSD:         json.RawMessage(`0`),
 	OverrideTeams:            json.RawMessage(`[]`),

@@ -115,7 +115,7 @@ func (a *API) Register(api huma.API, view, edit, admin map[string]any, actor fun
 		func(ctx context.Context, in *struct {
 			Owner string `path:"owner"`
 			Name  string `path:"name"`
-			Stage string `query:"stage" enum:"review,challenge,reply,fix" default:"review"`
+			Stage string `query:"stage" enum:"review,challenge,reply,fix,fix_check" default:"review"`
 		}) (*struct{ Body PreviewBody }, error) {
 			id, full, err := a.repo(ctx, in.Owner, in.Name)
 			if err != nil {

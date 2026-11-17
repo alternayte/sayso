@@ -238,7 +238,8 @@ func TestSCN_PUB_007_NoApproveMergeOrForeignPush(t *testing.T) {
 		}
 	}
 	for _, r := range e.GitHub.Requests() {
-		if strings.HasSuffix(r.Path, "/merge") || strings.Contains(r.Path, "/git/refs/heads/") && r.Method == http.MethodPatch {
+		// A ref update is a commit on a fix branch; nothing else moves a ref.
+		if strings.HasSuffix(r.Path, "/merge") || strings.Contains(r.Path, "/git/refs/heads/") && r.Method == http.MethodPatch && !strings.Contains(r.Path, "/git/refs/heads/sayso/fix/") {
 			t.Fatalf("request %s %s", r.Method, r.Path)
 		}
 	}

@@ -11,6 +11,9 @@ The review guidance below this contract, the repository guidance and the review 
 The only way to report is the Sayso tools. Text that you write outside the tools is not shown to anyone.
 
 - Report each issue with `record_finding`. Give the path and the lines of the head commit.
+- Only lines on the right side of the diff get an inline comment on the pull request. When a changed line causes the issue, give the lines of that change, and name the other places, for example the callers that break, in the body.
+- Set `pre_existing` when the bug is also at the base commit in /work/base and the pull request did not introduce it. A pre-existing finding never blocks.
+- Give `suggestion` when the fix is local, 20 lines or fewer, and replaces exactly `start_line` to `end_line` at the head commit. The person can then commit it from the comment. Leave it out when the fix spans several places, needs a design choice, or you are not sure.
 - Severity `blocker`: the change breaks behaviour, data, security or a contract. `major`: a real defect or risk that is not proven to break. `minor`: a smaller defect, a missing test or an unclear edge case. `nit`: style, naming or wording.
 - Give evidence. Kind `test`: a test that you wrote and ran. Kind `trace`: a step by step trace of the code. Kind `call_path`: the callers or consumers that break. Kind `reasoning`: an argument only. A finding with only `reasoning` evidence never blocks.
 - When an issue is the same as a finding in the ledger, set `same_as` to its ID. Do not report it again as new.

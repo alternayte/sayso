@@ -13,8 +13,10 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/alternayte/sayso/internal/findings"
+	"github.com/alternayte/sayso/internal/github"
 	"github.com/alternayte/sayso/internal/publish"
 	"github.com/alternayte/sayso/internal/runner"
+	"github.com/alternayte/sayso/internal/settings"
 )
 
 // WorkInput names a queued reply or fix run.
@@ -26,16 +28,30 @@ type WorkInput struct {
 
 type work struct {
 	id, reviewID, findingID uuid.UUID
-	kind, action, source    string
-	commentID               int64
-	head                    string
+	// findingIDs are the findings of a fix, findingID first.
+	findingIDs           []uuid.UUID
+	kind, action, source string
+	commentID            int64
+	head                 string
 }
 
 func (a *Activities) work(ctx context.Context, id uuid.UUID) (work, error) {
 	w := work{id: id}
-	err := a.Pool.QueryRow(ctx, `SELECT review_id, finding_id, kind, action, source, comment_id, head_sha FROM agent_work WHERE id = $1`, id).
-		Scan(&w.reviewID, &w.findingID, &w.kind, &w.action, &w.source, &w.commentID, &w.head)
+	err := a.Pool.QueryRow(ctx, `SELECT review_id, finding_id, finding_ids, kind, action, source, comment_id, head_sha FROM agent_work WHERE id = $1`, id).
+		Scan(&w.reviewID, &w.findingID, &w.findingIDs, &w.kind, &w.action, &w.source, &w.commentID, &w.head)
+	if len(w.findingIDs) == 0 {
+		w.findingIDs = []uuid.UUID{w.findingID}
+	}
 	return w, err
+}
+
+// workTimeout is the time limit of a work item in minutes. A fix run gets
+// the round timeout for each finding.
+func (a *Activities) workTimeout(ctx context.Context, w work) int {
+	if w.kind == KindFix {
+		return a.intSetting(ctx, settings.RoundTimeoutMinutes, 30) * len(w.findingIDs)
+	}
+	return a.intSetting(ctx, settings.ReplyTimeoutMinutes, 10)
 }
 
 func (a *Activities) finishWork(ctx context.Context, id uuid.UUID, status, reason string, outcome any) error {
@@ -70,40 +86,68 @@ func (a *Activities) PrepareWork(ctx context.Context, id uuid.UUID) error {
 	if err != nil {
 		return err
 	}
-	f, err := a.findingByID(ctx, w.reviewID, w.findingID)
-	if err != nil {
-		return err
-	}
-	profile := cfg.Effective.Profiles[w.kind]
-	if profile == "" {
-		profile = w.kind
-	}
-	var targets []byte
-	if err := a.Pool.QueryRow(ctx, `SELECT targets, round_budget_usd FROM profiles WHERE name = $1`, profile).Scan(&targets, &cfg.BudgetUSD); err != nil {
-		return fmt.Errorf("profile %s: %w", profile, err)
+	// A fix run also has the fix_check stage, on the challenge profile.
+	stages := []string{w.kind}
+	profiles := map[string]string{}
+	if w.kind == KindFix {
+		stages = append(stages, runner.StageFixCheck)
 	}
 	cfg.Models = cfg.Models[:0]
-	var ts []runner.Model
-	_ = json.Unmarshal(targets, &ts)
-	for _, t := range ts {
-		t.Profile = profile
-		cfg.Models = append(cfg.Models, t)
+	for _, stage := range stages {
+		key := stage
+		if stage == runner.StageFixCheck {
+			key = runner.StageChallenge
+		}
+		profile := cfg.Effective.Profiles[key]
+		if profile == "" {
+			profile = key
+		}
+		profiles[stage] = profile
+		var targets []byte
+		var budget float64
+		if err := a.Pool.QueryRow(ctx, `SELECT targets, round_budget_usd FROM profiles WHERE name = $1`, profile).Scan(&targets, &budget); err != nil {
+			return fmt.Errorf("profile %s: %w", profile, err)
+		}
+		var ts []runner.Model
+		_ = json.Unmarshal(targets, &ts)
+		if len(ts) == 0 {
+			return a.finishWork(ctx, id, "failed", NoModelTarget(stage, profile), nil)
+		}
+		if stage == w.kind {
+			cfg.BudgetUSD = budget
+		}
+		for _, t := range ts {
+			t.Profile = profile
+			cfg.Models = append(cfg.Models, t)
+		}
 	}
-	thread := []runner.Comment{}
-	if f.CommentID != nil {
-		cs, err := p.gh.Client.PullComments(ctx, p.gh.Token, p.gh.Inst, p.full, p.number)
+	var comments []github.PullComment
+	var targets []runner.FixTarget
+	var entries []runner.LedgerEntry
+	for _, fid := range w.findingIDs {
+		f, err := a.findingByID(ctx, w.reviewID, fid)
 		if err != nil {
 			return err
 		}
-		for _, c := range cs {
-			if c.ID == *f.CommentID || c.InReplyTo == *f.CommentID {
-				thread = append(thread, runner.Comment{Author: c.User.Login, Body: c.Body})
+		thread := []runner.Comment{}
+		if f.CommentID != nil {
+			if comments == nil {
+				if comments, err = p.gh.Client.PullComments(ctx, p.gh.Token, p.gh.Inst, p.full, p.number); err != nil {
+					return err
+				}
+			}
+			for _, c := range comments {
+				if c.ID == *f.CommentID || c.InReplyTo == *f.CommentID {
+					thread = append(thread, runner.Comment{Author: c.User.Login, Body: c.Body})
+				}
 			}
 		}
-	}
-	entry := runner.LedgerEntry{ID: f.Label(), Severity: f.Severity, Category: f.Category, Title: f.Title, Path: f.Path, StartLine: f.StartLine, EndLine: f.EndLine, Status: f.Status}
-	if n := len(thread); n > 0 && !strings.HasSuffix(thread[n-1].Author, "[bot]") {
-		entry.LastHumanReply = thread[n-1].Body
+		entry := runner.LedgerEntry{ID: f.Label(), Severity: f.Severity, Category: f.Category, Title: f.Title, Path: f.Path, StartLine: f.StartLine, EndLine: f.EndLine, Status: f.Status}
+		if n := len(thread); n > 0 && !strings.HasSuffix(thread[n-1].Author, "[bot]") {
+			entry.LastHumanReply = thread[n-1].Body
+		}
+		entries = append(entries, entry)
+		targets = append(targets, runner.FixTarget{Finding: entry, Thread: thread})
 	}
 	spec := cfg.Spec
 	// Execution off now wins over the round snapshot (SI-21).
@@ -114,14 +158,19 @@ func (a *Activities) PrepareWork(ctx context.Context, id uuid.UUID) error {
 	spec.Execution = spec.Execution && execNow
 	cfg.Effective.Execution = spec.Execution
 	spec.Kind, spec.HeadSHA = w.kind, p.head
-	spec.Stages = []string{w.kind}
-	spec.Profiles = map[string]string{w.kind: profile}
-	spec.Ledger = []runner.LedgerEntry{entry}
+	spec.Stages = stages
+	spec.Profiles = profiles
+	spec.Ledger = entries
 	spec.Reply, spec.Fix = nil, nil
 	if w.kind == KindReply {
-		spec.Reply = &runner.ReplyInput{Finding: entry, Thread: thread, Action: w.action}
+		spec.Reply = &runner.ReplyInput{Finding: entries[0], Thread: targets[0].Thread, Action: w.action}
 	} else {
-		spec.Fix = &runner.FixInput{Finding: entry, Thread: thread}
+		// The budgets scale with the number of findings.
+		n := len(targets)
+		spec.Limits.TimeoutSeconds = a.workTimeout(ctx, w) * 60
+		spec.Limits.MaxToolCallsPerStage = a.intSetting(ctx, settings.MaxToolCallsPerStage, 200) * n
+		cfg.BudgetUSD *= float64(n)
+		spec.Fix = &runner.FixInput{Findings: targets}
 	}
 	cfg.Spec = spec
 	raw, _ := json.Marshal(cfg)
@@ -177,12 +226,12 @@ func (a *Activities) ApplyWork(ctx context.Context, id uuid.UUID) error {
 	if err != nil {
 		return err
 	}
+	if w.kind == KindFix {
+		return a.applyFix(ctx, w, p, res)
+	}
 	f, err := a.findingByID(ctx, w.reviewID, w.findingID)
 	if err != nil {
 		return err
-	}
-	if w.kind == KindFix {
-		return a.applyFix(ctx, w, p, f, res.Patch)
 	}
 	if res.Reply == nil {
 		return a.finishWork(ctx, id, "failed", "the reply run gave no reply", nil)
@@ -222,33 +271,117 @@ func (a *Activities) ApplyWork(ctx context.Context, id uuid.UUID) error {
 	return a.finishWork(ctx, id, "done", "", res.Reply)
 }
 
-// applyFix opens a fix pull request from sayso/fix/<pr>-<n> into the head
-// branch with the patch, and links it in the thread (§11.1).
-func (a *Activities) applyFix(ctx context.Context, w work, p *prRef, f *findings.Finding, patch *runner.Patch) error {
-	if patch == nil {
-		return a.finishWork(ctx, w.id, "failed", "the fix run gave no patch", nil)
+// fixOutcome is agent_work.outcome of a fix: the fix pull request and the
+// result of each finding. Commits counts the patches on the branch, so a
+// retry goes on after the last one.
+type fixOutcome struct {
+	Pull    int                `json:"pull,omitempty"`
+	Branch  string             `json:"branch"`
+	Commits int                `json:"commits"`
+	Results []runner.FixResult `json:"results"`
+}
+
+// fixBranchName is sayso/fix/<pr>-<n> for one finding, and
+// sayso/fix/<pr>-batch-<round>-<work> for several.
+func (a *Activities) fixBranchName(ctx context.Context, w work, p *prRef, fs []*findings.Finding) (string, error) {
+	if len(fs) == 1 {
+		return fmt.Sprintf("sayso/fix/%d-%d", p.number, fs[0].Seq), nil
 	}
-	files, _, err := gitdiff.Parse(strings.NewReader(patch.Diff))
-	if err != nil {
-		return a.finishWork(ctx, w.id, "failed", "the patch does not parse: "+err.Error(), nil)
+	var rounds int
+	if err := a.Pool.QueryRow(ctx, `SELECT count(*) FROM rounds WHERE review_id = $1`, w.reviewID).Scan(&rounds); err != nil {
+		return "", err
 	}
+	return fmt.Sprintf("sayso/fix/%d-batch-%d-%s", p.number, rounds, w.id.String()[:8]), nil
+}
+
+// applyFix opens one fix pull request into the head branch with one commit
+// for each fix that passed fix_check, and answers the command with the
+// result of each finding (§11.1, the batch fix spec). With no fix left it
+// opens nothing.
+func (a *Activities) applyFix(ctx context.Context, w work, p *prRef, res *runner.Result) error {
+	fs := make([]*findings.Finding, 0, len(w.findingIDs))
+	byLabel := map[string]*findings.Finding{}
+	for _, id := range w.findingIDs {
+		f, err := a.findingByID(ctx, w.reviewID, id)
+		if err != nil {
+			return err
+		}
+		fs = append(fs, f)
+		byLabel[f.Label()] = f
+	}
+	results := map[string]runner.FixResult{}
+	for _, r := range res.FixResults {
+		if byLabel[r.FindingID] != nil {
+			results[r.FindingID] = r
+		}
+	}
+	setResult := func(label, status, reason string) {
+		results[label] = runner.FixResult{FindingID: label, Status: status, Reason: reason}
+	}
+	// Check every patch before Sayso writes anything.
+	type parsed struct {
+		patch runner.Patch
+		f     *findings.Finding
+		files []*gitdiff.File
+		paths []string
+	}
+	var patches []parsed
+	for _, pt := range res.Patches {
+		f := byLabel[pt.FindingID]
+		if f == nil {
+			continue
+		}
+		files, _, err := gitdiff.Parse(strings.NewReader(pt.Diff))
+		if err != nil {
+			setResult(f.Label(), "dropped", "the patch does not parse: "+err.Error())
+			continue
+		}
+		paths, why := patchPaths(files)
+		if why != "" {
+			setResult(f.Label(), "dropped", why)
+			continue
+		}
+		patches = append(patches, parsed{patch: pt, f: f, files: files, paths: paths})
+	}
+	ordered := func() []runner.FixResult {
+		out := make([]runner.FixResult, 0, len(fs))
+		for _, f := range fs {
+			r, ok := results[f.Label()]
+			if !ok {
+				r = runner.FixResult{FindingID: f.Label(), Status: "skipped", Reason: "the fix run gave no result for it"}
+			}
+			out = append(out, r)
+		}
+		return out
+	}
+	reply := comment{id: w.commentID, source: w.source}
+	if len(fs) == 1 && fs[0].CommentID != nil {
+		reply = comment{id: *fs[0].CommentID, source: "review"}
+	}
+	if len(patches) == 0 {
+		out := fixOutcome{Results: ordered()}
+		if err := a.answer(ctx, p, reply, "Sayso opened no fix pull request. No fix passed the check.\n\n"+fixList(out.Results)); err != nil {
+			return err
+		}
+		return a.finishWork(ctx, w.id, "failed", "no fix passed the check", out)
+	}
+
 	pr, err := p.gh.Client.GetPull(ctx, p.gh.Token, p.gh.Inst, p.full, p.number)
 	if err != nil {
 		return err
 	}
-	// Check every path before Sayso writes anything.
-	paths := make([]string, len(files))
-	for i, fd := range files {
-		if fd.IsDelete || fd.IsBinary || fd.IsRename || fd.IsCopy {
-			return a.finishWork(ctx, w.id, "failed", "the patch deletes, renames, copies or changes a binary file; Sayso commits only text changes", nil)
-		}
-		path, ok := patchPath(fd.NewName)
-		if !ok {
-			return a.finishWork(ctx, w.id, "failed", "the patch has a file path outside the repository", nil)
-		}
-		paths[i] = path
+	branch, err := a.fixBranchName(ctx, w, p, fs)
+	if err != nil {
+		return err
 	}
-	branch := fmt.Sprintf("sayso/fix/%d-%d", p.number, f.Seq)
+	var prior fixOutcome
+	var raw []byte
+	if err := a.Pool.QueryRow(ctx, `SELECT outcome FROM agent_work WHERE id = $1`, w.id).Scan(&raw); err != nil {
+		return err
+	}
+	if len(raw) > 0 {
+		_ = json.Unmarshal(raw, &prior)
+	}
 	// Sayso commits only to a branch it created (SI-07). A retry reuses the
 	// branch when this work recorded that it created it.
 	if err := p.gh.Client.CreateBranch(ctx, p.gh.Token, p.gh.Inst, p.full, branch, pr.Head.SHA); err != nil {
@@ -265,38 +398,113 @@ func (a *Activities) applyFix(ctx context.Context, w work, p *prRef, f *findings
 	} else if _, err := a.Pool.Exec(ctx, `UPDATE agent_work SET branch_created = true WHERE id = $1`, w.id); err != nil {
 		return err
 	}
-	for i, fd := range files {
-		path := paths[i]
-		old, sha, _, err := p.gh.Client.FileWithSHA(ctx, p.gh.Token, p.gh.Inst, p.full, path, branch)
-		if err != nil {
-			return err
+	committed := prior.Commits
+	if prior.Branch != branch {
+		committed = 0
+	}
+	kept := 0
+	for i, pt := range patches {
+		if i < committed {
+			kept++
+			setResult(pt.f.Label(), "fixed", "")
+			continue
 		}
-		var out bytes.Buffer
-		if err := gitdiff.Apply(&out, bytes.NewReader(old), fd); err != nil {
-			// The branch has the patch already when an earlier attempt committed it.
-			if strings.Contains(err.Error(), "conflict") || strings.Contains(err.Error(), "fragment") {
-				continue
+		changed := map[string][]byte{}
+		var applyErr error
+		for j, fd := range pt.files {
+			old, _, _, err := p.gh.Client.FileWithSHA(ctx, p.gh.Token, p.gh.Inst, p.full, pt.paths[j], branch)
+			if err != nil {
+				return err
 			}
-			return a.finishWork(ctx, w.id, "failed", "the patch does not apply to "+path+": "+err.Error(), nil)
+			var out bytes.Buffer
+			if err := gitdiff.Apply(&out, bytes.NewReader(old), fd); err != nil {
+				applyErr = fmt.Errorf("%s: %w", pt.paths[j], err)
+				break
+			}
+			changed[pt.paths[j]] = out.Bytes()
 		}
-		msg := fmt.Sprintf("Fix %s: %s", f.Label(), publish.Safe(patch.Title))
-		if err := p.gh.Client.PutFile(ctx, p.gh.Token, p.gh.Inst, p.full, branch, path, msg, out.Bytes(), sha); err != nil {
+		if applyErr != nil {
+			// The head moved, or a dropped fix came before it.
+			setResult(pt.f.Label(), "dropped", "the patch does not apply to the head branch: "+applyErr.Error())
+		} else {
+			msg := fmt.Sprintf("Fix %s: %s", pt.f.Label(), publish.Safe(pt.patch.Title))
+			if _, err := p.gh.Client.CommitFiles(ctx, p.gh.Token, p.gh.Inst, p.full, branch, msg, changed); err != nil {
+				return err
+			}
+			kept++
+			setResult(pt.f.Label(), "fixed", "")
+		}
+		// Record progress, so a retry does not commit a patch twice.
+		progress, _ := json.Marshal(fixOutcome{Branch: branch, Commits: i + 1})
+		if _, err := a.Pool.Exec(ctx, `UPDATE agent_work SET outcome = $2 WHERE id = $1`, w.id, progress); err != nil {
 			return err
 		}
 	}
-	body := publish.Safe(patch.Description) + fmt.Sprintf("\n\nThis pull request fixes %s of #%d. Sayso does not review it.", f.Label(), p.number)
-	fix, err := p.gh.Client.CreatePull(ctx, p.gh.Token, p.gh.Inst, p.full, "Fix "+f.Label()+": "+publish.Safe(patch.Title), body, branch, pr.Head.Ref)
+	out := fixOutcome{Branch: branch, Commits: len(patches), Results: ordered()}
+	if kept == 0 {
+		if err := a.answer(ctx, p, reply, "Sayso opened no fix pull request. No fix applies to the head branch.\n\n"+fixList(out.Results)); err != nil {
+			return err
+		}
+		return a.finishWork(ctx, w.id, "failed", "no fix applies to the head branch", out)
+	}
+	labels := make([]string, 0, len(fs))
+	for _, f := range fs {
+		labels = append(labels, f.Label())
+	}
+	title := "Fix " + strings.Join(labels, ", ")
+	if len(patches) == 1 {
+		title += ": " + publish.Safe(patches[0].patch.Title)
+	}
+	var body strings.Builder
+	for _, pt := range patches {
+		if results[pt.f.Label()].Status == "fixed" {
+			fmt.Fprintf(&body, "### %s: %s\n\n%s\n\n", pt.f.Label(), publish.Safe(pt.patch.Title), publish.Safe(pt.patch.Description))
+		}
+	}
+	fmt.Fprintf(&body, "## Results\n\n%s\n\nThis pull request fixes findings of #%d, with one commit for each fix. A check stage confirmed each fix against the patched code. Sayso does not review this pull request. When you merge it, Sayso starts a new round on #%d.",
+		fixList(out.Results), p.number, p.number)
+	fix, err := p.gh.Client.CreatePull(ctx, p.gh.Token, p.gh.Inst, p.full, title, body.String(), branch, pr.Head.Ref)
 	if err != nil {
 		return err
 	}
-	c := comment{id: w.commentID, source: w.source}
-	if f.CommentID != nil {
-		c = comment{id: *f.CommentID, source: "review"}
-	}
-	if err := a.answer(ctx, p, c, fmt.Sprintf("Sayso opened #%d with a fix for %s.", fix.Number, f.Label())); err != nil {
+	out.Pull = fix.Number
+	if err := a.answer(ctx, p, reply, fmt.Sprintf("Sayso opened #%d.\n\n%s", fix.Number, fixList(out.Results))); err != nil {
 		return err
 	}
-	return a.finishWork(ctx, w.id, "done", "", map[string]any{"pull": fix.Number, "branch": branch})
+	return a.finishWork(ctx, w.id, "done", "", out)
+}
+
+// fixList is the result of each finding as a Markdown list.
+func fixList(rs []runner.FixResult) string {
+	var b strings.Builder
+	for _, r := range rs {
+		switch r.Status {
+		case "fixed":
+			fmt.Fprintf(&b, "- %s: fixed and checked\n", r.FindingID)
+		case "skipped":
+			fmt.Fprintf(&b, "- %s: skipped: %s\n", r.FindingID, publish.Safe(r.Reason))
+		default:
+			fmt.Fprintf(&b, "- %s: dropped by the check: %s\n", r.FindingID, publish.Safe(r.Reason))
+		}
+	}
+	return strings.TrimRight(b.String(), "\n")
+}
+
+// patchPaths checks the files of a patch: Sayso commits only text changes
+// inside the repository.
+func patchPaths(files []*gitdiff.File) ([]string, string) {
+	paths := make([]string, len(files))
+	for i, fd := range files {
+		if fd.IsDelete || fd.IsBinary || fd.IsRename || fd.IsCopy {
+			return nil, "the patch deletes, renames, copies or changes a binary file; Sayso commits only text changes"
+		}
+		path, ok := patchPath(fd.NewName)
+		if !ok {
+			return nil, "the patch has a file path outside the repository"
+		}
+		paths[i] = path
+	}
+	return paths, ""
 }
 
 // FailWork records a work item that did not finish.

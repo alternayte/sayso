@@ -36,19 +36,22 @@ type Finding struct {
 	CommentID    *int64
 	FirstRoundID uuid.UUID
 	LastRoundID  uuid.UUID
+	// PreExisting is a bug at the base commit that the pull request did not
+	// introduce. It never blocks.
+	PreExisting bool
 }
 
 // Label is the ID that people see: S-<seq>.
 func (f Finding) Label() string { return "S-" + strconv.Itoa(f.Seq) }
 
 const columns = `id, review_id, seq, severity, category, title, body, path, start_line, end_line, commit_sha, evidence, suggestion, status,
-	blocking, challenge, previous_id, thread_node_id, comment_id, first_round_id, last_round_id`
+	blocking, challenge, previous_id, thread_node_id, comment_id, first_round_id, last_round_id, pre_existing`
 
 func scan(row pgx.Row) (Finding, error) {
 	var f Finding
 	var ev, ch []byte
 	err := row.Scan(&f.ID, &f.ReviewID, &f.Seq, &f.Severity, &f.Category, &f.Title, &f.Body, &f.Path, &f.StartLine, &f.EndLine, &f.CommitSHA,
-		&ev, &f.Suggestion, &f.Status, &f.Blocking, &ch, &f.PreviousID, &f.ThreadNodeID, &f.CommentID, &f.FirstRoundID, &f.LastRoundID)
+		&ev, &f.Suggestion, &f.Status, &f.Blocking, &ch, &f.PreviousID, &f.ThreadNodeID, &f.CommentID, &f.FirstRoundID, &f.LastRoundID, &f.PreExisting)
 	if err != nil {
 		return f, err
 	}
@@ -187,17 +190,18 @@ func Reconcile(ctx context.Context, tx pgx.Tx, in Input) (Outcome, error) {
 		maxSeq++
 		f := Finding{ID: uuid.Must(uuid.NewV7()), ReviewID: in.ReviewID, Seq: maxSeq, Severity: c.Severity, Category: c.Category, Title: c.Title, Body: c.Body,
 			Path: NormalizePath(c.Path), StartLine: c.StartLine, EndLine: c.EndLine, CommitSHA: in.HeadSHA, Evidence: c.Evidence, Suggestion: c.Suggestion,
-			Status: status, Blocking: blocking, Challenge: c.Challenge, PreviousID: previous, FirstRoundID: in.RoundID, LastRoundID: in.RoundID}
+			Status: status, Blocking: blocking, Challenge: c.Challenge, PreviousID: previous, FirstRoundID: in.RoundID, LastRoundID: in.RoundID,
+			PreExisting: c.PreExisting}
 		ev, _ := json.Marshal(f.Evidence)
 		var ch []byte
 		if f.Challenge != nil {
 			ch, _ = json.Marshal(f.Challenge)
 		}
 		_, err := tx.Exec(ctx, `INSERT INTO findings (id, review_id, fingerprint, seq, severity, category, title, body, path, start_line, end_line,
-			commit_sha, evidence, suggestion, status, blocking, challenge, previous_id, first_round_id, last_round_id)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $19)`,
+			commit_sha, evidence, suggestion, status, blocking, challenge, previous_id, first_round_id, last_round_id, pre_existing)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $19, $20)`,
 			f.ID, f.ReviewID, Fingerprint(in.RepositoryID, f.Category, f.Path, f.Title), f.Seq, f.Severity, f.Category, f.Title, f.Body, f.Path,
-			f.StartLine, f.EndLine, f.CommitSHA, ev, f.Suggestion, f.Status, f.Blocking, ch, f.PreviousID, in.RoundID)
+			f.StartLine, f.EndLine, f.CommitSHA, ev, f.Suggestion, f.Status, f.Blocking, ch, f.PreviousID, in.RoundID, f.PreExisting)
 		if err != nil {
 			return nil, err
 		}
@@ -225,7 +229,7 @@ func Reconcile(ctx context.Context, tx pgx.Tx, in Input) (Outcome, error) {
 			out.Withdrawn = append(out.Withdrawn, f.ID)
 			continue
 		}
-		blocking := Blocking(c.Severity, c.Evidence.Kind, c.Challenge, in.Block)
+		blocking := Blocking(c.Severity, c.Evidence.Kind, c.Challenge, in.Block) && !c.PreExisting
 		target := match(ledger, c, in.Threshold)
 		if target == nil {
 			f, err := insert(c, StatusOpen, blocking, nil)
@@ -239,11 +243,11 @@ func Reconcile(ctx context.Context, tx pgx.Tx, in Input) (Outcome, error) {
 		case StatusOpen:
 			// A repeat of an open finding updates it; no new comment.
 			target.Path, target.StartLine, target.EndLine = NormalizePath(c.Path), c.StartLine, c.EndLine
-			target.Severity, target.Blocking = c.Severity, blocking
+			target.Severity, target.Blocking, target.PreExisting = c.Severity, blocking, c.PreExisting
 			ev, _ := json.Marshal(c.Evidence)
 			if _, err := tx.Exec(ctx, `UPDATE findings SET path = $2, start_line = $3, end_line = $4, last_round_id = $5, commit_sha = $6,
-				severity = $7, blocking = $8, evidence = $9, updated_at = now() WHERE id = $1`,
-				target.ID, target.Path, target.StartLine, target.EndLine, in.RoundID, in.HeadSHA, c.Severity, blocking, ev); err != nil {
+				severity = $7, blocking = $8, evidence = $9, pre_existing = $10, updated_at = now() WHERE id = $1`,
+				target.ID, target.Path, target.StartLine, target.EndLine, in.RoundID, in.HeadSHA, c.Severity, blocking, ev, c.PreExisting); err != nil {
 				return out, err
 			}
 			if err := Event(ctx, tx, target.ID, round, agent, "reraised", ""); err != nil {

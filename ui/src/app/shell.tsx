@@ -8,6 +8,7 @@ import {
   Container,
   Cpu,
   FolderGit2,
+  GitPullRequest,
   FileCode2,
   HardDrive,
   NotebookPen,
@@ -35,6 +36,7 @@ type NavItem = { to: string; label: CopyKey; Icon: typeof Home; min: Me["role"] 
 
 const nav: NavItem[] = [
   { to: "/", label: "nav.home", Icon: Home, min: "viewer" },
+  { to: "/reviews", label: "nav.reviews", Icon: GitPullRequest, min: "viewer" },
   { to: "/repositories", label: "nav.repositories", Icon: FolderGit2, min: "viewer" },
   { to: "/steering", label: "nav.steering", Icon: Compass, min: "maintainer" },
   { to: "/usage", label: "nav.usage", Icon: BarChart3, min: "maintainer" },

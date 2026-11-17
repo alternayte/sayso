@@ -143,6 +143,10 @@
         "path": {
           "type": "string"
         },
+        "pre_existing": {
+          "description": "The bug exists at the base commit; the pull request did not introduce it.",
+          "type": "boolean"
+        },
         "same_as": {
           "type": "string"
         },
@@ -178,6 +182,30 @@
         "start_line",
         "end_line",
         "evidence"
+      ],
+      "type": "object"
+    },
+    "FixResult": {
+      "additionalProperties": false,
+      "properties": {
+        "finding_id": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "fixed",
+            "skipped",
+            "dropped"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "finding_id",
+        "status"
       ],
       "type": "object"
     },
@@ -485,6 +513,12 @@
       },
       "type": "array"
     },
+    "fix_results": {
+      "items": {
+        "$ref": "#/$defs/FixResult"
+      },
+      "type": "array"
+    },
     "harness": {
       "$ref": "#/$defs/Harness"
     },
@@ -503,8 +537,11 @@
       },
       "type": "array"
     },
-    "patch": {
-      "$ref": "#/$defs/Patch"
+    "patches": {
+      "items": {
+        "$ref": "#/$defs/Patch"
+      },
+      "type": "array"
     },
     "prompt_ref": {
       "$ref": "#/$defs/PromptRef"

@@ -39,6 +39,21 @@ description: Review pull requests in acme/payments.
 
 The skill takes effect for pull requests whose base commit contains it.
 
+## Where findings show
+
+- A finding on changed lines gets an inline comment, up to `max_inline_comments` per round. A range that spans two diff hunks is cut to one hunk, because GitHub accepts a comment range only inside one hunk.
+- Each other open finding gets an annotation on its lines in the `sayso` check run. Files changed shows the annotation when the lines are in the diff. The check run lists all annotations. Level `failure` is a blocker, `warning` is major, and `notice` is minor or nit.
+- The summary comment links each finding to its inline comment, or to its lines at the commit.
+- A pre-existing finding is a bug that is also at the base commit. The pull request did not introduce it. It shows "pre-existing" next to its severity, never blocks, and does not change the verdict. The challenge stage checks the claim against the base commit.
+
+### Suggestions
+
+The agent gives a suggestion when the fix is local, 20 lines or fewer, and replaces exactly the lines of the finding at the head commit. The inline comment then has a **Commit suggestion** button. The review page shows the suggestion as a diff against the current lines.
+
+When Sayso cuts a comment range to one hunk, the suggestion no longer matches the commented lines. The comment then shows it as a plain code block.
+
+For a fix that spans several places or needs a design choice, use `/sayso fix S-<n>`. To stop suggestions, tell the agent in the review guidance or in `instructions`.
+
 ## Skael
 
 Skael is an optional skill registry. Admins configure it on Settings → Skills.
@@ -120,6 +135,7 @@ instructions: |
 nits: summary
 block: true
 max_inline_comments: 10
+max_fix_batch: 5
 image: dotnet
 toolchain: auto
 restore: auto
@@ -139,6 +155,7 @@ execution: off
 | `nits` | `summary` | `summary` or `inline`. `inline` posts `nit` findings as inline comments. |
 | `block` | `true` | `false`: findings never block in this repository. |
 | `max_inline_comments` | admin limit | 1 to the `max_inline_comments` setting (default 10). |
+| `max_fix_batch` | admin limit | 1 to the `max_fix_batch` setting (default 10). |
 | `image` | repository image | A name from the agent image list on Settings → Images. |
 | `toolchain` | `auto` | `auto` installs tool versions with mise. `none` turns it off. |
 | `restore` | `auto` | `auto` restores dependencies. `none` turns it off. |

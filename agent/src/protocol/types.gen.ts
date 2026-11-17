@@ -111,6 +111,10 @@ export type Finding = {
     end_line: number;
     evidence: Evidence;
     path: string;
+    /**
+     * The bug exists at the base commit; the pull request did not introduce it.
+     */
+    pre_existing?: boolean;
     same_as?: string;
     severity: 'blocker' | 'major' | 'minor' | 'nit';
     start_line: number;
@@ -119,6 +123,16 @@ export type Finding = {
 };
 
 export type FixInput = {
+    findings: Array<FixTarget>;
+};
+
+export type FixResult = {
+    finding_id: string;
+    reason?: string;
+    status: 'fixed' | 'skipped' | 'dropped';
+};
+
+export type FixTarget = {
     finding: LedgerEntry;
     thread: Array<Comment>;
 };
@@ -230,10 +244,11 @@ export type Result = {
     assessment?: Assessment;
     environment?: Array<EnvironmentOk>;
     findings?: Array<Finding>;
+    fix_results?: Array<FixResult>;
     harness: Harness;
     kind: 'round' | 'reply' | 'fix' | 'noop';
     ledger_updates?: Array<LedgerUpdate>;
-    patch?: Patch;
+    patches?: Array<Patch>;
     prompt_ref?: PromptRef;
     reply?: ReplyResult;
     run_id: string;

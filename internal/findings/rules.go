@@ -53,10 +53,14 @@ func Blocking(severity, evidenceKind string, challenge *runner.Challenge, overla
 }
 
 // Verdict is blocking when an open finding blocks, changes_suggested when
-// an open finding above nit is left, and looks_good otherwise.
+// an open finding above nit is left, and looks_good otherwise. A
+// pre-existing finding is not a defect of the change and does not count.
 func Verdict(open []Finding) string {
 	v := VerdictLooksGood
 	for _, f := range open {
+		if f.PreExisting {
+			continue
+		}
 		if f.Blocking {
 			return VerdictBlocking
 		}

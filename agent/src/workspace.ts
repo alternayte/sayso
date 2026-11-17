@@ -111,3 +111,20 @@ export async function diffOf(
 ): Promise<string> {
   return git(ws.repo, ["diff", base, head, "--", path]);
 }
+
+/** addTree adds a detached worktree of a commit under the work root. */
+export async function addTree(
+  ws: Workspace,
+  name: string,
+  sha: string,
+): Promise<string> {
+  const dir = join(ws.root, name);
+  await git(ws.repo, ["worktree", "add", "--quiet", "--detach", dir, sha]);
+  return dir;
+}
+
+/** resetTree sets a worktree back to a commit and removes untracked files. */
+export async function resetTree(dir: string, sha: string): Promise<void> {
+  await git(dir, ["reset", "--quiet", "--hard", sha]);
+  await git(dir, ["clean", "--quiet", "-fd"]);
+}

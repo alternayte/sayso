@@ -30,6 +30,49 @@
         ],
         "type": "object"
       },
+      "Annotation": {
+        "additionalProperties": false,
+        "properties": {
+          "end_line": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "finding_id": {
+            "type": "string"
+          },
+          "level": {
+            "enum": [
+              "failure",
+              "warning",
+              "notice"
+            ],
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "start_line": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "finding_id",
+          "path",
+          "start_line",
+          "end_line",
+          "level",
+          "title",
+          "message"
+        ],
+        "type": "object"
+      },
       "AppBody": {
         "additionalProperties": false,
         "properties": {
@@ -668,6 +711,10 @@
           "instructions": {
             "type": "string"
           },
+          "max_fix_batch": {
+            "format": "int64",
+            "type": "integer"
+          },
           "max_inline_comments": {
             "format": "int64",
             "type": "integer"
@@ -728,6 +775,7 @@
           "nits",
           "block",
           "max_inline_comments",
+          "max_fix_batch",
           "image",
           "toolchain",
           "restore",
@@ -1048,6 +1096,43 @@
         ],
         "type": "object"
       },
+      "FailedCommandBody": {
+        "additionalProperties": false,
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "author": {
+            "type": "string"
+          },
+          "command": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "retried_at": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "author",
+          "command",
+          "reason",
+          "at",
+          "retried_at"
+        ],
+        "type": "object"
+      },
       "FeedBody": {
         "additionalProperties": false,
         "properties": {
@@ -1276,6 +1361,75 @@
         ],
         "type": "object"
       },
+      "Finding": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "maxLength": 2000,
+            "type": "string"
+          },
+          "candidate_id": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "challenge": {
+            "$ref": "#/components/schemas/Challenge"
+          },
+          "end_line": {
+            "format": "int64",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "evidence": {
+            "$ref": "#/components/schemas/Evidence"
+          },
+          "path": {
+            "type": "string"
+          },
+          "pre_existing": {
+            "description": "The bug exists at the base commit; the pull request did not introduce it.",
+            "type": "boolean"
+          },
+          "same_as": {
+            "type": "string"
+          },
+          "severity": {
+            "enum": [
+              "blocker",
+              "major",
+              "minor",
+              "nit"
+            ],
+            "type": "string"
+          },
+          "start_line": {
+            "format": "int64",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "suggestion": {
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 100,
+            "type": "string"
+          }
+        },
+        "required": [
+          "candidate_id",
+          "severity",
+          "category",
+          "title",
+          "body",
+          "path",
+          "start_line",
+          "end_line",
+          "evidence"
+        ],
+        "type": "object"
+      },
       "FindingBody": {
         "additionalProperties": false,
         "properties": {
@@ -1307,6 +1461,9 @@
           "path": {
             "type": "string"
           },
+          "pre_existing": {
+            "type": "boolean"
+          },
           "severity": {
             "type": "string"
           },
@@ -1315,6 +1472,9 @@
             "type": "integer"
           },
           "status": {
+            "type": "string"
+          },
+          "suggestion": {
             "type": "string"
           },
           "title": {
@@ -1333,7 +1493,64 @@
           "end_line",
           "status",
           "blocking",
-          "evidence"
+          "evidence",
+          "pre_existing"
+        ],
+        "type": "object"
+      },
+      "Fix-findingsRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "findings": {
+            "description": "Labels, for example S-2",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": [
+          "findings"
+        ],
+        "type": "object"
+      },
+      "FixBody": {
+        "additionalProperties": false,
+        "properties": {
+          "actor": {
+            "type": "string"
+          },
+          "at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "findings": {
+            "description": "Labels, for example S-2",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "id": {
+            "type": "string"
+          },
+          "pull_url": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "findings",
+          "status",
+          "actor",
+          "at"
         ],
         "type": "object"
       },
@@ -1648,6 +1865,12 @@
       "Preview": {
         "additionalProperties": false,
         "properties": {
+          "annotations": {
+            "items": {
+              "$ref": "#/components/schemas/Annotation"
+            },
+            "type": "array"
+          },
           "check": {
             "$ref": "#/components/schemas/Check"
           },
@@ -1665,12 +1888,19 @@
           },
           "summary": {
             "type": "string"
+          },
+          "unchallenged": {
+            "items": {
+              "$ref": "#/components/schemas/Finding"
+            },
+            "type": "array"
           }
         },
         "required": [
           "summary",
           "comments",
-          "replies"
+          "replies",
+          "annotations"
         ],
         "type": "object"
       },
@@ -2235,11 +2465,33 @@
           "author": {
             "type": "string"
           },
+          "check_url": {
+            "type": "string"
+          },
+          "failed_commands": {
+            "items": {
+              "$ref": "#/components/schemas/FailedCommandBody"
+            },
+            "type": "array"
+          },
           "findings": {
             "items": {
               "$ref": "#/components/schemas/FindingBody"
             },
             "type": "array"
+          },
+          "fixes": {
+            "items": {
+              "$ref": "#/components/schemas/FixBody"
+            },
+            "type": "array"
+          },
+          "head_ref": {
+            "type": "string"
+          },
+          "html_url": {
+            "description": "The pull request on GitHub",
+            "type": "string"
           },
           "id": {
             "type": "string"
@@ -2253,6 +2505,9 @@
           "number": {
             "format": "int64",
             "type": "integer"
+          },
+          "preview": {
+            "$ref": "#/components/schemas/Preview"
           },
           "repository": {
             "type": "string"
@@ -2272,7 +2527,13 @@
           "state": {
             "type": "string"
           },
+          "summary_url": {
+            "type": "string"
+          },
           "temporal_url": {
+            "type": "string"
+          },
+          "title": {
             "type": "string"
           }
         },
@@ -2280,9 +2541,14 @@
           "rounds",
           "findings",
           "signals",
+          "failed_commands",
+          "fixes",
           "id",
           "repository",
           "number",
+          "title",
+          "html_url",
+          "head_ref",
           "author",
           "state",
           "mode",
@@ -2317,6 +2583,13 @@
           "author": {
             "type": "string"
           },
+          "head_ref": {
+            "type": "string"
+          },
+          "html_url": {
+            "description": "The pull request on GitHub",
+            "type": "string"
+          },
           "id": {
             "type": "string"
           },
@@ -2335,12 +2608,18 @@
           },
           "state": {
             "type": "string"
+          },
+          "title": {
+            "type": "string"
           }
         },
         "required": [
           "id",
           "repository",
           "number",
+          "title",
+          "html_url",
+          "head_ref",
           "author",
           "state",
           "mode",
@@ -4156,6 +4435,40 @@
         ]
       }
     },
+    "/api/v1/failed-commands/{id}/retry": {
+      "post": {
+        "operationId": "retry-failed-command",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Accepted"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "tags": [
+          "reviews"
+        ]
+      }
+    },
     "/api/v1/feeds": {
       "get": {
         "operationId": "list-feeds",
@@ -5648,7 +5961,8 @@
                 "review",
                 "challenge",
                 "reply",
-                "fix"
+                "fix",
+                "fix_check"
               ],
               "type": "string"
             }
@@ -5767,6 +6081,24 @@
               ],
               "type": "string"
             }
+          },
+          {
+            "description": "Status of the latest round",
+            "explode": false,
+            "in": "query",
+            "name": "round_status",
+            "schema": {
+              "description": "Status of the latest round",
+              "enum": [
+                "",
+                "queued",
+                "running",
+                "done",
+                "failed",
+                "cancelled"
+              ],
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -5839,6 +6171,73 @@
               }
             },
             "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "tags": [
+          "reviews"
+        ]
+      }
+    },
+    "/api/v1/reviews/{owner}/{name}/{number}/fix": {
+      "post": {
+        "operationId": "fix-findings",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "owner",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Fix-findingsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FixBody"
+                }
+              }
+            },
+            "description": "Accepted"
           },
           "default": {
             "content": {

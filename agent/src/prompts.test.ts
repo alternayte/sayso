@@ -130,7 +130,13 @@ describe("assembled prompt parity", () => {
     const { readFileSync } = await import("node:fs");
     const root = new URL("../../tests/prompts/", import.meta.url);
     const f = JSON.parse(readFileSync(new URL("fixture.json", root), "utf8"));
-    for (const stage of ["review", "challenge", "reply", "fix"] as const) {
+    for (const stage of [
+      "review",
+      "challenge",
+      "reply",
+      "fix",
+      "fix_check",
+    ] as const) {
       const s = spec({
         execution: f.execution,
         prompts: f.prompts,

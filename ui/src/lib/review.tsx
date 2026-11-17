@@ -15,7 +15,7 @@ const statusTone: Record<string, "success" | "accent" | "warning" | "danger" | u
 /** RoundStatus cross-fades on a change and its dot pulses once; a running dot breathes. */
 export function RoundStatus({ status }: { status: string }) {
   const changed = useChanged(status);
-  const live = status === "running" || status === "queued" || status === "publishing";
+  const live = liveStatus(status);
   return (
     <Badge
       key={status}
@@ -38,6 +38,11 @@ const verdictTone: Record<string, "success" | "warning" | "danger"> = {
 export function Verdict({ verdict }: { verdict?: string }) {
   if (!verdict) return <span className="t-hint">—</span>;
   return <Badge tone={verdictTone[verdict]}>{t(`verdict.${verdict}` as CopyKey)}</Badge>;
+}
+
+/** liveStatus reports whether a round or fix status can still change. */
+export function liveStatus(status?: string) {
+  return status === "queued" || status === "running" || status === "publishing";
 }
 
 export function sha7(sha: string) {

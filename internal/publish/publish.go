@@ -1,10 +1,12 @@
 package publish
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -79,6 +81,23 @@ type Preview struct {
 	Comments []Comment `json:"comments"`
 	Replies  []Reply   `json:"replies"`
 	Check    *Check    `json:"check,omitempty"`
+	// Annotations are the check run annotations of the findings that have
+	// no inline comment.
+	Annotations []Annotation `json:"annotations"`
+	// Unchallenged are the findings of the review stage of a failed run.
+	// They are not in the ledger and are never posted.
+	Unchallenged []runner.Finding `json:"unchallenged,omitempty"`
+}
+
+// Annotation is one check run annotation on the lines of a finding.
+type Annotation struct {
+	FindingID string `json:"finding_id"`
+	Path      string `json:"path"`
+	StartLine int    `json:"start_line"`
+	EndLine   int    `json:"end_line"`
+	Level     string `json:"level" enum:"failure,warning,notice"`
+	Title     string `json:"title"`
+	Message   string `json:"message"`
 }
 
 // round is what Publish reads about a round.
@@ -96,18 +115,19 @@ type round struct {
 	Skill                        *runner.SkillRef
 	Profiles                     map[string]string
 	CheckRunID, SummaryCommentID *int64
+	Unchallenged                 []runner.Finding
 }
 
 func (p *Publisher) load(ctx context.Context, roundID uuid.UUID) (*round, error) {
 	r := &round{ID: roundID}
 	var verdict *string
-	var assessment, outcome, config, skill []byte
+	var assessment, outcome, config, skill, unchallenged []byte
 	err := p.Pool.QueryRow(ctx, `SELECT ro.review_id, rv.repository_id, rv.pr_number, rp.full_name, rp.mode, rp.installation_id, ro.head_sha, ro.status,
 			ro.failure_reason, ro.verdict, rv.state = 'paused',
-			ro.assessment, ro.ledger_outcome, ro.config_snapshot, ro.skill_ref, ro.check_run_id, rv.summary_comment_id
+			ro.assessment, ro.ledger_outcome, ro.config_snapshot, ro.skill_ref, ro.check_run_id, rv.summary_comment_id, ro.unchallenged
 		FROM rounds ro JOIN reviews rv ON rv.id = ro.review_id JOIN repositories rp ON rp.id = rv.repository_id WHERE ro.id = $1`, roundID).
 		Scan(&r.ReviewID, &r.RepositoryID, &r.Number, &r.FullName, &r.Mode, &r.Inst, &r.HeadSHA, &r.Status, &r.Reason, &verdict, &r.Paused,
-			&assessment, &outcome, &config, &skill, &r.CheckRunID, &r.SummaryCommentID)
+			&assessment, &outcome, &config, &skill, &r.CheckRunID, &r.SummaryCommentID, &unchallenged)
 	if err != nil {
 		return nil, err
 	}
@@ -139,6 +159,9 @@ func (p *Publisher) load(ctx context.Context, roundID uuid.UUID) (*round, error)
 		r.Skill = &runner.SkillRef{}
 		_ = json.Unmarshal(skill, r.Skill)
 	}
+	if len(unchallenged) > 0 {
+		_ = json.Unmarshal(unchallenged, &r.Unchallenged)
+	}
 	return r, nil
 }
 
@@ -160,7 +183,8 @@ func (p *Publisher) webURL(ctx context.Context) string {
 // the content comes from the last done round.
 func (p *Publisher) summaryOf(ctx context.Context, tx pgx.Tx, r *round, ledger []findings.Finding, links map[string]string) (Summary, error) {
 	s := Summary{Status: r.Status, HeadSHA: r.HeadSHA, Reason: r.Reason, Paused: r.Paused, Verdict: r.Verdict, Assessment: r.Assessment, Links: links,
-		RoundURL: strings.TrimRight(p.BaseURL, "/") + "/rounds/" + r.ID.String(), Skill: r.Skill, Profiles: r.Profiles}
+		RoundURL: strings.TrimRight(p.BaseURL, "/") + "/rounds/" + r.ID.String(), ModelsURL: strings.TrimRight(p.BaseURL, "/") + "/settings/models",
+		Skill: r.Skill, Profiles: r.Profiles}
 	if r.Status != "done" {
 		var verdict *string
 		var a []byte
@@ -212,8 +236,49 @@ func (p *Publisher) summaryOf(ctx context.Context, tx pgx.Tx, r *round, ledger [
 	return s, rows.Err()
 }
 
-// plan selects the inline comments and replies of a round (§10.3, §9.3, §9.4).
-func plan(r *round, ledger []findings.Finding, diff map[string]map[int]bool, limit int, web string) ([]Comment, []Reply, map[string]string) {
+// hunk is the right-side line range of one diff hunk.
+type hunk struct{ start, end int }
+
+// anchor places a finding range inside one hunk: the hunk that holds the
+// end line, or else the last hunk that meets the range. GitHub refuses a
+// review whose comment range crosses hunks. clipped reports a range that
+// is smaller than the finding.
+func anchor(hs []hunk, start, end int) (from, to int, clipped, ok bool) {
+	for i := len(hs) - 1; i >= 0; i-- {
+		h := hs[i]
+		if h.start > end || h.end < start {
+			continue
+		}
+		from, to = max(start, h.start), min(end, h.end)
+		return from, to, from != start || to != end, true
+	}
+	return 0, 0, false, false
+}
+
+// annotationLevel maps a severity to a check run annotation level.
+func annotationLevel(severity string) string {
+	switch severity {
+	case "blocker":
+		return "failure"
+	case "major":
+		return "warning"
+	}
+	return "notice"
+}
+
+// fileLink is the URL of the lines of a finding at its commit.
+func fileLink(web, fullName string, f findings.Finding) string {
+	u := fmt.Sprintf("%s/%s/blob/%s/%s#L%d", web, fullName, f.CommitSHA, f.Path, f.StartLine)
+	if f.EndLine > f.StartLine {
+		u += fmt.Sprintf("-L%d", f.EndLine)
+	}
+	return u
+}
+
+// plan selects the inline comments, the annotations and the replies of a
+// round (§10.3, §9.3, §9.4). An open finding that gets no inline comment
+// gets an annotation on its lines. A nil diff is shadow mode.
+func plan(r *round, ledger []findings.Finding, diff map[string][]hunk, limit int, web string) ([]Comment, []Reply, []Annotation, map[string]string) {
 	byID := map[uuid.UUID]findings.Finding{}
 	for _, f := range ledger {
 		byID[f.ID] = f
@@ -223,13 +288,18 @@ func plan(r *round, ledger []findings.Finding, diff map[string]map[int]bool, lim
 		if f.CommentID != nil {
 			links[f.ID.String()] = fmt.Sprintf("%s/%s/pull/%d#discussion_r%d", web, r.FullName, r.Number, *f.CommentID)
 		} else {
-			links[f.ID.String()] = fmt.Sprintf("%s/%s/blob/%s/%s#L%d", web, r.FullName, f.CommitSHA, f.Path, f.StartLine)
+			links[f.ID.String()] = fileLink(web, r.FullName, f)
 		}
 	}
 	if r.Outcome == nil || r.Status != "done" {
-		return nil, nil, links
+		return nil, nil, nil, links
 	}
-	var candidates []findings.Finding
+	type candidate struct {
+		f        findings.Finding
+		from, to int
+		clipped  bool
+	}
+	var candidates []candidate
 	for _, id := range r.Outcome.New {
 		f := byID[id]
 		if f.Status != findings.StatusOpen || f.CommentID != nil {
@@ -238,19 +308,36 @@ func plan(r *round, ledger []findings.Finding, diff map[string]map[int]bool, lim
 		if f.Severity == "nit" && r.Overlay.Nits != "inline" {
 			continue
 		}
-		if !diff[f.Path][f.EndLine] || (f.StartLine != f.EndLine && !diff[f.Path][f.StartLine]) {
+		// Shadow mode reads no diff: every finding range counts as changed.
+		from, to, clipped, ok := f.StartLine, f.EndLine, false, true
+		if diff != nil {
+			from, to, clipped, ok = anchor(diff[f.Path], f.StartLine, f.EndLine)
+		}
+		if !ok {
 			continue
 		}
-		candidates = append(candidates, f)
+		candidates = append(candidates, candidate{f, from, to, clipped})
 	}
-	SortFindings(candidates)
+	slices.SortStableFunc(candidates, func(a, b candidate) int { return compareFindings(a.f, b.f) })
 	var comments []Comment
-	for _, f := range candidates[:min(limit, len(candidates))] {
-		c := Comment{FindingID: f.ID.String(), Path: f.Path, Line: f.EndLine, Body: RenderFinding(f)}
-		if f.StartLine < f.EndLine {
-			c.StartLine = f.StartLine
+	inline := map[uuid.UUID]bool{}
+	for _, c := range candidates[:min(limit, len(candidates))] {
+		cm := Comment{FindingID: c.f.ID.String(), Path: c.f.Path, Line: c.to, Body: RenderFinding(c.f, c.clipped)}
+		if c.from < c.to {
+			cm.StartLine = c.from
 		}
-		comments = append(comments, c)
+		comments = append(comments, cm)
+		inline[c.f.ID] = true
+	}
+	var annotations []Annotation
+	open := slices.Clone(ledger)
+	SortFindings(open)
+	for _, f := range open {
+		if f.Status != findings.StatusOpen || f.CommentID != nil || inline[f.ID] {
+			continue
+		}
+		annotations = append(annotations, Annotation{FindingID: f.ID.String(), Path: f.Path, StartLine: f.StartLine, EndLine: f.EndLine,
+			Level: annotationLevel(f.Severity), Title: clipText(f.Label()+" · "+severityText(f)+" · "+f.Title, 255), Message: clipText(cmp.Or(f.Body, f.Title), 60000)})
 	}
 	var replies []Reply
 	for _, id := range r.Outcome.Fixed {
@@ -264,38 +351,52 @@ func plan(r *round, ledger []findings.Finding, diff map[string]map[int]bool, lim
 			replies = append(replies, Reply{Key: "reopened:" + x.FindingID.String(), FindingID: x.FindingID.String(), Body: body})
 		}
 	}
-	return comments, replies, links
+	return comments, replies, annotations, links
 }
 
-// diffLines returns, for each changed file, the lines on the right side of
-// the diff that a review comment can use.
-func diffLines(files []github.PullFile) map[string]map[int]bool {
-	out := map[string]map[int]bool{}
+// clipText cuts s to at most n bytes on a rune boundary.
+func clipText(s string, n int) string {
+	if len(s) <= n {
+		return s
+	}
+	for n > 0 && (s[n]&0xC0) == 0x80 {
+		n--
+	}
+	return s[:n]
+}
+
+// diffHunks returns, for each changed file, the right-side line ranges of
+// its hunks, where a review comment can go.
+func diffHunks(files []github.PullFile) map[string][]hunk {
+	out := map[string][]hunk{}
 	for _, f := range files {
-		lines := map[int]bool{}
+		var hs []hunk
 		line := 0
 		for _, l := range strings.Split(f.Patch, "\n") {
 			switch {
 			case strings.HasPrefix(l, "@@"):
 				// @@ -a,b +c,d @@
+				line = 0
 				if i := strings.Index(l, "+"); i >= 0 {
 					rest := l[i+1:]
 					if j := strings.IndexAny(rest, ", "); j >= 0 {
 						rest = rest[:j]
 					}
-					n, _ := strconv.Atoi(rest)
-					line = n
+					line, _ = strconv.Atoi(rest)
+				}
+				if line > 0 {
+					hs = append(hs, hunk{start: line, end: line - 1})
 				}
 			case strings.HasPrefix(l, "-"):
 			case strings.HasPrefix(l, `\`):
 			default:
-				if line > 0 {
-					lines[line] = true
+				if line > 0 && len(hs) > 0 {
+					hs[len(hs)-1].end = line
 					line++
 				}
 			}
 		}
-		out[findings.NormalizePath(f.Filename)] = lines
+		out[findings.NormalizePath(f.Filename)] = slices.DeleteFunc(hs, func(h hunk) bool { return h.end < h.start })
 	}
 	return out
 }
@@ -329,7 +430,7 @@ func (p *Publisher) Publish(ctx context.Context, roundID uuid.UUID) (Preview, er
 	}
 	shadow := r.Mode == "shadow" || r.Mode == "off"
 	var gh Session
-	var diff map[string]map[int]bool
+	var diff map[string][]hunk
 	if !shadow {
 		if gh, err = p.GitHub(ctx, r.Inst, r.FullName); err != nil {
 			return pv, err
@@ -338,9 +439,7 @@ func (p *Publisher) Publish(ctx context.Context, roundID uuid.UUID) (Preview, er
 		if err != nil {
 			return pv, err
 		}
-		diff = diffLines(files)
-	} else if diff, err = p.shadowDiff(ctx, r); err != nil {
-		return pv, err
+		diff = diffHunks(files)
 	}
 	web := p.webURL(ctx)
 	limit := p.intSetting(ctx, settings.MaxInlineComments, 10)
@@ -354,7 +453,7 @@ func (p *Publisher) Publish(ctx context.Context, roundID uuid.UUID) (Preview, er
 	if err != nil {
 		return pv, err
 	}
-	comments, replies, links := plan(r, ledger, diff, limit, web)
+	comments, replies, annotations, links := plan(r, ledger, diff, limit, web)
 	s, err := p.summaryOf(ctx, tx, r, ledger, links)
 	if err != nil {
 		return pv, err
@@ -367,7 +466,10 @@ func (p *Publisher) Publish(ctx context.Context, roundID uuid.UUID) (Preview, er
 		}
 	}
 	check := RenderCheck(r.Mode, r.Status, r.Verdict, r.Reason, r.Assessment, open)
-	pv = Preview{Summary: RenderSummary(s), Comments: comments, Replies: replies, Check: &check}
+	pv = Preview{Summary: RenderSummary(s), Comments: comments, Replies: replies, Check: &check, Annotations: annotations, Unchallenged: r.Unchallenged}
+	if pv.Annotations == nil {
+		pv.Annotations = []Annotation{}
+	}
 	if pv.Comments == nil {
 		pv.Comments = []Comment{}
 	}
@@ -400,36 +502,18 @@ func (p *Publisher) Publish(ctx context.Context, roundID uuid.UUID) (Preview, er
 	if err := p.putSummary(ctx, gh, r, pv.Summary, github.High); err != nil {
 		return pv, err
 	}
-	// 4. The check run, with the override when there is one.
-	if err := p.putCheck(ctx, gh, r, check); err != nil {
+	// 4. The check run, with the override when there is one, and the
+	// annotations of the findings without an inline comment.
+	posted, err := p.putCheck(ctx, gh, r, check)
+	if err != nil {
+		return pv, err
+	}
+	if err := p.annotate(ctx, gh, r, posted, annotations); err != nil {
 		return pv, err
 	}
 	raw, _ = json.Marshal(pv)
 	_, err = p.Pool.Exec(ctx, `UPDATE rounds SET preview = $2 WHERE id = $1`, roundID, raw)
 	return pv, err
-}
-
-// shadowDiff is the diff map in shadow mode, where Publish makes no GitHub
-// calls: every finding line counts as in the diff.
-func (p *Publisher) shadowDiff(ctx context.Context, r *round) (map[string]map[int]bool, error) {
-	rows, err := p.Pool.Query(ctx, `SELECT path, start_line, end_line FROM findings WHERE review_id = $1`, r.ReviewID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	out := map[string]map[int]bool{}
-	for rows.Next() {
-		var path string
-		var a, b int
-		if err := rows.Scan(&path, &a, &b); err != nil {
-			return nil, err
-		}
-		if out[path] == nil {
-			out[path] = map[int]bool{}
-		}
-		out[path][a], out[path][b] = true, true
-	}
-	return out, rows.Err()
 }
 
 // markerID reads the last finding marker: Sayso writes it at the end, after
@@ -608,17 +692,16 @@ func (p *Publisher) checkRun(ctx context.Context, gh Session, r *round) (int64, 
 
 func checkOf(r *round, c Check) github.CheckRun {
 	run := github.CheckRun{Name: CheckName, HeadSHA: r.HeadSHA, ExternalID: r.ID.String(), Status: c.Status, Conclusion: c.Conclusion}
-	run.Output = &struct {
-		Title   string `json:"title"`
-		Summary string `json:"summary"`
-	}{c.Title, c.Summary}
+	run.Output = &github.CheckOutput{Title: c.Title, Summary: c.Summary}
 	return run
 }
 
-func (p *Publisher) putCheck(ctx context.Context, gh Session, r *round, c Check) error {
+// putCheck creates or updates the round's check run, and returns the check
+// it posted: the override wins when there is one.
+func (p *Publisher) putCheck(ctx context.Context, gh Session, r *round, c Check) (Check, error) {
 	var override []byte
 	if err := p.Pool.QueryRow(ctx, `SELECT override FROM rounds WHERE id = $1`, r.ID).Scan(&override); err != nil {
-		return err
+		return c, err
 	}
 	var ov struct {
 		Login  string `json:"login"`
@@ -629,19 +712,59 @@ func (p *Publisher) putCheck(ctx context.Context, gh Session, r *round, c Check)
 	}
 	id, err := p.checkRun(ctx, gh, r)
 	if err != nil {
-		return err
+		return c, err
 	}
 	run := checkOf(r, c)
 	if id != 0 {
 		run.ID = id
-		return gh.Client.UpdateCheckRun(ctx, gh.Token, gh.Inst, r.FullName, run)
+		return c, gh.Client.UpdateCheckRun(ctx, gh.Token, gh.Inst, r.FullName, run)
 	}
 	created, err := gh.Client.CreateCheckRun(ctx, gh.Token, gh.Inst, r.FullName, run)
 	if err != nil {
+		return c, err
+	}
+	r.CheckRunID = &created.ID
+	_, err = p.Pool.Exec(ctx, `UPDATE rounds SET check_run_id = $2 WHERE id = $1`, r.ID, created.ID)
+	return c, err
+}
+
+// annotationBatch is the most annotations GitHub takes in one request.
+const annotationBatch = 50
+
+// annotate adds the annotations to the round's check run, 50 per request.
+// GitHub appends annotations on each update, so a retry skips the batches
+// that the publications table records.
+func (p *Publisher) annotate(ctx context.Context, gh Session, r *round, c Check, as []Annotation) error {
+	if len(as) == 0 {
+		return nil
+	}
+	id, err := p.checkRun(ctx, gh, r)
+	if err != nil || id == 0 {
 		return err
 	}
-	_, err = p.Pool.Exec(ctx, `UPDATE rounds SET check_run_id = $2 WHERE id = $1`, r.ID, created.ID)
-	return err
+	for i := 0; i < len(as); i += annotationBatch {
+		key := fmt.Sprintf("annotations:%d", i/annotationBatch)
+		ok, _, err := done(ctx, p.Pool, r.ID, key)
+		if err != nil {
+			return err
+		}
+		if ok {
+			continue
+		}
+		run := checkOf(r, c)
+		run.ID = id
+		for _, a := range as[i:min(i+annotationBatch, len(as))] {
+			run.Output.Annotations = append(run.Output.Annotations, github.Annotation{Path: a.Path, StartLine: a.StartLine, EndLine: a.EndLine,
+				AnnotationLevel: a.Level, Title: a.Title, Message: a.Message})
+		}
+		if err := gh.Client.UpdateCheckRun(ctx, gh.Token, gh.Inst, r.FullName, run); err != nil {
+			return err
+		}
+		if err := record(ctx, p.Pool, r.ID, key, id); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // MarkStarted shows a started round on GitHub (§7.2 step 2, REQ-PUB-006):
@@ -657,7 +780,7 @@ func (p *Publisher) MarkStarted(ctx context.Context, roundID uuid.UUID) error {
 		return err
 	}
 	c := Check{Status: "in_progress", Title: "Reviewing " + sha7(r.HeadSHA), Summary: "Sayso is reviewing this commit."}
-	if err := p.putCheck(ctx, gh, r, c); err != nil {
+	if _, err := p.putCheck(ctx, gh, r, c); err != nil {
 		return err
 	}
 	if err := p.StatusLine(ctx, roundID); err != nil {
@@ -686,7 +809,7 @@ func (p *Publisher) StatusLine(ctx context.Context, roundID uuid.UUID) error {
 	if err != nil {
 		return err
 	}
-	_, _, links := plan(&round{FullName: r.FullName, Number: r.Number}, ledger, nil, 0, p.webURL(ctx))
+	_, _, _, links := plan(&round{FullName: r.FullName, Number: r.Number}, ledger, nil, 0, p.webURL(ctx))
 	s, err := p.summaryOf(ctx, tx, r, ledger, links)
 	if err != nil {
 		return err
@@ -709,5 +832,6 @@ func (p *Publisher) Override(ctx context.Context, roundID uuid.UUID) error {
 	if err != nil {
 		return err
 	}
-	return p.putCheck(ctx, gh, r, Check{Status: "completed", Conclusion: "success"})
+	_, err = p.putCheck(ctx, gh, r, Check{Status: "completed", Conclusion: "success"})
+	return err
 }

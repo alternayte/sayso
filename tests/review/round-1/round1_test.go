@@ -66,7 +66,7 @@ func flow(t *testing.T, patch *runner.Patch, extra func(e *apptest.Env)) (*appte
 	}
 	e.Deps.Runner = &runnertest.Scripted{Script: func(s runner.Spec) runnertest.Answer {
 		if s.Kind == "fix" {
-			return runnertest.Answer{Result: &runner.Result{Patch: patch}}
+			return runnertest.Answer{Result: &runner.Result{Patches: []runner.Patch{*patch}}}
 		}
 		return runnertest.Answer{Result: &runner.Result{
 			Assessment: &runner.Assessment{TLDR: "Small change.", Risk: "low", RiskReasons: []string{"small"}, WhereToLook: []runner.WhereToLook{}, Impact: []runner.Impact{}},

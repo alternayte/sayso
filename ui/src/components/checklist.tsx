@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { Check } from "lucide-react";
-import { getSetupChecklistOptions } from "@/client/@tanstack/react-query.gen";
+import { getSetupChecklistOptions, listReviewsOptions } from "@/client/@tanstack/react-query.gen";
 import type { Step } from "@/client/types.gen";
 import { ErrorAlert, PageHead } from "@/components/app-ui";
 import { Card, CardHeader } from "@/components/ui/card";
@@ -31,9 +31,13 @@ export function SetupChecklist({ steps }: { steps: Step[] }) {
               </span>
               <div className="min-w-0 flex-1">
                 <p className="text-ink">
-                  <Link to={s.link} className="link">
-                    {t(`checklist.${s.key}`)}
-                  </Link>
+                  {s.key === "round" ? (
+                    <RoundStepLink />
+                  ) : (
+                    <Link to={s.link} className="link">
+                      {t(`checklist.${s.key}`)}
+                    </Link>
+                  )}
                 </p>
                 <p className="t-hint">{s.done ? t("checklist.done") : t(`checklist.${s.key}.hint`)}</p>
               </div>
@@ -42,6 +46,24 @@ export function SetupChecklist({ steps }: { steps: Step[] }) {
         })}
       </ol>
     </Card>
+  );
+}
+
+/**
+ * RoundStepLink opens the latest round. The reviews list is newest round first, so the first row
+ * with a round has it. Without a round, it opens the running rounds.
+ */
+function RoundStepLink() {
+  const list = useQuery(listReviewsOptions());
+  const latest = list.data?.find((r) => r.last_round)?.last_round;
+  return latest ? (
+    <Link to="/rounds/$id" params={{ id: latest.id }} className="link">
+      {t("checklist.round")}
+    </Link>
+  ) : (
+    <Link to="/reviews" search={{ round_status: "running" }} className="link">
+      {t("checklist.round")}
+    </Link>
   );
 }
 

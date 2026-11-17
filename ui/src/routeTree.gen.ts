@@ -16,6 +16,7 @@ import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppAuditRouteImport } from './routes/_app/audit'
 import { Route as AppDiagnosticsRouteImport } from './routes/_app/diagnostics'
 import { Route as AppRepositoriesIndexRouteImport } from './routes/_app/repositories/index'
+import { Route as AppReviewsIndexRouteImport } from './routes/_app/reviews/index'
 import { Route as AppRoundsIdRouteImport } from './routes/_app/rounds/$id'
 import { Route as AppRunsIdRouteImport } from './routes/_app/runs/$id'
 import { Route as AppSettingsAccessRouteImport } from './routes/_app/settings/access'
@@ -67,6 +68,11 @@ const AppDiagnosticsRoute = AppDiagnosticsRouteImport.update({
 const AppRepositoriesIndexRoute = AppRepositoriesIndexRouteImport.update({
   id: '/repositories/',
   path: '/repositories/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppReviewsIndexRoute = AppReviewsIndexRouteImport.update({
+  id: '/reviews/',
+  path: '/reviews/',
   getParentRoute: () => AppRoute,
 } as any)
 const AppRoundsIdRoute = AppRoundsIdRouteImport.update({
@@ -183,6 +189,7 @@ export interface FileRoutesByFullPath {
   '/settings/skills': typeof AppSettingsSkillsRoute
   '/settings/storage': typeof AppSettingsStorageRoute
   '/repositories/': typeof AppRepositoriesIndexRoute
+  '/reviews/': typeof AppReviewsIndexRoute
   '/steering/': typeof AppSteeringIndexRoute
   '/usage/': typeof AppUsageIndexRoute
   '/repositories/$owner/$name': typeof AppRepositoriesOwnerNameRoute
@@ -209,6 +216,7 @@ export interface FileRoutesByTo {
   '/settings/skills': typeof AppSettingsSkillsRoute
   '/settings/storage': typeof AppSettingsStorageRoute
   '/repositories': typeof AppRepositoriesIndexRoute
+  '/reviews': typeof AppReviewsIndexRoute
   '/steering': typeof AppSteeringIndexRoute
   '/usage': typeof AppUsageIndexRoute
   '/repositories/$owner/$name': typeof AppRepositoriesOwnerNameRoute
@@ -237,6 +245,7 @@ export interface FileRoutesById {
   '/_app/settings/skills': typeof AppSettingsSkillsRoute
   '/_app/settings/storage': typeof AppSettingsStorageRoute
   '/_app/repositories/': typeof AppRepositoriesIndexRoute
+  '/_app/reviews/': typeof AppReviewsIndexRoute
   '/_app/steering/': typeof AppSteeringIndexRoute
   '/_app/usage/': typeof AppUsageIndexRoute
   '/_app/repositories/$owner/$name': typeof AppRepositoriesOwnerNameRoute
@@ -265,6 +274,7 @@ export interface FileRouteTypes {
     | '/settings/skills'
     | '/settings/storage'
     | '/repositories/'
+    | '/reviews/'
     | '/steering/'
     | '/usage/'
     | '/repositories/$owner/$name'
@@ -291,6 +301,7 @@ export interface FileRouteTypes {
     | '/settings/skills'
     | '/settings/storage'
     | '/repositories'
+    | '/reviews'
     | '/steering'
     | '/usage'
     | '/repositories/$owner/$name'
@@ -318,6 +329,7 @@ export interface FileRouteTypes {
     | '/_app/settings/skills'
     | '/_app/settings/storage'
     | '/_app/repositories/'
+    | '/_app/reviews/'
     | '/_app/steering/'
     | '/_app/usage/'
     | '/_app/repositories/$owner/$name'
@@ -379,6 +391,13 @@ declare module '@tanstack/react-router' {
       path: '/repositories'
       fullPath: '/repositories/'
       preLoaderRoute: typeof AppRepositoriesIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/reviews/': {
+      id: '/_app/reviews/'
+      path: '/reviews'
+      fullPath: '/reviews/'
+      preLoaderRoute: typeof AppReviewsIndexRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/rounds/$id': {
@@ -529,6 +548,7 @@ interface AppRouteChildren {
   AppSettingsSkillsRoute: typeof AppSettingsSkillsRoute
   AppSettingsStorageRoute: typeof AppSettingsStorageRoute
   AppRepositoriesIndexRoute: typeof AppRepositoriesIndexRoute
+  AppReviewsIndexRoute: typeof AppReviewsIndexRoute
   AppSteeringIndexRoute: typeof AppSteeringIndexRoute
   AppUsageIndexRoute: typeof AppUsageIndexRoute
   AppRepositoriesOwnerNameRoute: typeof AppRepositoriesOwnerNameRoute
@@ -554,6 +574,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppSettingsSkillsRoute: AppSettingsSkillsRoute,
   AppSettingsStorageRoute: AppSettingsStorageRoute,
   AppRepositoriesIndexRoute: AppRepositoriesIndexRoute,
+  AppReviewsIndexRoute: AppReviewsIndexRoute,
   AppSteeringIndexRoute: AppSteeringIndexRoute,
   AppUsageIndexRoute: AppUsageIndexRoute,
   AppRepositoriesOwnerNameRoute: AppRepositoriesOwnerNameRoute,

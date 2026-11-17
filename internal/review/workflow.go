@@ -23,6 +23,10 @@ const WorkWorkflowType = "AgentWork"
 // and human comments (S7). Histories without it drop those signals.
 const commandsVersion = "commands"
 
+// failedCommandsVersion marks the PRReview code that reports a command
+// that failed after its retries.
+const failedCommandsVersion = "failed-commands"
+
 // MaxSignals is the signal count after which PRReview continues as new (§7.1).
 const MaxSignals = 200
 
@@ -300,6 +304,8 @@ func PRReview(ctx workflow.Context, st State) error {
 	// Commands, replies and human comments arrive here; the commands of
 	// §11 handle them (S7).
 	later := []workflow.ReceiveChannel{ch(signals.SignalCommand), ch(signals.SignalThreadReply), ch(signals.SignalHumanComment)}
+	// Work that a maintainer queued in the UI, for example a batch fix.
+	work := ch(signals.SignalWork)
 
 	for {
 		sel := workflow.NewSelector(ctx)
@@ -330,6 +336,14 @@ func PRReview(ctx workflow.Context, st State) error {
 			st.Signals++
 			_ = workflow.ExecuteActivity(sctx, act.ThreadState, st.ReviewID, s.ThreadNodeID, s.CommentID, s.Resolved, s.Actor).Get(sctx, nil)
 		})
+		sel.AddReceive(work, func(c workflow.ReceiveChannel, _ bool) {
+			var s signals.Signal
+			c.Receive(ctx, &s)
+			st.Signals++
+			if id, err := uuid.Parse(s.WorkID); err == nil && commands {
+				apply(CommandOutcome{Action: ActionWork, WorkID: &id})
+			}
+		})
 		sel.AddReceive(cancelRound, func(c workflow.ReceiveChannel, _ bool) {
 			var s signals.Signal
 			c.Receive(ctx, &s)
@@ -359,6 +373,9 @@ func PRReview(ctx workflow.Context, st State) error {
 				}
 				if err != nil {
 					log.Error("comment signal failed", "error", err)
+					if i == 0 && workflow.GetVersion(ctx, failedCommandsVersion, workflow.DefaultVersion, 1) >= 1 {
+						_ = workflow.ExecuteActivity(sctx, act.CommandFailed, CommandFailure{Comment: in, Reason: reasonOf(err)}).Get(sctx, nil)
+					}
 					return
 				}
 				apply(o)
@@ -439,7 +456,7 @@ func PRReview(ctx workflow.Context, st State) error {
 		if st.Signals >= MaxSignals && current == nil && currentWork == nil {
 			// Drain what arrived, so no signal is lost (§7.1).
 			drained := false
-			for _, c := range append([]workflow.ReceiveChannel{head, draft, closeCh, threads, cancelRound}, later...) {
+			for _, c := range append([]workflow.ReceiveChannel{head, draft, closeCh, threads, cancelRound, work}, later...) {
 				if c.Len() > 0 {
 					drained = true
 				}

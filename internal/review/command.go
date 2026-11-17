@@ -10,7 +10,11 @@ import (
 type Command struct {
 	Name    string
 	Finding int
-	Reason  string
+	// Findings are the findings of a fix, Finding first. All selects the
+	// open blocker and major findings; Minor adds minor ones.
+	Findings   []int
+	All, Minor bool
+	Reason     string
 	// Err is why the comment is not a valid command.
 	Err string
 }
@@ -42,6 +46,9 @@ func ParseCommand(body string) Command {
 		return Command{Name: c.Name, Err: "unknown command " + c.Name + "; use review, pause, resume, dismiss, override, fix or explain"}
 	}
 	rest := fields[2:]
+	if c.Name == "fix" {
+		return parseFix(c, rest)
+	}
 	if spec.finding {
 		if len(rest) == 0 || !findingArg.MatchString(strings.ToUpper(rest[0])) {
 			c.Err = "name the finding, for example /sayso " + c.Name + " S-2"
@@ -54,6 +61,41 @@ func ParseCommand(body string) Command {
 	if spec.reason && c.Reason == "" {
 		c.Err = "give a reason, for example /sayso " + c.Name + example(spec.finding) + " the caller checks the amount"
 	}
+	return c
+}
+
+// parseFix reads /sayso fix S-1 S-3 …, /sayso fix all and /sayso fix all --minor.
+func parseFix(c Command, args []string) Command {
+	const usage = "name the findings, for example /sayso fix S-2 S-3, or use /sayso fix all"
+	if len(args) == 0 {
+		c.Err = usage
+		return c
+	}
+	if strings.EqualFold(args[0], "all") {
+		c.All = true
+		for _, a := range args[1:] {
+			if a != "--minor" {
+				c.Err = "unknown option " + a + "; /sayso fix all takes only --minor"
+				return c
+			}
+			c.Minor = true
+		}
+		return c
+	}
+	seen := map[int]bool{}
+	for _, a := range args {
+		m := findingArg.FindStringSubmatch(strings.ToUpper(a))
+		if m == nil {
+			c.Err = usage
+			return c
+		}
+		n, _ := strconv.Atoi(m[1])
+		if !seen[n] {
+			seen[n] = true
+			c.Findings = append(c.Findings, n)
+		}
+	}
+	c.Finding = c.Findings[0]
 	return c
 }
 

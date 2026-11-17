@@ -90,8 +90,10 @@ type Summary struct {
 	// Links maps a finding ID to the URL of its inline comment or its file line.
 	Links    map[string]string
 	RoundURL string
-	Skill    *runner.SkillRef
-	Profiles map[string]string
+	// ModelsURL is Settings → Models, linked when a stage has no model.
+	ModelsURL string
+	Skill     *runner.SkillRef
+	Profiles  map[string]string
 }
 
 var verdictText = map[string]string{
@@ -101,19 +103,34 @@ var verdictText = map[string]string{
 }
 
 // SortFindings orders blocking findings first, then by severity and seq.
-func SortFindings(fs []findings.Finding) {
-	slices.SortStableFunc(fs, func(a, b findings.Finding) int {
-		if a.Blocking != b.Blocking {
-			if a.Blocking {
-				return -1
-			}
-			return 1
+// Pre-existing findings go after the findings of the change.
+func SortFindings(fs []findings.Finding) { slices.SortStableFunc(fs, compareFindings) }
+
+func compareFindings(a, b findings.Finding) int {
+	if a.Blocking != b.Blocking {
+		if a.Blocking {
+			return -1
 		}
-		if d := findings.SeverityRank(a.Severity) - findings.SeverityRank(b.Severity); d != 0 {
-			return d
+		return 1
+	}
+	if a.PreExisting != b.PreExisting {
+		if b.PreExisting {
+			return -1
 		}
-		return a.Seq - b.Seq
-	})
+		return 1
+	}
+	if d := findings.SeverityRank(a.Severity) - findings.SeverityRank(b.Severity); d != 0 {
+		return d
+	}
+	return a.Seq - b.Seq
+}
+
+// severityText is the severity with the pre-existing marker.
+func severityText(f findings.Finding) string {
+	if f.PreExisting {
+		return f.Severity + " · pre-existing"
+	}
+	return f.Severity
 }
 
 func cell(s string) string {
@@ -125,6 +142,9 @@ func RenderSummary(s Summary) string {
 	var b strings.Builder
 	b.WriteString(SummaryMarker + "\n")
 	b.WriteString("**Sayso** · " + StatusLine(s.Status, s.HeadSHA, s.Reason, s.Paused) + "\n\n")
+	if s.Status == "failed" && strings.HasPrefix(s.Reason, "no_model_target") && s.ModelsURL != "" {
+		b.WriteString("Give the profile a model target in [Settings → Models](" + s.ModelsURL + "), then run `/sayso review`.\n\n")
+	}
 	if s.Assessment != nil && s.Verdict != "" {
 		fmt.Fprintf(&b, "**Verdict:** %s · **Risk:** %s", verdictText[s.Verdict], riskText(s.Assessment.Risk))
 		if len(s.Assessment.RiskReasons) > 0 {
@@ -150,14 +170,26 @@ func RenderSummary(s Summary) string {
 	open := slices.Clone(s.Open)
 	SortFindings(open)
 	counts := map[string]int{}
+	pre := 0
 	for _, f := range open {
+		if f.PreExisting {
+			pre++
+			continue
+		}
 		counts[f.Severity]++
 	}
-	fmt.Fprintf(&b, "**Findings:** %d blocker · %d major · %d minor · %d nit\n\n", counts["blocker"], counts["major"], counts["minor"], counts["nit"])
+	fmt.Fprintf(&b, "**Findings:** %d blocker · %d major · %d minor · %d nit", counts["blocker"], counts["major"], counts["minor"], counts["nit"])
+	if pre > 0 {
+		fmt.Fprintf(&b, " · %d pre-existing", pre)
+	}
+	b.WriteString("\n\n")
 	if len(open) > 0 {
 		b.WriteString("| ID | Severity | Title | Link |\n|---|---|---|---|\n")
 		for _, f := range open {
 			sev := f.Severity
+			if f.PreExisting {
+				sev += " (pre-existing)"
+			}
 			if f.Blocking {
 				sev += " (blocking)"
 			}
@@ -209,14 +241,16 @@ func RenderSummary(s Summary) string {
 		foot = append(foot, "profiles "+strings.Join(ps, ", "))
 	}
 	b.WriteString("<sub>" + strings.Join(foot, " · ") + "</sub>\n\n")
-	b.WriteString("<sub>Commands: `/sayso review` · `/sayso pause` · `/sayso resume` · `/sayso dismiss S-<n> <reason>` · `/sayso override <reason>` · `/sayso fix S-<n>` · `/sayso explain S-<n>`</sub>\n")
+	b.WriteString("<sub>Commands: `/sayso review` · `/sayso pause` · `/sayso resume` · `/sayso dismiss S-<n> <reason>` · `/sayso override <reason>` · `/sayso fix S-<n> …` · `/sayso fix all` · `/sayso explain S-<n>`</sub>\n")
 	return b.String()
 }
 
-// RenderFinding is the body of an inline comment (§10.3).
-func RenderFinding(f findings.Finding) string {
+// RenderFinding is the body of an inline comment (§10.3). A clipped
+// comment covers fewer lines than the finding, so its suggestion is a plain
+// code block: a suggestion block replaces exactly the commented lines.
+func RenderFinding(f findings.Finding, clipped bool) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "**%s · %s** %s\n\n", f.Label(), f.Severity, Safe(f.Title))
+	fmt.Fprintf(&b, "**%s · %s** %s\n\n", f.Label(), severityText(f), Safe(f.Title))
 	if f.Body != "" {
 		b.WriteString(Safe(f.Body) + "\n\n")
 	}
@@ -224,10 +258,15 @@ func RenderFinding(f findings.Finding) string {
 	if f.Evidence.TestPath != "" {
 		ev += ", " + Code(f.Evidence.TestPath)
 	}
-	b.WriteString("_" + ev + ":_ " + Safe(f.Evidence.Detail) + "\n\n")
+	b.WriteString("<details><summary>Why this was flagged</summary>\n\n_" + ev + ":_ " + Safe(f.Evidence.Detail) + "\n\n</details>\n\n")
 	if f.Suggestion != "" {
 		// A suggestion block is code; only the fence is escaped.
-		b.WriteString("```suggestion\n" + strings.ReplaceAll(f.Suggestion, "```", "` ` `") + "\n```\n\n")
+		code := strings.ReplaceAll(f.Suggestion, "```", "` ` `")
+		if clipped {
+			fmt.Fprintf(&b, "Suggested replacement for lines %d–%d:\n\n```\n%s\n```\n\n", f.StartLine, f.EndLine, code)
+		} else {
+			b.WriteString("```suggestion\n" + code + "\n```\n\n")
+		}
 	}
 	b.WriteString(FindingMarker(f.ID.String()))
 	return b.String()
