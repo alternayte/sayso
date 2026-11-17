@@ -21,6 +21,7 @@ export const contractVersion = createHash("sha256")
       "challenge.md",
       "reply.md",
       "fix.md",
+      "fix_check.md",
     ]
       .map(load)
       .join("\n"),
@@ -28,7 +29,7 @@ export const contractVersion = createHash("sha256")
   .digest("hex")
   .slice(0, 12);
 
-export type Stage = "review" | "challenge" | "reply" | "fix";
+export type Stage = "review" | "challenge" | "reply" | "fix" | "fix_check";
 
 export interface Layer {
   name: "contract" | "global" | "repository" | "file" | "skill";

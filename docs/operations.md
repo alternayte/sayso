@@ -120,7 +120,8 @@ Admins change settings on Settings → General. Sayso keeps each version with th
 | `setup_timeout_minutes` | 10 | Shared time limit of toolchain, restore and setup steps. |
 | `max_findings_per_round` | 25 | Findings in one round. |
 | `max_tool_calls_per_stage` | 200 | Tool calls in one stage. |
-| `max_inline_comments` | 10 | Inline comments in one round. |
+| `max_inline_comments` | 10 | Inline comments in one round. The other findings are annotations of the check run. |
+| `max_fix_batch` | 10 | Findings in one `/sayso fix`. `.sayso.yml` can lower it. A fix run gets the round time limit and the tool call limit for each finding. |
 | `match_similarity` | 0.6 | Title similarity at which a new finding repeats an old one. |
 | `monthly_budget_usd` | 0 | Monthly model budget. 0 means no limit. |
 | `override_teams` | `[]` | Teams that can use `/sayso override`. |

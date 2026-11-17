@@ -44,11 +44,14 @@ type publishState struct {
 	issueComments map[int64]*IssueComment
 	reviews       []*Review
 	reactions     []Reaction
+	trees         map[string]pendingTree
 	// commentReactions and pushes are written by command handling (S7).
 	commentReactions []CommentReaction
 	pushes           []Push
 	// failWrite makes the n-th write call from now answer 502, once.
 	failWrite int
+	// failCommentReads makes every read of one issue comment answer 500.
+	failCommentReads bool
 }
 
 func (f *Fake) appLogin() string { return f.AppSlug + "[bot]" }
@@ -58,6 +61,14 @@ func (f *Fake) appLogin() string { return f.AppSlug + "[bot]" }
 func (f *Fake) FailWrite(n int) {
 	f.mu.Lock()
 	f.pub.failWrite = n
+	f.mu.Unlock()
+}
+
+// FailCommentReads makes every read of one issue comment answer 500 while
+// on is true.
+func (f *Fake) FailCommentReads(on bool) {
+	f.mu.Lock()
+	f.pub.failCommentReads = on
 	f.mu.Unlock()
 }
 
@@ -131,6 +142,13 @@ func (f *Fake) publishRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /repos/{owner}/{repo}/issues/{n}/{sub}", func(w http.ResponseWriter, r *http.Request) {
 		switch n, sub := r.PathValue("n"), r.PathValue("sub"); {
 		case n == "comments":
+			f.mu.Lock()
+			fail := f.pub.failCommentReads
+			f.mu.Unlock()
+			if fail {
+				writeJSON(w, http.StatusInternalServerError, map[string]string{"message": "Server Error"})
+				return
+			}
 			r.SetPathValue("id", sub)
 			f.getIssueComment(w, r)
 		case sub == "comments":
@@ -407,8 +425,9 @@ func (f *Fake) createCheckRun(w http.ResponseWriter, r *http.Request) {
 		Status     string `json:"status"`
 		Conclusion string `json:"conclusion"`
 		Output     *struct {
-			Title   string `json:"title"`
-			Summary string `json:"summary"`
+			Title       string            `json:"title"`
+			Summary     string            `json:"summary"`
+			Annotations []CheckAnnotation `json:"annotations"`
 		} `json:"output"`
 	}
 	_ = json.NewDecoder(r.Body).Decode(&in)
@@ -424,6 +443,7 @@ func (f *Fake) createCheckRun(w http.ResponseWriter, r *http.Request) {
 	}
 	if in.Output != nil {
 		c.Title, c.Summary = in.Output.Title, in.Output.Summary
+		c.Annotations = append(c.Annotations, in.Output.Annotations...)
 	}
 	f.checkRuns[c.ID] = c
 	f.mu.Unlock()

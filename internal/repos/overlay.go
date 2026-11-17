@@ -24,6 +24,7 @@ type Overlay struct {
 	Nits              string            `yaml:"nits"`
 	Block             *bool             `yaml:"block"`
 	MaxInlineComments int               `yaml:"max_inline_comments"`
+	MaxFixBatch       int               `yaml:"max_fix_batch"`
 	Image             string            `yaml:"image"`
 	Toolchain         string            `yaml:"toolchain"`
 	Restore           string            `yaml:"restore"`
@@ -40,7 +41,7 @@ var uiOnly = map[string]bool{
 
 var known = map[string]bool{
 	"skill": true, "skael_set": true, "profiles": true, "mcp": true, "extensions": true, "ignore": true, "instructions": true,
-	"nits": true, "block": true, "max_inline_comments": true, "image": true, "toolchain": true, "restore": true, "setup": true,
+	"nits": true, "block": true, "max_inline_comments": true, "max_fix_batch": true, "image": true, "toolchain": true, "restore": true, "setup": true,
 	"feeds": true, "execution": true,
 }
 
@@ -97,6 +98,7 @@ type Effective struct {
 	Nits              string            `json:"nits"`
 	Block             bool              `json:"block"`
 	MaxInlineComments int               `json:"max_inline_comments"`
+	MaxFixBatch       int               `json:"max_fix_batch"`
 	Image             string            `json:"image"`
 	Toolchain         string            `json:"toolchain"`
 	Restore           string            `json:"restore"`
@@ -112,6 +114,7 @@ const DefaultSkillPath = ".agents/skills/pr-review/SKILL.md"
 type Limits struct {
 	AllowedProfiles   []string
 	MaxInlineComments int
+	MaxFixBatch       int
 	Extensions        []string // enabled for the repository
 	Images            []string
 }
@@ -137,10 +140,11 @@ func Resolve(repo Repository, o Overlay, fileWarnings []string, lim Limits) Effe
 		Sources: map[string]string{
 			"execution": SourceUI, "challenge_min_severity": SourceUI, "profiles.review": SourceUI, "profiles.challenge": SourceUI, "profiles.reply": SourceUI, "profiles.fix": SourceUI, "mcp": SourceUI, "extensions": SourceUI,
 			"feeds": SourceUI, "skill": SourceDefault, "nits": SourceDefault, "block": SourceDefault, "toolchain": SourceDefault,
-			"restore": SourceDefault, "max_inline_comments": SourceDefault, "image": SourceUI,
+			"restore": SourceDefault, "max_inline_comments": SourceDefault, "max_fix_batch": SourceDefault, "image": SourceUI,
 		},
 		Warnings:          append([]string{}, fileWarnings...),
 		MaxInlineComments: lim.MaxInlineComments,
+		MaxFixBatch:       lim.MaxFixBatch,
 	}
 	if e.Image == "" {
 		e.Sources["image"] = SourceDefault
@@ -216,6 +220,13 @@ func Resolve(repo Repository, o Overlay, fileWarnings []string, lim Limits) Effe
 			e.MaxInlineComments, e.Sources["max_inline_comments"] = o.MaxInlineComments, SourceFile
 		} else {
 			warn("%s: max_inline_comments %d is above the admin limit %d", OverlayPath, o.MaxInlineComments, lim.MaxInlineComments)
+		}
+	}
+	if o.MaxFixBatch > 0 {
+		if o.MaxFixBatch <= lim.MaxFixBatch {
+			e.MaxFixBatch, e.Sources["max_fix_batch"] = o.MaxFixBatch, SourceFile
+		} else {
+			warn("%s: max_fix_batch %d is above the admin limit %d", OverlayPath, o.MaxFixBatch, lim.MaxFixBatch)
 		}
 	}
 	if o.Image != "" {

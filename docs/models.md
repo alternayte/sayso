@@ -57,9 +57,9 @@ Sayso has four default profiles. Each one serves one stage:
 | `review` | Reads the change and records findings. |
 | `challenge` | Tries to refute each candidate finding. Use a different model family from `review` for a better check. |
 | `reply` | Answers a person in a Sayso thread, and runs `/sayso explain`. |
-| `fix` | Writes a patch for `/sayso fix`. |
+| `fix` | Writes the patches for `/sayso fix`. The fix check after it uses the `challenge` profile. |
 
-Give each default profile one or more targets before the first round.
+Give each default profile one or more targets before the first round. A round whose stage has a profile without a target fails at once with the reason `no_model_target`, before the agent run starts.
 
 A target has these fields:
 

@@ -71,6 +71,14 @@ func NewFeatures(ctx context.Context, d *Deps) (*Features, error) {
 		return nil, err
 	}
 	limits := github.NewRateLimits(github.RealClock)
+	tokens := github.NewTokens()
+	renew := func(ctx context.Context, c *github.Client, inst int64, stale string) (string, error) {
+		app, err := github.LoadApp(ctx, d.Pool, sec)
+		if err != nil {
+			return "", err
+		}
+		return tokens.Renew(ctx, c, app, inst, stale)
+	}
 	gh := func(ctx context.Context) (*github.Client, error) {
 		web, err := st.String(ctx, settings.GitHubWebURL)
 		if err != nil {
@@ -80,7 +88,7 @@ func NewFeatures(ctx context.Context, d *Deps) (*Features, error) {
 		if err != nil {
 			return nil, err
 		}
-		return &github.Client{WebURL: web, APIURL: api, HTTP: hc, Limits: limits}, nil
+		return &github.Client{WebURL: web, APIURL: api, HTTP: hc, Limits: limits, Renew: renew}, nil
 	}
 	a := auth.NewService(d.Pool, auth.Config{
 		BaseURL: d.Config.BaseURL, SetupToken: d.Config.SetupToken, BootstrapAdmins: d.Config.BootstrapAdmins,
@@ -92,7 +100,6 @@ func NewFeatures(ctx context.Context, d *Deps) (*Features, error) {
 		Buckets: []float64{.01, .025, .05, .1, .25, .5, 1, 2, 5},
 	})
 	d.Metrics.MustRegister(signaled, newDBMetrics(d.Pool))
-	tokens := github.NewTokens()
 	ingest := &github.Ingest{Pool: d.Pool, Secrets: sec, Temporal: d.Temporal, GitHub: gh, Tokens: tokens, Log: d.Log, Signaled: signaled}
 	f := &Features{Settings: st, Secrets: sec, Auth: a, GitHubClient: gh, RateLimits: limits, Tokens: tokens, Ingest: ingest,
 		Models: models.NewService(d.Pool, sec, hc, runRedact(d), d.Log), ProxyMetrics: models.NewProxyMetrics(d.Metrics),

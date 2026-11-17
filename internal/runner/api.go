@@ -235,9 +235,10 @@ func (a *API) register(api huma.API) {
 			default:
 				status = "failed"
 			}
+			// The error names the cause, for example the stage that failed.
 			reason := c.ExitStatus
-			if c.ExitStatus == "completed" {
-				reason = "completed"
+			if status == "failed" && c.Error != "" {
+				reason += ": " + clip(a.RedactRun(c.Error), 300)
 			}
 			_, err := New(a.Pool).FinishRun(ctx, FinishRunParams{ID: run.ID, Status: status, ExitReason: reason})
 			if err == nil && a.OnComplete != nil {

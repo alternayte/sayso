@@ -51,56 +51,89 @@ var ReadOnlyRun = map[string]string{"contents": "read", "pull_requests": "read",
 
 // InstallationToken mints a token for one installation.
 func (c *Client) InstallationToken(ctx context.Context, app *App, inst int64, req TokenRequest) (string, error) {
+	tok, _, err := c.installationToken(ctx, app, inst, req)
+	return tok, err
+}
+
+func (c *Client) installationToken(ctx context.Context, app *App, inst int64, req TokenRequest) (string, time.Time, error) {
 	jwt, err := c.appJWT(app)
 	if err != nil {
-		return "", err
+		return "", time.Time{}, err
 	}
 	var tok struct {
-		Token string `json:"token"`
+		Token     string    `json:"token"`
+		ExpiresAt time.Time `json:"expires_at"`
 	}
 	var in any
 	if len(req.Repositories) > 0 || len(req.Permissions) > 0 {
 		in = req
 	}
 	if err := c.call(ctx, call{method: http.MethodPost, path: fmt.Sprintf("/app/installations/%d/access_tokens", inst), auth: "Bearer " + jwt, in: in, out: &tok}); err != nil {
-		return "", fmt.Errorf("github: installation token: %w", err)
+		return "", time.Time{}, fmt.Errorf("github: installation token: %w", err)
 	}
-	return tok.Token, nil
+	return tok.Token, tok.ExpiresAt, nil
 }
 
-// Tokens caches installation tokens for at most 50 minutes (§6.1). Agent
-// run tokens are never cached; use Client.InstallationToken for them.
+// tokenLife is how long GitHub keeps an installation token when a response
+// gives no expires_at.
+const tokenLife = time.Hour
+
+// Tokens caches installation tokens until Margin before they expire (§6.1).
+// Agent run tokens are never cached; use Client.InstallationToken for them.
 type Tokens struct {
-	MaxAge time.Duration
+	Margin time.Duration
 	Now    func() time.Time
 	mu     sync.Mutex
 	by     map[int64]cached
 }
 
 type cached struct {
-	token string
-	at    time.Time
+	token   string
+	expires time.Time
 }
 
-// NewTokens returns a cache with the 50 minute limit.
+// NewTokens returns a cache that renews a token 10 minutes before it expires.
 func NewTokens() *Tokens {
-	return &Tokens{MaxAge: 50 * time.Minute, Now: time.Now, by: map[int64]cached{}}
+	return &Tokens{Margin: 10 * time.Minute, Now: time.Now, by: map[int64]cached{}}
 }
+
+// wall is the current wall-clock time. The monotonic reading is stripped:
+// the monotonic clock stops while the host sleeps, GitHub's clock does not.
+func (t *Tokens) wall() time.Time { return t.Now().Round(0) }
 
 // Get returns a cached token of the installation, or mints a new one.
 func (t *Tokens) Get(ctx context.Context, c *Client, app *App, inst int64) (string, error) {
 	t.mu.Lock()
 	e, ok := t.by[inst]
 	t.mu.Unlock()
-	if ok && t.Now().Sub(e.at) < t.MaxAge {
+	if ok && t.wall().Before(e.expires.Add(-t.Margin)) {
 		return e.token, nil
 	}
-	tok, err := c.InstallationToken(ctx, app, inst, TokenRequest{})
+	return t.mint(ctx, c, app, inst)
+}
+
+// Renew drops stale from the cache when it is the cached token, and returns
+// a valid token. Client calls it after a 401.
+func (t *Tokens) Renew(ctx context.Context, c *Client, app *App, inst int64, stale string) (string, error) {
+	t.mu.Lock()
+	if e, ok := t.by[inst]; ok && e.token == stale {
+		delete(t.by, inst)
+	}
+	t.mu.Unlock()
+	return t.Get(ctx, c, app, inst)
+}
+
+func (t *Tokens) mint(ctx context.Context, c *Client, app *App, inst int64) (string, error) {
+	start := t.wall()
+	tok, expires, err := c.installationToken(ctx, app, inst, TokenRequest{})
 	if err != nil {
 		return "", err
 	}
+	if expires.IsZero() {
+		expires = start.Add(tokenLife)
+	}
 	t.mu.Lock()
-	t.by[inst] = cached{token: tok, at: t.Now()}
+	t.by[inst] = cached{token: tok, expires: expires}
 	t.mu.Unlock()
 	return tok, nil
 }
@@ -260,16 +293,30 @@ func (c *Client) GetReviewComment(ctx context.Context, token string, inst int64,
 
 // CheckRun is the part of a check run that Sayso writes.
 type CheckRun struct {
-	ID         int64  `json:"id,omitempty"`
-	Name       string `json:"name"`
-	HeadSHA    string `json:"head_sha"`
-	ExternalID string `json:"external_id,omitempty"`
-	Status     string `json:"status,omitempty"`
-	Conclusion string `json:"conclusion,omitempty"`
-	Output     *struct {
-		Title   string `json:"title"`
-		Summary string `json:"summary"`
-	} `json:"output,omitempty"`
+	ID         int64        `json:"id,omitempty"`
+	Name       string       `json:"name"`
+	HeadSHA    string       `json:"head_sha"`
+	ExternalID string       `json:"external_id,omitempty"`
+	Status     string       `json:"status,omitempty"`
+	Conclusion string       `json:"conclusion,omitempty"`
+	Output     *CheckOutput `json:"output,omitempty"`
+}
+
+// CheckOutput is the output of a check run.
+type CheckOutput struct {
+	Title       string       `json:"title"`
+	Summary     string       `json:"summary"`
+	Annotations []Annotation `json:"annotations,omitempty"`
+}
+
+// Annotation marks lines of a file in a check run.
+type Annotation struct {
+	Path            string `json:"path"`
+	StartLine       int    `json:"start_line"`
+	EndLine         int    `json:"end_line"`
+	AnnotationLevel string `json:"annotation_level"`
+	Title           string `json:"title,omitempty"`
+	Message         string `json:"message"`
 }
 
 // UpdateCheckRun changes a check run. Check run updates go first when the

@@ -40,6 +40,9 @@ type Client struct {
 	Now    func() time.Time
 	// Limits is shared by all clients of a process. Nil means no tracking.
 	Limits *RateLimits
+	// Renew returns a new installation token after GitHub answered 401 to
+	// stale. Nil means no retry.
+	Renew func(ctx context.Context, c *Client, inst int64, stale string) (string, error)
 }
 
 // User is a GitHub account.
@@ -184,7 +187,24 @@ type call struct {
 	onResponse         func(*http.Response)
 }
 
+// call sends one request. A 401 to a call with an installation token
+// renews the token and sends the request once more.
 func (c *Client) call(ctx context.Context, k call) error {
+	err := c.send(ctx, k)
+	var se *StatusError
+	if err == nil || k.inst == 0 || c.Renew == nil || !errors.As(err, &se) || se.Code != http.StatusUnauthorized || !strings.HasPrefix(k.auth, "Bearer ") {
+		return err
+	}
+	stale := strings.TrimPrefix(k.auth, "Bearer ")
+	tok, rerr := c.Renew(ctx, c, k.inst, stale)
+	if rerr != nil || tok == stale {
+		return err
+	}
+	k.auth = "Bearer " + tok
+	return c.send(ctx, k)
+}
+
+func (c *Client) send(ctx context.Context, k call) error {
 	if err := c.Limits.wait(ctx, k.inst, k.prio); err != nil {
 		return err
 	}

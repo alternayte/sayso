@@ -5,6 +5,7 @@ import {
   getEffectiveConfigOptions,
   getRepositoryGuidanceOptions,
   getRepositoryOptions,
+  listProfilesOptions,
   listRepositoriesQueryKey,
   setRepositoryFeedsMutation,
   setRepositoryMcpMutation,
@@ -14,6 +15,7 @@ import {
 import { putRepositoryGuidance } from "@/client/sdk.gen";
 import type { EffectiveBody, RepositoryBody } from "@/client/types.gen";
 import { GuidanceEditor, PromptPreview } from "@/components/guidance";
+import { ReviewsTable, useReviews } from "@/components/reviews";
 import { Button, ErrorAlert, PageHead, Segmented } from "@/components/app-ui";
 import { Alert } from "@/components/ui/alert";
 import { Switch } from "@/components/ui/switch";
@@ -39,6 +41,7 @@ function Repository() {
         </Link>
       </p>
       <PageHead title={`${owner}/${name}`} />
+      {me.role === "admin" ? <ProfileWarnings owner={owner} name={name} /> : null}
       {repo.isPending ? (
         <Skeleton className="h-32 w-full" />
       ) : repo.error ? (
@@ -46,6 +49,7 @@ function Repository() {
       ) : (
         <div className="grid gap-5">
           <ModeCard repo={repo.data} canEdit={atLeast(me.role, "maintainer")} queryKey={opts.queryKey} />
+          <RepositoryReviews owner={owner} name={name} />
           <McpCard
             key={repo.data.mcp_servers.join(",")}
             repo={repo.data}
@@ -64,6 +68,55 @@ function Repository() {
         </div>
       )}
     </>
+  );
+}
+
+/** RepositoryReviews lists the reviews of one repository and polls while a round is live. */
+function RepositoryReviews({ owner, name }: { owner: string; name: string }) {
+  const list = useReviews({ repository: `${owner}/${name}` });
+  return (
+    <section aria-label={t("reviews.repository.title")} className="grid gap-3">
+      <h2 className="t-section">{t("reviews.repository.title")}</h2>
+      {list.isPending ? (
+        <Skeleton className="h-24 w-full" />
+      ) : list.error ? (
+        <ErrorAlert error={list.error} onRetry={() => void list.refetch()} />
+      ) : list.data.length === 0 ? (
+        <Card className="p-4">
+          <p className="t-hint">{t("reviews.repository.empty")}</p>
+        </Card>
+      ) : (
+        <ReviewsTable rows={list.data} fetching={list.isFetching} />
+      )}
+    </section>
+  );
+}
+
+/**
+ * ProfileWarnings warns when the profile of the review or challenge stage has no model target.
+ * A round of this repository fails at its start until the profile has one. Only admins read profiles.
+ */
+function ProfileWarnings({ owner, name }: { owner: string; name: string }) {
+  const effective = useQuery(getEffectiveConfigOptions({ path: { owner, name } }));
+  const profiles = useQuery(listProfilesOptions());
+  if (!effective.data || !profiles.data) return null;
+  const empty = (["review", "challenge"] as const).flatMap((stage) => {
+    const profile = effective.data.effective.profiles[stage];
+    const p = profiles.data.find((x) => x.name === profile);
+    return profile && p && p.targets.length === 0 ? [{ stage, profile }] : [];
+  });
+  if (empty.length === 0) return null;
+  return (
+    <div className="mb-5 grid gap-2">
+      {empty.map((e) => (
+        <Alert key={e.stage} tone="warning" className="flex-wrap items-center gap-x-3">
+          <span>{t("profile.no_target", { profile: e.profile, stage: e.stage })}</span>
+          <Link to="/settings/models" className="link">
+            {t("profile.no_target.link")}
+          </Link>
+        </Alert>
+      ))}
+    </div>
   );
 }
 

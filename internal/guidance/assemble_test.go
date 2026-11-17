@@ -28,7 +28,7 @@ func TestAssembleMatchesTheRuntime(t *testing.T) {
 	if err := json.Unmarshal(b, &f); err != nil {
 		t.Fatal(err)
 	}
-	for _, stage := range []string{"review", "challenge", "reply", "fix"} {
+	for _, stage := range []string{"review", "challenge", "reply", "fix", "fix_check"} {
 		got := Assemble(f.Prompts, f.OverlayInstructions, f.Execution, stage, f.Skill).Text
 		path := "../../tests/prompts/" + stage + ".golden.txt"
 		if *update {

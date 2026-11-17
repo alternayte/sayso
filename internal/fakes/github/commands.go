@@ -34,6 +34,153 @@ func (f *Fake) commandRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /repos/{owner}/{repo}/git/refs", f.createRef)
 	mux.HandleFunc("PUT /repos/{owner}/{repo}/contents/{path...}", f.putContents)
 	mux.HandleFunc("POST /repos/{owner}/{repo}/pulls", f.createPull)
+	mux.HandleFunc("GET /repos/{owner}/{repo}/git/ref/heads/{branch...}", f.getRef)
+	mux.HandleFunc("GET /repos/{owner}/{repo}/git/commits/{sha}", f.getCommit)
+	mux.HandleFunc("POST /repos/{owner}/{repo}/git/trees", f.createTree)
+	mux.HandleFunc("POST /repos/{owner}/{repo}/git/commits", f.createCommit)
+	mux.HandleFunc("PATCH /repos/{owner}/{repo}/git/refs/heads/{branch...}", f.updateRef)
+}
+
+// pendingTree is a tree of the Git Data API that the fake builds only when
+// a commit uses it: base is the commit whose tree it changes.
+type pendingTree struct {
+	base  string
+	files map[string]string
+}
+
+func (f *Fake) getRef(w http.ResponseWriter, r *http.Request) {
+	if !f.instCall(w, r) {
+		return
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	repo := f.repoOf(r)
+	if repo == nil {
+		writeJSON(w, http.StatusNotFound, map[string]string{"message": "Not Found"})
+		return
+	}
+	sha, err := f.git(repo.dir, "rev-parse", "--verify", "--quiet", "refs/heads/"+r.PathValue("branch"))
+	if err != nil {
+		writeJSON(w, http.StatusNotFound, map[string]string{"message": "Not Found"})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ref": "refs/heads/" + r.PathValue("branch"), "object": map[string]any{"sha": sha, "type": "commit"}})
+}
+
+// getCommit answers with the commit SHA as the tree SHA: the fake keys a
+// pending tree by the commit it changes.
+func (f *Fake) getCommit(w http.ResponseWriter, r *http.Request) {
+	if !f.instCall(w, r) {
+		return
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	repo := f.repoOf(r)
+	sha := r.PathValue("sha")
+	if repo == nil {
+		writeJSON(w, http.StatusNotFound, map[string]string{"message": "Not Found"})
+		return
+	}
+	if _, err := f.git(repo.dir, "cat-file", "-e", sha+"^{commit}"); err != nil {
+		writeJSON(w, http.StatusNotFound, map[string]string{"message": "Not Found"})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"sha": sha, "tree": map[string]any{"sha": "base:" + sha}})
+}
+
+func (f *Fake) createTree(w http.ResponseWriter, r *http.Request) {
+	if !f.writeCall(w, r) {
+		return
+	}
+	var in struct {
+		BaseTree string `json:"base_tree"`
+		Tree     []struct {
+			Path    string `json:"path"`
+			Content string `json:"content"`
+		} `json:"tree"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&in)
+	base, ok := strings.CutPrefix(in.BaseTree, "base:")
+	if !ok {
+		writeJSON(w, http.StatusUnprocessableEntity, map[string]string{"message": "base_tree is not a tree of this fake"})
+		return
+	}
+	t := pendingTree{base: base, files: map[string]string{}}
+	for _, e := range in.Tree {
+		t.files[e.Path] = e.Content
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.nextID++
+	id := fmt.Sprintf("tree-%d", f.nextID)
+	if f.pub.trees == nil {
+		f.pub.trees = map[string]pendingTree{}
+	}
+	f.pub.trees[id] = t
+	writeJSON(w, http.StatusCreated, map[string]any{"sha": id})
+}
+
+func (f *Fake) createCommit(w http.ResponseWriter, r *http.Request) {
+	if !f.writeCall(w, r) {
+		return
+	}
+	var in struct {
+		Message string   `json:"message"`
+		Tree    string   `json:"tree"`
+		Parents []string `json:"parents"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&in)
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	repo := f.repoOf(r)
+	t, ok := f.pub.trees[in.Tree]
+	if repo == nil || !ok || len(in.Parents) != 1 || in.Parents[0] != t.base {
+		writeJSON(w, http.StatusUnprocessableEntity, map[string]string{"message": "tree or parents are invalid"})
+		return
+	}
+	sha, err := f.commit(repo, "fake-git-data", t.base, t.files, in.Message)
+	if err == nil {
+		_, err = f.git(repo.dir, "branch", "-D", "fake-git-data")
+	}
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"message": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusCreated, map[string]any{"sha": sha})
+}
+
+func (f *Fake) updateRef(w http.ResponseWriter, r *http.Request) {
+	if !f.writeCall(w, r) {
+		return
+	}
+	var in struct {
+		SHA string `json:"sha"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&in)
+	branch := r.PathValue("branch")
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	repo := f.repoOf(r)
+	if repo == nil {
+		writeJSON(w, http.StatusNotFound, map[string]string{"message": "Not Found"})
+		return
+	}
+	old, err := f.git(repo.dir, "rev-parse", "--verify", "--quiet", "refs/heads/"+branch)
+	if err != nil {
+		writeJSON(w, http.StatusUnprocessableEntity, map[string]string{"message": "Reference does not exist"})
+		return
+	}
+	// Not a force update: the new commit must contain the old one.
+	if _, err := f.git(repo.dir, "merge-base", "--is-ancestor", old, in.SHA); err != nil {
+		writeJSON(w, http.StatusUnprocessableEntity, map[string]string{"message": "Update is not a fast forward"})
+		return
+	}
+	if _, err := f.git(repo.dir, "update-ref", "refs/heads/"+branch, in.SHA); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"message": err.Error()})
+		return
+	}
+	f.pub.pushes = append(f.pub.pushes, Push{Repo: repo.FullName, Branch: branch, SHA: in.SHA})
+	writeJSON(w, http.StatusOK, map[string]any{"ref": "refs/heads/" + branch, "object": map[string]any{"sha": in.SHA}})
 }
 
 func (f *Fake) permission(w http.ResponseWriter, r *http.Request) {
@@ -253,6 +400,17 @@ func (f *Fake) FileAt(repo, path, ref string) (string, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return f.git(f.repos[repo].dir, "show", ref+":"+path)
+}
+
+// Subjects lists the commit subjects of a branch after base, oldest first.
+func (f *Fake) Subjects(repo, base, branch string) ([]string, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	out, err := f.git(f.repos[repo].dir, "log", "--reverse", "--format=%s", base+".."+branch)
+	if err != nil || out == "" {
+		return nil, err
+	}
+	return strings.Split(out, "\n"), nil
 }
 
 // Pull returns a copy of a pull request.

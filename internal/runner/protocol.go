@@ -10,6 +10,8 @@ const (
 	StageChallenge = "challenge"
 	StageReply     = "reply"
 	StageFix       = "fix"
+	// StageFixCheck challenges each fix against the patched tree.
+	StageFixCheck = "fix_check"
 )
 
 // Spec is everything the agent runtime needs for one run.
@@ -176,8 +178,14 @@ type ReplyInput struct {
 	Action  string      `json:"action,omitempty" enum:",clarify"`
 }
 
-// FixInput is the input of a fix run.
+// FixInput is the input of a fix run: one or more findings, in the order
+// of their commits.
 type FixInput struct {
+	Findings []FixTarget `json:"findings" minItems:"1"`
+}
+
+// FixTarget is one finding of a fix run with its thread.
+type FixTarget struct {
 	Finding LedgerEntry `json:"finding"`
 	Thread  []Comment   `json:"thread"`
 }
@@ -205,20 +213,23 @@ type Event struct {
 
 // Result is result.json (Appendix C).
 type Result struct {
-	RunID         string          `json:"run_id"`
-	Kind          string          `json:"kind" enum:"round,reply,fix,noop"`
-	Harness       Harness         `json:"harness"`
-	SkillRef      *SkillRef       `json:"skill_ref,omitempty"`
-	SkaelManifest *SkaelManifest  `json:"skael_manifest,omitempty"`
-	Assessment    *Assessment     `json:"assessment,omitempty"`
-	Findings      []Finding       `json:"findings,omitempty"`
-	LedgerUpdates []LedgerUpdate  `json:"ledger_updates,omitempty"`
-	Reply         *ReplyResult    `json:"reply,omitempty"`
-	Patch         *Patch          `json:"patch,omitempty"`
-	SkillsLoaded  []SkillLoaded   `json:"skills_loaded,omitempty"`
-	Usage         Usage           `json:"usage"`
-	PromptRef     *PromptRef      `json:"prompt_ref,omitempty"`
-	Environment   []EnvironmentOK `json:"environment,omitempty"`
+	RunID         string         `json:"run_id"`
+	Kind          string         `json:"kind" enum:"round,reply,fix,noop"`
+	Harness       Harness        `json:"harness"`
+	SkillRef      *SkillRef      `json:"skill_ref,omitempty"`
+	SkaelManifest *SkaelManifest `json:"skael_manifest,omitempty"`
+	Assessment    *Assessment    `json:"assessment,omitempty"`
+	Findings      []Finding      `json:"findings,omitempty"`
+	LedgerUpdates []LedgerUpdate `json:"ledger_updates,omitempty"`
+	Reply         *ReplyResult   `json:"reply,omitempty"`
+	// Patches are the fixes that passed fix_check, in commit order. Each
+	// applies to the head commit with the patches before it.
+	Patches      []Patch         `json:"patches,omitempty"`
+	FixResults   []FixResult     `json:"fix_results,omitempty"`
+	SkillsLoaded []SkillLoaded   `json:"skills_loaded,omitempty"`
+	Usage        Usage           `json:"usage"`
+	PromptRef    *PromptRef      `json:"prompt_ref,omitempty"`
+	Environment  []EnvironmentOK `json:"environment,omitempty"`
 }
 
 type Harness struct {
@@ -276,6 +287,7 @@ type Finding struct {
 	Suggestion  string     `json:"suggestion,omitempty"`
 	SameAs      string     `json:"same_as,omitempty"`
 	Challenge   *Challenge `json:"challenge,omitempty"`
+	PreExisting bool       `json:"pre_existing,omitempty" doc:"The bug exists at the base commit; the pull request did not introduce it."`
 }
 
 type Evidence struct {
@@ -309,6 +321,13 @@ type Patch struct {
 	Title       string `json:"title"`
 	Description string `json:"description"`
 	Diff        string `json:"diff"`
+}
+
+// FixResult is the outcome of one finding of a fix run.
+type FixResult struct {
+	FindingID string `json:"finding_id"`
+	Status    string `json:"status" enum:"fixed,skipped,dropped"`
+	Reason    string `json:"reason,omitempty"`
 }
 
 type SkillLoaded struct {

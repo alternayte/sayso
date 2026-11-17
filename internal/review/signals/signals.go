@@ -28,6 +28,9 @@ const (
 	SignalThreadState  = "thread_state"
 	// SignalCancelRound comes from the UI: a maintainer cancels a round (§7.1).
 	SignalCancelRound = "cancel_round"
+	// SignalWork comes from the UI: a maintainer queued agent work, for
+	// example a batch fix.
+	SignalWork = "work"
 )
 
 // Triggers of a round.
@@ -72,5 +75,7 @@ type Signal struct {
 	Resolved     bool   `json:"resolved,omitempty"`
 	// cancel_round
 	RoundID string `json:"round_id,omitempty"`
-	Actor   string `json:"actor,omitempty"`
+	// work
+	WorkID string `json:"work_id,omitempty"`
+	Actor  string `json:"actor,omitempty"`
 }

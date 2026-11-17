@@ -15,6 +15,7 @@ import (
 	"github.com/alternayte/sayso/internal/findings"
 	"github.com/alternayte/sayso/internal/github"
 	"github.com/alternayte/sayso/internal/publish"
+	"github.com/alternayte/sayso/internal/repos"
 	"github.com/alternayte/sayso/internal/settings"
 )
 
@@ -166,12 +167,100 @@ func (a *Activities) queueWork(ctx context.Context, p *prRef, kind string, f *fi
 	return &id, err
 }
 
+// fixTargets selects the findings of a fix command. why is the reason to
+// refuse the command; it is empty when the findings are good.
+func (a *Activities) fixTargets(ctx context.Context, p *prRef, cmd Command) ([]findings.Finding, string, error) {
+	tx, err := a.Pool.Begin(ctx)
+	if err != nil {
+		return nil, "", err
+	}
+	ledger, err := findings.List(ctx, tx, p.reviewID)
+	_ = tx.Rollback(ctx)
+	if err != nil {
+		return nil, "", err
+	}
+	var out []findings.Finding
+	if cmd.All {
+		take := map[string]bool{"blocker": true, "major": true, "minor": cmd.Minor}
+		for _, f := range ledger {
+			if f.Status == findings.StatusOpen && take[f.Severity] {
+				out = append(out, f)
+			}
+		}
+		if len(out) == 0 {
+			if cmd.Minor {
+				return nil, "this pull request has no open blocker, major or minor finding", nil
+			}
+			return nil, "this pull request has no open blocker or major finding; use /sayso fix all --minor for minor findings", nil
+		}
+		publish.SortFindings(out)
+	} else {
+		bySeq := map[int]findings.Finding{}
+		for _, f := range ledger {
+			bySeq[f.Seq] = f
+		}
+		for _, n := range cmd.Findings {
+			f, ok := bySeq[n]
+			if !ok {
+				return nil, fmt.Sprintf("this pull request has no finding S-%d", n), nil
+			}
+			if f.Status != findings.StatusOpen {
+				return nil, fmt.Sprintf("S-%d is %s; only an open finding can be fixed", n, f.Status), nil
+			}
+			out = append(out, f)
+		}
+	}
+	limit, err := a.fixLimit(ctx, p)
+	if err != nil {
+		return nil, "", err
+	}
+	if len(out) > limit {
+		return nil, fmt.Sprintf("%d findings; the limit is %d", len(out), limit), nil
+	}
+	return out, "", nil
+}
+
+// fixLimit is max_fix_batch for the repository: the admin setting, which
+// .sayso.yml at the base commit can lower.
+func (a *Activities) fixLimit(ctx context.Context, p *prRef) (int, error) {
+	repo, err := repos.New(a.Pool).ByFullName(ctx, p.full)
+	if err != nil {
+		return 0, err
+	}
+	var base string
+	if err := a.Pool.QueryRow(ctx, `SELECT base_sha FROM reviews WHERE id = $1`, p.reviewID).Scan(&base); err != nil {
+		return 0, err
+	}
+	eff, _, _, err := a.repoConfig(ctx, p.gh, repo, base)
+	if err != nil {
+		return 0, err
+	}
+	return max(eff.MaxFixBatch, 1), nil
+}
+
+// queueFix queues one fix run for the findings, in their order.
+func (a *Activities) queueFix(ctx context.Context, p *prRef, fs []findings.Finding, c comment) (*uuid.UUID, error) {
+	id := uuid.Must(uuid.NewV7())
+	ids := make([]uuid.UUID, len(fs))
+	for i, f := range fs {
+		ids[i] = f.ID
+	}
+	_, err := a.Pool.Exec(ctx, `INSERT INTO agent_work (id, review_id, kind, finding_id, finding_ids, comment_id, source, action, actor_login, head_sha)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, '', $8, $9)`, id, p.reviewID, KindFix, ids[0], ids, c.id, c.source, c.author, p.head)
+	return &id, err
+}
+
 // HandleCommand checks the commenter's permission and runs a /sayso
 // command (§11.1, SI-08). Commands that need no agent act at once; fix and
 // explain queue a run for the workflow.
 func (a *Activities) HandleCommand(ctx context.Context, in CommentInput) (CommandOutcome, error) {
 	p, err := a.pr(ctx, in.ReviewID)
 	if err != nil {
+		return CommandOutcome{}, err
+	}
+	// The person sees at once that Sayso has the command, before any step
+	// that can fail.
+	if err := p.gh.Client.ReactToComment(ctx, p.gh.Token, p.gh.Inst, p.full, in.Source, in.CommentID, "eyes"); err != nil {
 		return CommandOutcome{}, err
 	}
 	c, err := a.comment(ctx, p, in)
@@ -199,7 +288,7 @@ func (a *Activities) HandleCommand(ctx context.Context, in CommentInput) (Comman
 		return refuse(fmt.Sprintf("/sayso %s needs %s permission on %s, and you have %s", cmd.Name, needs[cmd.Name], p.full, perm))
 	}
 	var f *findings.Finding
-	if cmd.Finding > 0 {
+	if cmd.Finding > 0 && cmd.Name != "fix" {
 		if f, err = a.findingBySeq(ctx, p.reviewID, cmd.Finding); err != nil {
 			return CommandOutcome{}, err
 		}
@@ -241,7 +330,14 @@ func (a *Activities) HandleCommand(ctx context.Context, in CommentInput) (Comman
 		if pr.Head.Repo == nil || pr.Head.Repo.ID != p.repoGitHubID {
 			return refuse("/sayso fix works only for a branch in this repository, and this pull request comes from a fork")
 		}
-		if out.WorkID, err = a.queueWork(ctx, p, KindFix, f, c, ""); err != nil {
+		fs, why, err := a.fixTargets(ctx, p, cmd)
+		if err != nil {
+			return out, err
+		}
+		if why != "" {
+			return refuse(why)
+		}
+		if out.WorkID, err = a.queueFix(ctx, p, fs, c); err != nil {
 			return out, err
 		}
 		out.Action = ActionWork
@@ -376,4 +472,51 @@ func (a *Activities) HandleHumanComment(ctx context.Context, in CommentInput) er
 	_, err = a.Pool.Exec(ctx, `INSERT INTO steering_signals (id, review_id, type, actor_login, detail) VALUES ($1, $2, 'human_comment_unflagged', $3, $4)`,
 		uuid.Must(uuid.NewV7()), p.reviewID, c.author, detail)
 	return err
+}
+
+// CommandFailure is a command whose activity failed after its retries.
+type CommandFailure struct {
+	Comment CommentInput `json:"comment"`
+	Reason  string       `json:"reason"`
+}
+
+// CommandFailed records a failed command for the review page, and shows the
+// failure on GitHub when GitHub still accepts writes (issue #12). The row
+// comes first: GitHub can be the cause of the failure.
+func (a *Activities) CommandFailed(ctx context.Context, f CommandFailure) error {
+	in := f.Comment
+	reason := clipReason(f.Reason)
+	var command, author string
+	p, perr := a.pr(ctx, in.ReviewID)
+	if perr == nil {
+		if c, err := a.comment(ctx, p, in); err == nil {
+			line, _, _ := strings.Cut(strings.TrimSpace(c.body), "\n")
+			command, author = clipReason(line), c.author
+		}
+	}
+	if _, err := a.Pool.Exec(ctx, `INSERT INTO failed_commands (id, review_id, comment_id, source, in_reply_to, actor_login, command, reason)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		ON CONFLICT (review_id, comment_id) DO UPDATE SET reason = EXCLUDED.reason, created_at = now(), retried_at = NULL`,
+		uuid.Must(uuid.NewV7()), in.ReviewID, in.CommentID, in.Source, in.InReplyTo, author, command, reason); err != nil {
+		return err
+	}
+	if perr != nil {
+		return nil
+	}
+	// GitHub may refuse these writes too; the row above is the record.
+	_ = p.gh.Client.ReactToComment(ctx, p.gh.Token, p.gh.Inst, p.full, in.Source, in.CommentID, "confused")
+	c := comment{id: in.CommentID, source: in.Source, inReplyTo: in.InReplyTo}
+	_ = a.answer(ctx, p, c, "Sayso could not run this command: "+publish.Safe(reason)+".")
+	return nil
+}
+
+func clipReason(s string) string {
+	if len(s) <= 300 {
+		return s
+	}
+	n := 300
+	for n > 0 && (s[n]&0xC0) == 0x80 {
+		n--
+	}
+	return s[:n]
 }

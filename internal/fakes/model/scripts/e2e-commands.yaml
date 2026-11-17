@@ -104,6 +104,7 @@ stages:
   - tools:
     - name: propose_patch
       args:
+        finding_id: S-2
         title: Say that refunds pass
         description: The comment of Post now says that negative amounts pass.
         diff: |
@@ -118,4 +119,12 @@ stages:
            func (l *Ledger) Post(amount int64) error {
            	// Refunds pass negative amounts now.
            	_ = ErrNegative
+  - text: Done.
+  fix_check:
+  - tools:
+    - name: fix_check_result
+      args:
+        finding_id: S-2
+        outcome: resolved
+        reason: The comment of Post now says that refunds pass.
   - text: Done.

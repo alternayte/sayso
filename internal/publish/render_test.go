@@ -1,8 +1,11 @@
 package publish
 
 import (
+	"slices"
 	"strings"
 	"testing"
+
+	"github.com/google/uuid"
 
 	"github.com/alternayte/sayso/internal/findings"
 	"github.com/alternayte/sayso/internal/github"
@@ -40,16 +43,40 @@ func TestSafeNeutralizesMentionsAndHTML(t *testing.T) {
 	}
 }
 
-func TestDiffLines(t *testing.T) {
+func TestDiffHunks(t *testing.T) {
 	patch := "@@ -1,3 +1,4 @@\n package money\n-old\n+new\n+added\n ctx\n@@ -20,2 +21,2 @@\n a\n+b"
-	d := diffLines(githubFiles{{"internal/money/round.go", patch}}.files())["internal/money/round.go"]
-	for _, l := range []int{1, 2, 3, 4, 21, 22} {
-		if !d[l] {
-			t.Errorf("line %d is not in the diff", l)
+	got := diffHunks(githubFiles{{"internal/money/round.go", patch}}.files())["internal/money/round.go"]
+	want := []hunk{{1, 4}, {21, 22}}
+	if !slices.Equal(got, want) {
+		t.Fatalf("hunks %v, want %v", got, want)
+	}
+}
+
+// SCN-PUB-009: a range across hunks is clipped to one hunk, and a clipped
+// comment has no suggestion block.
+func TestSCN_PUB_009_RangeStaysInOneHunk(t *testing.T) {
+	hs := []hunk{{8, 15}, {35, 45}}
+	cases := []struct {
+		start, end, from, to int
+		clipped, ok          bool
+	}{
+		{10, 40, 35, 40, true, true},
+		{10, 12, 10, 12, false, true},
+		{10, 20, 10, 15, true, true},
+		{16, 30, 0, 0, false, false},
+	}
+	for _, c := range cases {
+		from, to, clipped, ok := anchor(hs, c.start, c.end)
+		if from != c.from || to != c.to || clipped != c.clipped || ok != c.ok {
+			t.Errorf("anchor(%d-%d) = %d-%d %v %v", c.start, c.end, from, to, clipped, ok)
 		}
 	}
-	if d[5] || d[20] {
-		t.Error("lines outside the hunks are in the diff")
+	f := findings.Finding{Seq: 1, Severity: "major", Title: "t", StartLine: 10, EndLine: 40, Suggestion: "x := 1"}
+	if body := RenderFinding(f, true); strings.Contains(body, "```suggestion") {
+		t.Errorf("clipped comment has a suggestion block:\n%s", body)
+	}
+	if body := RenderFinding(f, false); !strings.Contains(body, "```suggestion") {
+		t.Errorf("comment has no suggestion block:\n%s", body)
 	}
 }
 
@@ -62,4 +89,28 @@ func (g githubFiles) files() []github.PullFile {
 		out = append(out, github.PullFile{Filename: f.name, Patch: f.patch})
 	}
 	return out
+}
+
+// SCN-PUB-010: findings without an inline comment become annotations.
+func TestSCN_PUB_010_AnnotationsForFindingsWithoutComment(t *testing.T) {
+	mk := func(seq int, sev, path string, start, end int) findings.Finding {
+		return findings.Finding{ID: uuid.New(), Seq: seq, Severity: sev, Title: "t", Path: path, StartLine: start, EndLine: end, Status: findings.StatusOpen}
+	}
+	inDiff := mk(1, "major", "a.go", 3, 3)
+	overLimit := mk(2, "minor", "a.go", 4, 4)
+	offDiff := mk(3, "blocker", "a.go", 90, 92)
+	ledger := []findings.Finding{inDiff, overLimit, offDiff}
+	r := &round{FullName: "acme/payments", Number: 1, Status: "done", HeadSHA: "abc",
+		Outcome: &findings.Outcome{New: []uuid.UUID{inDiff.ID, overLimit.ID, offDiff.ID}}}
+	comments, _, as, links := plan(r, ledger, map[string][]hunk{"a.go": {{1, 10}}}, 1, "https://github.com")
+	if len(comments) != 1 || comments[0].FindingID != inDiff.ID.String() {
+		t.Fatalf("comments %+v", comments)
+	}
+	if len(as) != 2 || as[0].FindingID != offDiff.ID.String() || as[0].Level != "failure" || as[0].StartLine != 90 || as[0].EndLine != 92 ||
+		as[1].FindingID != overLimit.ID.String() || as[1].Level != "notice" {
+		t.Fatalf("annotations %+v", as)
+	}
+	if !strings.HasSuffix(links[offDiff.ID.String()], "#L90-L92") {
+		t.Fatalf("link %s", links[offDiff.ID.String()])
+	}
 }

@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"maps"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 )
 
@@ -119,4 +121,55 @@ func contentsPath(fullName, path string) string {
 		segs[i] = url.PathEscape(s)
 	}
 	return fmt.Sprintf("/repos/%s/contents/%s", fullName, strings.Join(segs, "/"))
+}
+
+// CommitFiles writes the files to a sayso/fix/ branch as one commit with
+// the Git Data API, and returns the commit SHA. The files are text; each
+// keeps the mode 100644.
+func (c *Client) CommitFiles(ctx context.Context, token string, inst int64, fullName, branch, message string, files map[string][]byte) (string, error) {
+	if err := fixBranch(branch); err != nil {
+		return "", err
+	}
+	do := func(method, path string, in, out any) error {
+		return c.call(ctx, call{method: method, path: fmt.Sprintf("/repos/%s/git/%s", fullName, path), auth: "Bearer " + token, in: in, out: out, inst: inst, prio: High})
+	}
+	var ref struct {
+		Object struct {
+			SHA string `json:"sha"`
+		} `json:"object"`
+	}
+	if err := do(http.MethodGet, "ref/heads/"+branch, nil, &ref); err != nil {
+		return "", err
+	}
+	var parent struct {
+		Tree struct {
+			SHA string `json:"sha"`
+		} `json:"tree"`
+	}
+	if err := do(http.MethodGet, "commits/"+ref.Object.SHA, nil, &parent); err != nil {
+		return "", err
+	}
+	type entry struct {
+		Path    string `json:"path"`
+		Mode    string `json:"mode"`
+		Type    string `json:"type"`
+		Content string `json:"content"`
+	}
+	entries := make([]entry, 0, len(files))
+	for _, p := range slices.Sorted(maps.Keys(files)) {
+		entries = append(entries, entry{Path: p, Mode: "100644", Type: "blob", Content: string(files[p])})
+	}
+	var tree, commit struct {
+		SHA string `json:"sha"`
+	}
+	if err := do(http.MethodPost, "trees", map[string]any{"base_tree": parent.Tree.SHA, "tree": entries}, &tree); err != nil {
+		return "", err
+	}
+	if err := do(http.MethodPost, "commits", map[string]any{"message": message, "tree": tree.SHA, "parents": []string{ref.Object.SHA}}, &commit); err != nil {
+		return "", err
+	}
+	if err := do(http.MethodPatch, "refs/heads/"+branch, map[string]any{"sha": commit.SHA, "force": false}, nil); err != nil {
+		return "", err
+	}
+	return commit.SHA, nil
 }

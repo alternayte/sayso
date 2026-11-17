@@ -24,6 +24,7 @@ export interface FindingInput {
   evidence: { kind: string; detail: string; test_path?: string };
   suggestion?: string;
   same_as?: string;
+  pre_existing?: boolean;
 }
 
 /** HeadFiles reads files of /work/head for validation. */

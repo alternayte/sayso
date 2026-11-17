@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"go.temporal.io/sdk/temporal"
 
 	"github.com/alternayte/sayso/internal/feeds"
 	"github.com/alternayte/sayso/internal/findings"
@@ -109,8 +110,8 @@ func (a *Activities) Decide(ctx context.Context, in DecideInput) (Decision, erro
 	if base == "" {
 		base = pr.Base.SHA
 	}
-	if _, err := a.Pool.Exec(ctx, `UPDATE reviews SET head_sha = $2, base_sha = $3, pr_node_id = $4, author_login = $5 WHERE id = $1`,
-		in.ReviewID, head, base, pr.NodeID, pr.User.Login); err != nil {
+	if _, err := a.Pool.Exec(ctx, `UPDATE reviews SET head_sha = $2, base_sha = $3, pr_node_id = $4, author_login = $5, title = $6, head_ref = $7 WHERE id = $1`,
+		in.ReviewID, head, base, pr.NodeID, pr.User.Login, pr.Title, pr.Head.Ref); err != nil {
 		return Decision{}, err
 	}
 	explicit := in.Trigger == signals.TriggerCommand || in.Trigger == signals.TriggerCheckRerequest
@@ -175,6 +176,12 @@ type Config struct {
 	BudgetUSD float64           `json:"budget_usd"`
 	Models    []runner.Model    `json:"models"`
 	Spec      runner.Spec       `json:"spec"`
+}
+
+// NoModelTarget is the failure reason of a round with a stage whose profile
+// has no target.
+func NoModelTarget(stage, profile string) string {
+	return fmt.Sprintf("no_model_target: stage %s, profile %s", stage, profile)
 }
 
 // ResolveConfig reads the settings, the repository and .sayso.yml of the
@@ -263,6 +270,11 @@ func (a *Activities) ResolveConfig(ctx context.Context, roundID uuid.UUID) error
 			PriceCacheRead float64  `json:"price_cache_read"`
 		}
 		_ = json.Unmarshal(targets, &ts)
+		// A stage without a target would fail only when it starts, after the
+		// work of the stages before it.
+		if len(ts) == 0 {
+			return temporal.NewNonRetryableApplicationError(NoModelTarget(stage, profiles[stage]), "no_model_target", nil)
+		}
 		for _, t := range ts {
 			models = append(models, runner.Model{Profile: profiles[stage], Provider: t.Provider, Model: t.Model, MaxTokens: t.MaxTokens, ContextWindow: t.ContextWindow,
 				Reasoning: t.Reasoning, Temperature: t.Temperature, PriceIn: t.PriceIn, PriceOut: t.PriceOut, PriceCacheRead: t.PriceCacheRead})
@@ -386,7 +398,8 @@ func (a *Activities) repoConfig(ctx context.Context, gh publish.Session, repo re
 	}
 	rows.Close()
 	eff := repos.Resolve(repo, ov, warnings, repos.Limits{AllowedProfiles: allowed, MaxInlineComments: a.intSetting(ctx, settings.MaxInlineComments, 10),
-		Extensions: enabled, Images: images})
+		MaxFixBatch: a.intSetting(ctx, settings.MaxFixBatch, 10),
+		Extensions:  enabled, Images: images})
 	skillPath := eff.Skill
 	if skillPath == "" {
 		skillPath = repos.DefaultSkillPath
@@ -510,6 +523,25 @@ func (a *Activities) FinishRound(ctx context.Context, f Finish) error {
 	return err
 }
 
+// keepUnchallenged stores the findings that a failed run sent from its
+// finished review stage. They show in the round preview and never enter
+// the ledger.
+func (a *Activities) keepUnchallenged(ctx context.Context, roundID, runID uuid.UUID) error {
+	res, err := runner.ReadResult(ctx, a.Pool, a.Stores, runID)
+	if errors.Is(err, runner.ErrNoResult) || (err == nil && len(res.Findings) == 0) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	raw, err := json.Marshal(res.Findings)
+	if err != nil {
+		return err
+	}
+	_, err = a.Pool.Exec(ctx, `UPDATE rounds SET unchallenged = $2 WHERE id = $1`, roundID, raw)
+	return err
+}
+
 // Reconciled is the result of ReconcileLedger.
 type Reconciled struct {
 	// Status is failed or budget_exceeded when the agent run did not finish.
@@ -553,6 +585,9 @@ func (a *Activities) ReconcileLedger(ctx context.Context, roundID uuid.UUID) (Re
 		reason := exit
 		if reason == "" {
 			reason = "the agent run ended with status " + status
+		}
+		if err := a.keepUnchallenged(ctx, roundID, *runID); err != nil {
+			return Reconciled{}, err
 		}
 		return Reconciled{Status: "failed", Reason: reason}, nil
 	}
@@ -677,8 +712,12 @@ func (a *Activities) RoundTimeout(ctx context.Context, _ uuid.UUID) (int, error)
 }
 
 // ReplyTimeout reads the reply and fix run timeout in minutes (default 10).
-func (a *Activities) ReplyTimeout(ctx context.Context, _ uuid.UUID) (int, error) {
-	return a.intSetting(ctx, settings.ReplyTimeoutMinutes, 10), nil
+func (a *Activities) ReplyTimeout(ctx context.Context, id uuid.UUID) (int, error) {
+	w, err := a.work(ctx, id)
+	if err != nil {
+		return 0, err
+	}
+	return a.workTimeout(ctx, w), nil
 }
 
 // WorkKind reads whether a work item is a reply or a fix.

@@ -77,3 +77,11 @@ func TestVerdict(t *testing.T) {
 		t.Error(v)
 	}
 }
+
+// SCN-FND-008: a pre-existing finding never blocks and does not count.
+func TestSCN_FND_008_PreExistingNeverBlocks(t *testing.T) {
+	open := []Finding{{Severity: "blocker", PreExisting: true}}
+	if v := Verdict(open); v != VerdictLooksGood {
+		t.Fatalf("verdict %s", v)
+	}
+}

@@ -49,11 +49,27 @@ export class Collector {
   updates: LedgerUpdate[] = [];
   assessment: Assessment | undefined;
   reply: ReplyResult | undefined;
-  patch: Patch | undefined;
+  /** Patches of the fix stage, in the order the agent proposed them. */
+  patches: Patch[] = [];
+  /** Findings that the fix stage skipped, with the reason. */
+  skipped = new Map<string, string>();
+  /** Results of the fix_check stage, by finding ID. */
+  fixChecks = new Map<
+    string,
+    {
+      outcome: "resolved" | "not_resolved";
+      reason: string;
+      new_blocker?: string;
+    }
+  >();
   /** Results of the challenge stage, by candidate ID. */
   challenge = new Map<
     string,
-    { outcome: "confirmed" | "refuted" | "downgraded"; reason: string }
+    {
+      outcome: "confirmed" | "refuted" | "downgraded";
+      reason: string;
+      pre_existing?: boolean;
+    }
   >();
   limitReached = false;
 }
@@ -68,8 +84,12 @@ export interface ToolsContext {
   maxFindings: number;
   /** Candidates of the challenge stage. */
   candidates: Finding[];
-  /** Finding of a reply or fix run. */
+  /** Finding of a reply run. */
   findingId?: string;
+  /** Findings of a fix or fix_check stage. */
+  fixIds?: string[];
+  /** The fix tree: the head commit with the accepted patches. */
+  fixDir?: string;
   emit: (e: NewEvent) => void;
 }
 
@@ -113,7 +133,14 @@ export function saysoTools(ctx: ToolsContext): ExtensionFactory {
           }),
           suggestion: Type.Optional(
             Type.String({
-              description: "Replacement for the lines, 20 lines or fewer",
+              description:
+                "Replacement for exactly start_line to end_line at the head commit, 20 lines or fewer. Only for a local fix.",
+            }),
+          ),
+          pre_existing: Type.Optional(
+            Type.Boolean({
+              description:
+                "True when the bug is also at the base commit and the pull request did not introduce it",
             }),
           ),
           same_as: Type.Optional(
@@ -152,6 +179,7 @@ export function saysoTools(ctx: ToolsContext): ExtensionFactory {
             },
             suggestion: f.suggestion || undefined,
             same_as: f.same_as || undefined,
+            pre_existing: f.pre_existing || undefined,
           };
           c.findings.push(finding);
           ctx.emit({
@@ -235,6 +263,12 @@ export function saysoTools(ctx: ToolsContext): ExtensionFactory {
           outcome: StringEnum(["confirmed", "refuted", "downgraded"] as const),
           reason: Type.String(),
           evidence: Type.Optional(Type.String()),
+          pre_existing: Type.Optional(
+            Type.Boolean({
+              description:
+                "Whether the bug is also at the base commit in /work/base",
+            }),
+          ),
         }),
         async execute(_id, r) {
           const pending = new Set(
@@ -247,6 +281,7 @@ export function saysoTools(ctx: ToolsContext): ExtensionFactory {
           c.challenge.set(r.candidate_id, {
             outcome: r.outcome,
             reason: r.reason,
+            pre_existing: r.pre_existing,
           });
           ctx.emit({
             stage: "challenge",
@@ -283,41 +318,116 @@ export function saysoTools(ctx: ToolsContext): ExtensionFactory {
       });
     }
     if (ctx.stage === "fix") {
+      const ids = new Set(ctx.fixIds ?? []);
+      const pending = (id: string) => {
+        if (!ids.has(id)) failure(`${id} is not a finding of this fix run`);
+        if (c.skipped.has(id) || c.patches.some((p) => p.finding_id === id))
+          failure(`${id} has a patch or a skip already`);
+      };
       pi.registerTool({
         name: "propose_patch",
         label: "Propose patch",
         description:
-          "One unified diff against the head commit that fixes the finding, with a title and a description.",
+          "One unified diff that fixes one finding, against the fix tree, with a title and a description.",
         parameters: Type.Object({
+          finding_id: Type.String({ description: "For example S-2" }),
           diff: Type.String(),
           title: Type.String({ maxLength: 100 }),
           description: Type.String(),
         }),
         async execute(_id, p) {
-          if (c.patch) failure("propose_patch was called already");
-          try {
-            // The runtime runs this check, not the agent, so it works with execution off.
-            execFileSync("git", ["apply", "--check", "-"], {
-              cwd: ctx.headDir,
-              input: p.diff,
-              stdio: ["pipe", "pipe", "pipe"],
-            });
-          } catch (e) {
-            failure(
-              `git apply --check failed: ${(e as { stderr?: Buffer }).stderr?.toString().trim() ?? String(e)}`,
-            );
-          }
-          c.patch = {
-            finding_id: ctx.findingId ?? "",
+          pending(p.finding_id);
+          // The runtime runs this check, not the agent, so it works with
+          // execution off. The patch then goes into the fix tree, so the
+          // next patch builds on it.
+          const err =
+            applyPatch(ctx.fixDir!, p.diff, true) ??
+            applyPatch(ctx.fixDir!, p.diff, false);
+          if (err) failure(`git apply failed on the fix tree: ${err}`);
+          c.patches.push({
+            finding_id: p.finding_id,
             title: p.title,
             description: p.description,
             diff: p.diff,
-          };
-          return text("Patch recorded.");
+          });
+          return text(
+            `Patch for ${p.finding_id} recorded and applied to the fix tree.`,
+          );
+        },
+      });
+      pi.registerTool({
+        name: "skip_finding",
+        label: "Skip finding",
+        description:
+          "Leave a finding out of the fix, with the reason, when no safe local patch fixes it.",
+        parameters: Type.Object({
+          finding_id: Type.String(),
+          reason: Type.String({ minLength: 1, maxLength: 500 }),
+        }),
+        async execute(_id, p) {
+          pending(p.finding_id);
+          c.skipped.set(p.finding_id, p.reason);
+          return text(`Skipped ${p.finding_id}.`);
+        },
+      });
+    }
+    if (ctx.stage === "fix_check") {
+      const ids = new Set(ctx.fixIds ?? []);
+      pi.registerTool({
+        name: "fix_check_result",
+        label: "Fix check result",
+        description:
+          "The result for one fix: resolved or not_resolved, with the reason, and a new blocker that the patch adds, if any.",
+        parameters: Type.Object({
+          finding_id: Type.String(),
+          outcome: StringEnum(["resolved", "not_resolved"] as const),
+          reason: Type.String({ minLength: 1 }),
+          new_blocker: Type.Optional(
+            Type.String({
+              description: "What the patch breaks, when it adds a blocker",
+            }),
+          ),
+        }),
+        async execute(_id, r) {
+          if (!ids.has(r.finding_id) || c.fixChecks.has(r.finding_id))
+            failure(
+              `${r.finding_id} is not a fix of this check, or it has a result already`,
+            );
+          c.fixChecks.set(r.finding_id, {
+            outcome: r.outcome,
+            reason: r.reason,
+            new_blocker: r.new_blocker || undefined,
+          });
+          ctx.emit({
+            stage: "fix_check",
+            type: "note",
+            name: "fix_check_result",
+            status: r.outcome,
+            preview: `${r.finding_id}: ${r.reason}`,
+          });
+          return text(`Recorded ${r.outcome} for ${r.finding_id}.`);
         },
       });
     }
   };
+}
+
+/** applyPatch checks or applies a diff in a tree; it returns the git error. */
+export function applyPatch(
+  dir: string,
+  diff: string,
+  check: boolean,
+): string | undefined {
+  try {
+    execFileSync("git", ["apply", ...(check ? ["--check"] : []), "-"], {
+      cwd: dir,
+      input: diff,
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+    return undefined;
+  } catch (e) {
+    return (e as { stderr?: Buffer }).stderr?.toString().trim() ?? String(e);
+  }
 }
 
 /** required lists the tool calls a stage must make before it ends (§8.6). */
@@ -325,6 +435,7 @@ export function missingOutput(
   stage: Stage,
   c: Collector,
   candidates: Finding[],
+  fixIds: string[] = [],
 ): string | undefined {
   switch (stage) {
     case "review":
@@ -339,7 +450,20 @@ export function missingOutput(
     }
     case "reply":
       return c.reply ? undefined : "reply was not called";
-    case "fix":
-      return c.patch ? undefined : "propose_patch was not called";
+    case "fix": {
+      const missing = fixIds.filter(
+        (id) =>
+          !c.skipped.has(id) && !c.patches.some((p) => p.finding_id === id),
+      );
+      return missing.length
+        ? `propose_patch or skip_finding is missing for ${missing.join(", ")}`
+        : undefined;
+    }
+    case "fix_check": {
+      const missing = fixIds.filter((id) => !c.fixChecks.has(id));
+      return missing.length
+        ? `fix_check_result is missing for ${missing.join(", ")}`
+        : undefined;
+    }
   }
 }

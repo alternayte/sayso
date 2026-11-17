@@ -2,17 +2,18 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { cancelRoundMutation, getRoundOptions, getRoundQueryKey, saveSteeringReviewMutation } from "@/client/@tanstack/react-query.gen";
-import type { SignalBody, SteeringNote } from "@/client/types.gen";
+import type { Annotation, Finding, SignalBody, SteeringNote } from "@/client/types.gen";
 import { Input } from "@/components/ui/input";
 import { atLeast } from "@/lib/session";
 import { Button, ErrorAlert, PageHead } from "@/components/app-ui";
 import { SafeMarkdown } from "@/components/markdown";
 import { Alert } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { t } from "@/lib/copy";
-import { RoundStatus, sha7, Verdict } from "@/lib/review";
+import { liveStatus, RoundStatus, sha7, Verdict } from "@/lib/review";
 import { FindingRow } from "../reviews/$owner.$name.$number";
 
 export const Route = createFileRoute("/_app/rounds/$id")({
@@ -87,12 +88,92 @@ function SteeringCard({ id, signals, saved, canEdit }: { id: string; signals: Si
   );
 }
 
+const noTarget = /^no_model_target: stage (\S+), profile (.+)$/;
+
+/** Reason shows why a round failed. A stage profile without a model target links to the model settings. */
+function Reason({ reason }: { reason: string }) {
+  if (!reason.startsWith("no_model_target")) return <p className="text-ink">{reason}</p>;
+  const m = noTarget.exec(reason);
+  return (
+    <Alert tone="danger" className="flex-wrap items-center gap-x-3">
+      <span>{m ? t("profile.no_target", { stage: m[1] ?? "", profile: m[2] ?? "" }) : reason}</span>
+      <Link to="/settings/models" className="link">
+        {t("profile.no_target.link")}
+      </Link>
+    </Alert>
+  );
+}
+
+const levelTone = { failure: "danger", warning: "warning", notice: undefined } as const;
+
+/** Annotations lists the check run annotations of the round. A preview stored before annotations existed has none. */
+function Annotations({ items }: { items?: Annotation[] | null }) {
+  if (!items?.length) return null;
+  return (
+    <section aria-label={t("round.annotations")} className="grid gap-2 border-t border-hairline pt-4">
+      <h3 className="t-label">{t("round.annotations")}</h3>
+      <ul className="grid gap-1.5 text-[13px]">
+        {items.map((a) => (
+          <li key={`${a.finding_id}-${a.path}-${a.start_line}`} className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <Badge tone={levelTone[a.level]}>{t(`annotation.${a.level}`)}</Badge>
+            <span className="t-value">
+              {a.path}:{a.start_line}
+              {a.end_line > a.start_line ? `-${a.end_line}` : ""}
+            </span>
+            <span className="text-ink">{a.title}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+/** Unchallenged lists the findings of the review stage of a round that failed before the challenge stage. */
+function Unchallenged({ findings }: { findings: Finding[] }) {
+  return (
+    <Card className="overflow-x-auto">
+      <CardHeader>
+        <CardTitle>{t("round.unchallenged")}</CardTitle>
+      </CardHeader>
+      <p className="t-hint px-4 pt-3">{t("round.unchallenged.note")}</p>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>{t("finding.severity")}</TableHead>
+            <TableHead>{t("finding.title")}</TableHead>
+            <TableHead>{t("finding.location")}</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {findings.map((f) => (
+            <TableRow key={f.candidate_id}>
+              <TableCell>
+                <span className="flex flex-wrap items-center gap-2">
+                  {f.severity}
+                  {f.pre_existing ? <Badge>{t("finding.pre_existing")}</Badge> : null}
+                </span>
+              </TableCell>
+              <TableCell className="min-w-[16rem]">{f.title}</TableCell>
+              <TableCell className="t-value">
+                {f.path}:{f.start_line}
+                {f.end_line > f.start_line ? `-${f.end_line}` : ""}
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </Card>
+  );
+}
+
 function Round() {
   const { id } = Route.useParams();
   const { me } = Route.useRouteContext();
   const qc = useQueryClient();
-  const live = (s?: string) => s === "queued" || s === "running" || s === "publishing";
-  const q = useQuery({ ...getRoundOptions({ path: { id } }), refetchInterval: (query) => (live(query.state.data?.status) ? 2000 : false) });
+  const q = useQuery({
+    ...getRoundOptions({ path: { id } }),
+    refetchInterval: (query) => (liveStatus(query.state.data?.status) ? 2000 : false),
+  });
   const cancel = useMutation({
     ...cancelRoundMutation(),
     onSettled: () => qc.invalidateQueries({ queryKey: getRoundQueryKey({ path: { id } }) }),
@@ -149,7 +230,7 @@ function Round() {
               {q.data.risk ? <span className="t-hint">{t("round.risk", { risk: q.data.risk })}</span> : null}
               <span className="t-hint">{t("round.trigger", { trigger: q.data.trigger })}</span>
             </div>
-            {q.data.reason ? <p className="text-ink">{q.data.reason}</p> : null}
+            {q.data.reason ? <Reason reason={q.data.reason} /> : null}
             {q.data.mode === "shadow" ? <Alert>{t("round.shadow")}</Alert> : null}
           </Card>
           {q.data.assessment ? (
@@ -201,6 +282,7 @@ function Round() {
                   <h3 className="t-label">{t("round.output.summary")}</h3>
                   <SafeMarkdown text={q.data.preview.summary} />
                 </section>
+                <Annotations items={q.data.preview.annotations} />
                 {q.data.preview.comments.map((c) => (
                   <section key={c.finding_id} aria-label={`${c.path}:${c.line}`} className="grid gap-2 border-t border-hairline pt-4">
                     <h3 className="t-value text-ink">
@@ -212,6 +294,7 @@ function Round() {
               </div>
             </Card>
           ) : null}
+          {q.data.preview?.unchallenged?.length ? <Unchallenged findings={q.data.preview.unchallenged} /> : null}
           {q.data.config ? (
             <Card>
               <CardHeader>

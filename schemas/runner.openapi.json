@@ -336,6 +336,10 @@
           "path": {
             "type": "string"
           },
+          "pre_existing": {
+            "description": "The bug exists at the base commit; the pull request did not introduce it.",
+            "type": "boolean"
+          },
           "same_as": {
             "type": "string"
           },
@@ -375,6 +379,46 @@
         "type": "object"
       },
       "FixInput": {
+        "additionalProperties": false,
+        "properties": {
+          "findings": {
+            "items": {
+              "$ref": "#/components/schemas/FixTarget"
+            },
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": [
+          "findings"
+        ],
+        "type": "object"
+      },
+      "FixResult": {
+        "additionalProperties": false,
+        "properties": {
+          "finding_id": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "fixed",
+              "skipped",
+              "dropped"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "finding_id",
+          "status"
+        ],
+        "type": "object"
+      },
+      "FixTarget": {
         "additionalProperties": false,
         "properties": {
           "finding": {
@@ -774,6 +818,12 @@
             },
             "type": "array"
           },
+          "fix_results": {
+            "items": {
+              "$ref": "#/components/schemas/FixResult"
+            },
+            "type": "array"
+          },
           "harness": {
             "$ref": "#/components/schemas/Harness"
           },
@@ -792,8 +842,11 @@
             },
             "type": "array"
           },
-          "patch": {
-            "$ref": "#/components/schemas/Patch"
+          "patches": {
+            "items": {
+              "$ref": "#/components/schemas/Patch"
+            },
+            "type": "array"
           },
           "prompt_ref": {
             "$ref": "#/components/schemas/PromptRef"

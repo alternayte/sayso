@@ -27,6 +27,17 @@ Use this skill for every review.
 - When you can run code, write a small test under `.sayso-tests/` and run it.
 - Report a style issue as a nit. Do not report what a linter or formatter already checks.
 
+## Put each finding on its lines
+
+- Give the lines of the change that causes the issue. Only changed lines get an inline comment. Name the callers or other places in the body.
+- Set `pre_existing` when the bug is also at the base commit and the pull request did not introduce it.
+
+## Suggest the fix when it is local
+
+- Give `suggestion` when the fix is local, 20 lines or fewer, and replaces exactly `start_line` to `end_line` at the head commit. The author can then commit it from the comment.
+- Leave it out when the fix spans several places, needs a design choice, or you are not sure.
+- For a larger fix, say in the body that a person can run `/sayso fix S-<n>`.
+
 ## Be brief
 
 One finding per issue. A short title. A body that says what breaks, where and why.

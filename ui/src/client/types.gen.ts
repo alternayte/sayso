@@ -10,6 +10,16 @@ export type AccessBody = {
     users: Array<UserBody>;
 };
 
+export type Annotation = {
+    end_line: number;
+    finding_id: string;
+    level: 'failure' | 'warning' | 'notice';
+    message: string;
+    path: string;
+    start_line: number;
+    title: string;
+};
+
 export type AppBody = {
     app_id: number;
     html_url: string;
@@ -178,6 +188,7 @@ export type Effective = {
     ignore: Array<string>;
     image: string;
     instructions: string;
+    max_fix_batch: number;
     max_inline_comments: number;
     mcp: Array<string>;
     nits: string;
@@ -314,6 +325,15 @@ export type ExtensionInput = {
     spec: string;
 };
 
+export type FailedCommandBody = {
+    at: string;
+    author: string;
+    command: string;
+    id: string;
+    reason: string;
+    retried_at: string | null;
+};
+
 export type FeedBody = {
     allowed_repositories: Array<string>;
     auth_header: string;
@@ -380,6 +400,25 @@ export type Field = {
     updated_at?: string;
 };
 
+export type Finding = {
+    body: string;
+    candidate_id: string;
+    category: string;
+    challenge?: Challenge;
+    end_line: number;
+    evidence: Evidence;
+    path: string;
+    /**
+     * The bug exists at the base commit; the pull request did not introduce it.
+     */
+    pre_existing?: boolean;
+    same_as?: string;
+    severity: 'blocker' | 'major' | 'minor' | 'nit';
+    start_line: number;
+    suggestion?: string;
+    title: string;
+};
+
 export type FindingBody = {
     blocking: boolean;
     body: string;
@@ -390,10 +429,32 @@ export type FindingBody = {
     id: string;
     label: string;
     path: string;
+    pre_existing: boolean;
     severity: string;
     start_line: number;
     status: string;
+    suggestion?: string;
     title: string;
+};
+
+export type FixFindingsRequest = {
+    /**
+     * Labels, for example S-2
+     */
+    findings: Array<string>;
+};
+
+export type FixBody = {
+    actor: string;
+    at: string;
+    /**
+     * Labels, for example S-2
+     */
+    findings: Array<string>;
+    id: string;
+    pull_url?: string;
+    reason?: string;
+    status: string;
 };
 
 export type GitHubBody = {
@@ -493,10 +554,12 @@ export type Preset = {
 };
 
 export type Preview = {
+    annotations: Array<Annotation>;
     check?: Check;
     comments: Array<Comment>;
     replies: Array<Reply>;
     summary: string;
+    unchallenged?: Array<Finding>;
 };
 
 export type PreviewBody = {
@@ -652,16 +715,27 @@ export type Result = {
 
 export type ReviewBody = {
     author: string;
+    check_url?: string;
+    failed_commands: Array<FailedCommandBody>;
     findings: Array<FindingBody>;
+    fixes: Array<FixBody>;
+    head_ref: string;
+    /**
+     * The pull request on GitHub
+     */
+    html_url: string;
     id: string;
     last_round: RoundSummary;
     mode: string;
     number: number;
+    preview?: Preview;
     repository: string;
     rounds: Array<RoundSummary>;
     signals: Array<SignalBody>;
     state: string;
+    summary_url?: string;
     temporal_url?: string;
+    title: string;
 };
 
 export type ReviewInput = {
@@ -671,12 +745,18 @@ export type ReviewInput = {
 
 export type ReviewItem = {
     author: string;
+    head_ref: string;
+    /**
+     * The pull request on GitHub
+     */
+    html_url: string;
     id: string;
     last_round: RoundSummary;
     mode: string;
     number: number;
     repository: string;
     state: string;
+    title: string;
 };
 
 export type RoundBody = {
@@ -1462,6 +1542,31 @@ export type PutExtensionResponses = {
 };
 
 export type PutExtensionResponse = PutExtensionResponses[keyof PutExtensionResponses];
+
+export type RetryFailedCommandData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/failed-commands/{id}/retry';
+};
+
+export type RetryFailedCommandErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type RetryFailedCommandError = RetryFailedCommandErrors[keyof RetryFailedCommandErrors];
+
+export type RetryFailedCommandResponses = {
+    /**
+     * Accepted
+     */
+    202: unknown;
+};
 
 export type ListFeedsData = {
     body?: never;
@@ -2395,7 +2500,7 @@ export type PreviewPromptData = {
         name: string;
     };
     query?: {
-        stage?: 'review' | 'challenge' | 'reply' | 'fix';
+        stage?: 'review' | 'challenge' | 'reply' | 'fix' | 'fix_check';
     };
     url: '/api/v1/repositories/{owner}/{name}/prompt-preview';
 };
@@ -2455,6 +2560,10 @@ export type ListReviewsData = {
          */
         repository?: string;
         state?: '' | 'open' | 'paused' | 'closed' | 'merged';
+        /**
+         * Status of the latest round
+         */
+        round_status?: '' | 'queued' | 'running' | 'done' | 'failed' | 'cancelled';
     };
     url: '/api/v1/reviews';
 };
@@ -2505,6 +2614,35 @@ export type GetReviewResponses = {
 };
 
 export type GetReviewResponse = GetReviewResponses[keyof GetReviewResponses];
+
+export type FixFindingsData = {
+    body: FixFindingsRequest;
+    path: {
+        owner: string;
+        name: string;
+        number: number;
+    };
+    query?: never;
+    url: '/api/v1/reviews/{owner}/{name}/{number}/fix';
+};
+
+export type FixFindingsErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type FixFindingsError = FixFindingsErrors[keyof FixFindingsErrors];
+
+export type FixFindingsResponses = {
+    /**
+     * Accepted
+     */
+    202: FixBody;
+};
+
+export type FixFindingsResponse = FixFindingsResponses[keyof FixFindingsResponses];
 
 export type GetRoundData = {
     body?: never;

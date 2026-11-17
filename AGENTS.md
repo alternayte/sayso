@@ -33,6 +33,7 @@ One Go binary serves the api, worker and relay roles, and a separate agent image
 - agent run: one execution of the agent runtime in a runner. Avoid: bot run.
 - stage: one agent session inside an agent run.
 - finding: one issue the agent reports, with severity, location and evidence.
+- pre-existing finding: a finding whose bug exists at the base commit and that the pull request did not introduce. Avoid: legacy finding, old bug.
 - ledger: all findings of a review with their status history.
 - verdict: the outcome of a round, published as a check run.
 - risk: the risk level of a change, with reasons.

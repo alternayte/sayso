@@ -70,6 +70,18 @@ type CheckRun struct {
 	Title      string
 	Summary    string
 	ExternalID string
+	// Annotations are appended on each request, as GitHub does.
+	Annotations []CheckAnnotation
+}
+
+// CheckAnnotation is one check run annotation.
+type CheckAnnotation struct {
+	Path            string `json:"path"`
+	StartLine       int    `json:"start_line"`
+	EndLine         int    `json:"end_line"`
+	AnnotationLevel string `json:"annotation_level"`
+	Title           string `json:"title"`
+	Message         string `json:"message"`
 }
 
 // seedRepos creates the git repositories of SDD §22 from the fixtures.
@@ -435,8 +447,9 @@ func (f *Fake) patchCheckRun(w http.ResponseWriter, r *http.Request) {
 		Status     string `json:"status"`
 		Conclusion string `json:"conclusion"`
 		Output     *struct {
-			Title   string `json:"title"`
-			Summary string `json:"summary"`
+			Title       string            `json:"title"`
+			Summary     string            `json:"summary"`
+			Annotations []CheckAnnotation `json:"annotations"`
 		} `json:"output"`
 	}
 	if !f.writeCall(w, r) {
@@ -454,6 +467,7 @@ func (f *Fake) patchCheckRun(w http.ResponseWriter, r *http.Request) {
 		}
 		if in.Output != nil {
 			c.Title, c.Summary = in.Output.Title, in.Output.Summary
+			c.Annotations = append(c.Annotations, in.Output.Annotations...)
 		}
 	}
 	f.mu.Unlock()

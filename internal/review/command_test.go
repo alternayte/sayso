@@ -1,6 +1,9 @@
 package review
 
-import "testing"
+import (
+	"slices"
+	"testing"
+)
 
 func TestParseCommand(t *testing.T) {
 	cases := []struct {
@@ -30,5 +33,27 @@ func TestParseCommand(t *testing.T) {
 func TestAllowed(t *testing.T) {
 	if Allowed("review", "read") || !Allowed("review", "write") || Allowed("override", "write") || !Allowed("override", "maintain") || !Allowed("explain", "read") {
 		t.Fatal("permission table")
+	}
+}
+
+func TestParseFix(t *testing.T) {
+	cases := []struct {
+		body       string
+		findings   []int
+		all, minor bool
+		err        bool
+	}{
+		{"/sayso fix S-1 s-3 S-1", []int{1, 3}, false, false, false},
+		{"/sayso fix all", nil, true, false, false},
+		{"/sayso fix all --minor", nil, true, true, false},
+		{"/sayso fix all --nits", nil, true, false, true},
+		{"/sayso fix S-1 three", nil, false, false, true},
+		{"/sayso fix", nil, false, false, true},
+	}
+	for _, c := range cases {
+		got := ParseCommand(c.body)
+		if (got.Err != "") != c.err || got.All != c.all || got.Minor != c.minor || (!c.err && !slices.Equal(got.Findings, c.findings)) {
+			t.Errorf("%q: %+v", c.body, got)
+		}
 	}
 }
