@@ -323,8 +323,9 @@ test("SCN-UI-010 INP p75 is 100 ms or less at 4x CPU slowdown; the run page keep
     await page.waitForTimeout(300);
   }
   await nav.getByRole("link", { name: "Home" }).click();
+  const state = page.getByRole("radiogroup", { name: "State" });
   for (const s of ["Open", "Merged", "All"]) {
-    await page.getByRole("radio", { name: s }).click();
+    await state.getByRole("radio", { name: s }).click();
     await page.waitForTimeout(300);
   }
   const durations = (await inp(page)).sort((a, b) => a - b);

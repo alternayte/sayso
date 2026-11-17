@@ -148,13 +148,11 @@ export function ReviewsTable({ rows, fetching }: { rows: ReviewItem[]; fetching?
             return (
               <TableRow key={r.id}>
                 <TableCell className="min-w-[18rem]">
-                  <Link to="/reviews/$owner/$name/$number" params={{ owner, name, number: String(r.number) }} className="link">
-                    {r.title || `${r.repository}#${r.number}`}
-                  </Link>
+                  {r.title && <span className="block">{r.title}</span>}
                   <span className="mt-0.5 flex flex-wrap gap-x-2">
-                    <span className="t-value t-hint">
+                    <Link to="/reviews/$owner/$name/$number" params={{ owner, name, number: String(r.number) }} className="link t-value">
                       {r.repository}#{r.number}
-                    </span>
+                    </Link>
                     <span className="t-hint">{r.author}</span>
                   </span>
                 </TableCell>
