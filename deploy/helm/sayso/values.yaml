@@ -27,16 +27,21 @@ temporal:
   # Name of a Secret with tls.crt and tls.key for mTLS, or empty.
   tlsSecret: ""
 
+# tolerations and nodeSelector of each Pod use the Kubernetes Pod spec syntax.
 api:
   replicas: 1
   resources:
     requests: { cpu: 100m, memory: 128Mi }
     limits: { memory: 512Mi }
+  tolerations: []
+  nodeSelector: {}
 worker:
   replicas: 1
   resources:
     requests: { cpu: 100m, memory: 256Mi }
     limits: { memory: 1Gi }
+  tolerations: []
+  nodeSelector: {}
 
 # Agent runs are Jobs in this namespace. Empty: the release namespace.
 runner:
@@ -44,6 +49,9 @@ runner:
   resources:
     requests: { cpu: 500m, memory: 1Gi }
     limits: { cpu: "2", memory: 4Gi }
+  # Tolerations and node selector of the agent Pods, for nodes with taints.
+  tolerations: []
+  nodeSelector: {}
 
 service:
   type: ClusterIP
@@ -59,6 +67,8 @@ ingress:
 relay:
   enabled: false
   replicas: 1
+  tolerations: []
+  nodeSelector: {}
   ingress:
     enabled: false
     className: ""
@@ -70,6 +80,8 @@ relay:
 temporalUi:
   enabled: false
   image: temporalio/ui:2.56.0
+  tolerations: []
+  nodeSelector: {}
 
 # The NetworkPolicy of agent Jobs allows egress to the API, to DNS and to these CIDR blocks
 # (GitHub and your registry hosts). NetworkPolicy has no host names, so list the CIDRs.

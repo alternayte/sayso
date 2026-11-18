@@ -202,6 +202,61 @@ func TestSCN_RUN_003_KubernetesJob(t *testing.T) {
 	}
 }
 
+// An agent Pod with no node ends the run with a scheduler message, and a
+// toleration lets it use a tainted node.
+func TestKubernetesScheduling(t *testing.T) {
+	k := newCluster(t)
+	ctx := context.Background()
+	nodes, err := k.client.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
+	if err != nil || len(nodes.Items) != 1 {
+		t.Fatalf("nodes: %v", err)
+	}
+	node := nodes.Items[0]
+	node.Spec.Taints = append(node.Spec.Taints, corev1.Taint{Key: "acme/pool", Value: "agents", Effect: corev1.TaintEffectNoSchedule})
+	if _, err := k.client.CoreV1().Nodes().Update(ctx, &node, metav1.UpdateOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	kr := &runner.Kubernetes{Client: k.kube, Namespace: "default", Image: "registry.invalid/acme/agent:1", Poll: time.Second}
+	job := runner.Job{RunID: "0190a000-0000-7000-8000-000000000011", Token: "srt_test", APIURL: "http://sayso-api:8080", Timeout: 10 * time.Minute, ScheduleTimeout: 10 * time.Second}
+	h, err := kr.Start(ctx, job)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+	defer cancel()
+	reason, err := h.Wait(wctx)
+	if reason != runner.ExitUnschedulable || err == nil || !strings.Contains(err.Error(), "untolerated taint") || !strings.Contains(err.Error(), "SAYSO_K8S_TOLERATIONS") {
+		t.Fatalf("exit reason %q, %v", reason, err)
+	}
+
+	kr.Scheduling = runner.Scheduling{
+		Tolerations:  []runner.KubeToleration{{Key: "acme/pool", Operator: "Equal", Value: "agents", Effect: "NoSchedule"}},
+		NodeSelector: map[string]string{"kubernetes.io/os": "linux"},
+	}
+	job.RunID = "0190a000-0000-7000-8000-000000000012"
+	h, err = kr.Start(ctx, job)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = h.Stop(context.Background()) }()
+	sel := runner.RunLabel + "=" + job.RunID
+	deadline := time.Now().Add(time.Minute)
+	for {
+		pods, err := k.client.CoreV1().Pods("default").List(ctx, metav1.ListOptions{LabelSelector: sel})
+		if err == nil && len(pods.Items) == 1 && pods.Items[0].Spec.NodeName != "" {
+			p := pods.Items[0].Spec
+			if p.NodeSelector["kubernetes.io/os"] != "linux" || !slices.ContainsFunc(p.Tolerations, func(t corev1.Toleration) bool { return t.Key == "acme/pool" }) {
+				t.Fatalf("pod spec tolerations %+v, node selector %v", p.Tolerations, p.NodeSelector)
+			}
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("the tolerating Pod did not schedule: %s", podInfo(ctx, k.client))
+		}
+		time.Sleep(time.Second)
+	}
+}
+
 // helmTemplate renders the chart with the pinned helm image.
 func helmTemplate(t *testing.T, args ...string) []byte {
 	t.Helper()
@@ -275,7 +330,11 @@ func TestSCN_CORE_003_HelmInstall(t *testing.T) {
 	ctx := context.Background()
 	k.apply(t, []byte(backing))
 	k.apply(t, helmTemplate(t, "--namespace", "default", "--set", "image.repository=sayso", "--set", "image.tag=dev",
-		"--set", "agentImage.repository=sayso-agent", "--set", "agentImage.tag=dev", "--set", "temporal.address=temporal:7233"))
+		"--set", "agentImage.repository=sayso-agent", "--set", "agentImage.tag=dev", "--set", "temporal.address=temporal:7233",
+		"--set-json", `runner.tolerations=[{"key":"acme/pool","operator":"Exists","effect":"NoSchedule"}]`,
+		"--set-json", `runner.nodeSelector={"kubernetes.io/os":"linux"}`,
+		"--set-json", `worker.tolerations=[{"key":"acme/pool","operator":"Exists","effect":"NoSchedule"}]`,
+		"--set-json", `api.nodeSelector={"kubernetes.io/os":"linux"}`))
 	deadline := time.Now().Add(5 * time.Minute)
 	for _, name := range []string{"sayso-api", "sayso-worker"} {
 		for {
@@ -288,6 +347,23 @@ func TestSCN_CORE_003_HelmInstall(t *testing.T) {
 			}
 			time.Sleep(3 * time.Second)
 		}
+	}
+	worker, err := k.client.AppsV1().Deployments("default").Get(ctx, "sayso-worker", metav1.GetOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	env := map[string]string{}
+	for _, e := range worker.Spec.Template.Spec.Containers[0].Env {
+		env[e.Name] = e.Value
+	}
+	if env["SAYSO_K8S_TOLERATIONS"] != `[{"effect":"NoSchedule","key":"acme/pool","operator":"Exists"}]` || env["SAYSO_K8S_NODE_SELECTOR"] != `{"kubernetes.io/os":"linux"}` {
+		t.Fatalf("runner scheduling env %q %q", env["SAYSO_K8S_TOLERATIONS"], env["SAYSO_K8S_NODE_SELECTOR"])
+	}
+	if len(worker.Spec.Template.Spec.Tolerations) != 1 {
+		t.Fatalf("worker tolerations %+v", worker.Spec.Template.Spec.Tolerations)
+	}
+	if api, err := k.client.AppsV1().Deployments("default").Get(ctx, "sayso-api", metav1.GetOptions{}); err != nil || api.Spec.Template.Spec.NodeSelector["kubernetes.io/os"] != "linux" {
+		t.Fatalf("api node selector: %v", err)
 	}
 	role, err := k.client.RbacV1().Roles("default").Get(ctx, "sayso-runner", metav1.GetOptions{})
 	if err != nil {

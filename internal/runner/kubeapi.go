@@ -197,6 +197,17 @@ type KubePodSpec struct {
 	SecurityContext              KubePodSecurity      `json:"securityContext"`
 	Containers                   []KubeContainer      `json:"containers"`
 	Volumes                      []KubeEmptyDirVolume `json:"volumes"`
+	Tolerations                  []KubeToleration     `json:"tolerations,omitempty"`
+	NodeSelector                 map[string]string    `json:"nodeSelector,omitempty"`
+}
+
+// KubeToleration is a core/v1 Toleration.
+type KubeToleration struct {
+	Key               string `json:"key,omitempty"`
+	Operator          string `json:"operator,omitempty"`
+	Value             string `json:"value,omitempty"`
+	Effect            string `json:"effect,omitempty"`
+	TolerationSeconds *int64 `json:"tolerationSeconds,omitempty"`
 }
 
 type KubePodSecurity struct {
@@ -258,8 +269,17 @@ type KubeCondition struct {
 
 type kubePodList struct {
 	Items []struct {
-		Status struct {
-			Reason            string `json:"reason"`
+		Metadata kMeta `json:"metadata"`
+		Status   struct {
+			Phase      string `json:"phase"`
+			Reason     string `json:"reason"`
+			Conditions []struct {
+				Type               string    `json:"type"`
+				Status             string    `json:"status"`
+				Reason             string    `json:"reason"`
+				Message            string    `json:"message"`
+				LastTransitionTime time.Time `json:"lastTransitionTime"`
+			} `json:"conditions"`
 			ContainerStatuses []struct {
 				State struct {
 					Waiting *struct {

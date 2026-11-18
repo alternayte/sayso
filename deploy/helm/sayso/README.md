@@ -29,6 +29,20 @@ helm install sayso oci://ghcr.io/alternayte/charts/sayso \
 
 A NetworkPolicy cannot name hosts. Put the CIDR blocks of GitHub and of your registries in `agentNetworkPolicy.egressCIDRs`. Agent Jobs can always reach the API and DNS.
 
+## Tainted nodes
+
+The worker creates the agent Pods, so the chart cannot change their spec. Set `runner.tolerations` and `runner.nodeSelector` for them. Set `tolerations` and `nodeSelector` under `api`, `worker`, `relay` and `temporalUi` for the other Pods.
+
+```yaml
+runner:
+  tolerations:
+    - { key: CriticalAddonsOnly, operator: Equal, value: linuxapps, effect: NoSchedule }
+  nodeSelector:
+    kubernetes.io/os: linux
+```
+
+When an agent Pod finds no node, the runner test on Settings → Agent images and `sayso doctor` show the message of the scheduler.
+
 ## Temporal UI
 
 Set `temporalUi.enabled=true` to run a read-only Temporal UI. The API proxies it at `/temporal` for admins. The chart never creates an Ingress for it.

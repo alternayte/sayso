@@ -21,6 +21,14 @@ spec:
         app.kubernetes.io/component: temporal-ui
     spec:
       automountServiceAccountToken: false
+      {{- with .Values.temporalUi.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.temporalUi.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: temporal-ui
           image: {{ .Values.temporalUi.image }}

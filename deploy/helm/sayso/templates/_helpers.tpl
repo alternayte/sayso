@@ -49,6 +49,10 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
   value: {{ .Values.runner.resources.limits.cpu | default "" | quote }}
 - name: SAYSO_K8S_MEMORY_LIMIT
   value: {{ .Values.runner.resources.limits.memory | default "" | quote }}
+- name: SAYSO_K8S_TOLERATIONS
+  value: {{ .Values.runner.tolerations | default list | toJson | quote }}
+- name: SAYSO_K8S_NODE_SELECTOR
+  value: {{ .Values.runner.nodeSelector | default dict | toJson | quote }}
 - name: SAYSO_RUNNER_API_URL
   value: http://{{ include "sayso.name" . }}-api.{{ .Release.Namespace }}.svc:{{ .Values.service.port }}
 {{- end -}}

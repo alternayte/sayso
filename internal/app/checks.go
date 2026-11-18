@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"slices"
 	"strings"
 	"time"
 
@@ -238,7 +239,22 @@ func kubernetesCheck(cfg *Config) (string, error) {
 	if err := k.CheckPermissions(ctx); err != nil {
 		return "", err
 	}
-	return "kubernetes runner, namespace " + k.Namespace + ", image " + k.Image, nil
+	if err := k.Unscheduled(ctx); err != nil {
+		return "", err
+	}
+	detail := "kubernetes runner, namespace " + k.Namespace + ", image " + k.Image
+	if n := len(k.Scheduling.Tolerations); n > 0 {
+		detail += fmt.Sprintf(", %d tolerations", n)
+	}
+	if len(k.Scheduling.NodeSelector) > 0 {
+		var sel []string
+		for l, v := range k.Scheduling.NodeSelector {
+			sel = append(sel, l+"="+v)
+		}
+		slices.Sort(sel)
+		detail += ", node selector " + strings.Join(sel, ",")
+	}
+	return detail, nil
 }
 
 func relayReachable(ctx context.Context, d *Deps, when string) (string, error) {
