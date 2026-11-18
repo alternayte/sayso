@@ -2,6 +2,7 @@ package runner
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -21,12 +22,90 @@ type Resources struct {
 	MemoryRequest, MemoryLimit string
 }
 
+// Scheduling places the agent Pods on nodes: tolerations for tainted
+// nodes and a node selector (settings).
+type Scheduling struct {
+	Tolerations  []KubeToleration
+	NodeSelector map[string]string
+}
+
+// ParseTolerations reads a JSON array of Kubernetes tolerations.
+func ParseTolerations(s string) ([]KubeToleration, error) {
+	if strings.TrimSpace(s) == "" {
+		return nil, nil
+	}
+	var ts []KubeToleration
+	if err := strictJSON(s, &ts); err != nil {
+		return nil, fmt.Errorf("not a JSON array of tolerations: %w", err)
+	}
+	for i, t := range ts {
+		if err := checkToleration(t); err != nil {
+			return nil, fmt.Errorf("toleration %d: %w", i, err)
+		}
+	}
+	return ts, nil
+}
+
+// ParseNodeSelector reads a JSON object of node label names and values.
+func ParseNodeSelector(s string) (map[string]string, error) {
+	if strings.TrimSpace(s) == "" {
+		return nil, nil
+	}
+	var m map[string]string
+	if err := strictJSON(s, &m); err != nil {
+		return nil, fmt.Errorf("not a JSON object of string labels: %w", err)
+	}
+	for k := range m {
+		if k == "" {
+			return nil, errors.New("a label name is empty")
+		}
+	}
+	return m, nil
+}
+
+func strictJSON(s string, v any) error {
+	d := json.NewDecoder(strings.NewReader(s))
+	d.DisallowUnknownFields()
+	if err := d.Decode(v); err != nil {
+		return err
+	}
+	if d.More() {
+		return errors.New("text after the JSON value")
+	}
+	return nil
+}
+
+func checkToleration(t KubeToleration) error {
+	switch t.Operator {
+	case "", "Equal":
+		if t.Key == "" {
+			return errors.New("operator Equal needs a key")
+		}
+	case "Exists":
+		if t.Value != "" {
+			return errors.New("operator Exists takes no value")
+		}
+	default:
+		return fmt.Errorf("operator %q is not Equal or Exists", t.Operator)
+	}
+	switch t.Effect {
+	case "", "NoSchedule", "PreferNoSchedule", "NoExecute":
+	default:
+		return fmt.Errorf("effect %q is not NoSchedule, PreferNoSchedule or NoExecute", t.Effect)
+	}
+	if t.TolerationSeconds != nil && t.Effect != "NoExecute" {
+		return errors.New("tolerationSeconds needs effect NoExecute")
+	}
+	return nil
+}
+
 // Kubernetes runs each agent run as a Job in one namespace (§8.2).
 type Kubernetes struct {
-	Client    *KubeClient
-	Namespace string
-	Image     string
-	Resources Resources
+	Client     *KubeClient
+	Namespace  string
+	Image      string
+	Resources  Resources
+	Scheduling Scheduling
 	// Poll is the interval of the status checks.
 	Poll time.Duration
 }
@@ -65,6 +144,11 @@ func (k *Kubernetes) Job(j Job) (*KubeJob, error) {
 			return nil, fmt.Errorf("kubernetes runner: %s %q is not a Kubernetes quantity", r.name, r.val)
 		}
 		r.list[r.name] = r.val
+	}
+	for i, t := range k.Scheduling.Tolerations {
+		if err := checkToleration(t); err != nil {
+			return nil, fmt.Errorf("kubernetes runner: toleration %d: %w", i, err)
+		}
 	}
 	uid := int64(10001)
 	labels := map[string]string{RunLabel: j.RunID, "app.kubernetes.io/name": "sayso-agent", "app.kubernetes.io/component": "agent-run"}
@@ -105,7 +189,9 @@ func (k *Kubernetes) Job(j Job) (*KubeJob, error) {
 						},
 						VolumeMounts: []KubeMount{{Name: "work", MountPath: "/work"}, {Name: "home", MountPath: "/home/sayso"}, {Name: "tmp", MountPath: "/tmp"}},
 					}},
-					Volumes: []KubeEmptyDirVolume{{Name: "work"}, {Name: "home"}, {Name: "tmp"}},
+					Volumes:      []KubeEmptyDirVolume{{Name: "work"}, {Name: "home"}, {Name: "tmp"}},
+					Tolerations:  k.Scheduling.Tolerations,
+					NodeSelector: k.Scheduling.NodeSelector,
 				},
 			},
 		},
@@ -120,6 +206,12 @@ type kubeJob struct {
 	name    string
 	runID   string
 	stopped bool
+	// scheduleTimeout is Job.ScheduleTimeout.
+	scheduleTimeout time.Duration
+	// unscheduled is the scheduler message while the Pod has no node, and
+	// unscheduledAt is when Wait first saw it.
+	unscheduled   string
+	unscheduledAt time.Time
 }
 
 // Start creates the Job.
@@ -132,13 +224,14 @@ func (k *Kubernetes) Start(ctx context.Context, j Job) (Handle, error) {
 	if err := k.Client.do(ctx, http.MethodPost, jobsPath(k.Namespace), nil, job, &created); err != nil {
 		return nil, fmt.Errorf("create Job: %w", err)
 	}
-	return &kubeJob{k: k, name: created.Metadata.Name, runID: j.RunID}, nil
+	return &kubeJob{k: k, name: created.Metadata.Name, runID: j.RunID, scheduleTimeout: j.ScheduleTimeout}, nil
 }
 
 func (h *kubeJob) Ref() string { return h.k.Namespace + "/" + h.name }
 
 // Wait watches the Job and its Pod until the run ends and reports the exit
-// reason: completed, failed, deadline, evicted or image_pull_failed.
+// reason: completed, failed, deadline, evicted, image_pull_failed or
+// unschedulable.
 func (h *kubeJob) Wait(ctx context.Context) (string, error) {
 	poll := h.k.Poll
 	if poll == 0 {
@@ -153,7 +246,7 @@ func (h *kubeJob) Wait(ctx context.Context) (string, error) {
 		reason, done, err := h.status(ctx)
 		switch {
 		case done:
-			if reason == ExitImagePullFailed {
+			if reason == ExitImagePullFailed || reason == ExitUnschedulable {
 				_ = h.Stop(context.WithoutCancel(ctx))
 			}
 			return reason, err
@@ -203,6 +296,22 @@ func (h *kubeJob) status(ctx context.Context) (string, bool, error) {
 				return ExitImagePullFailed, true, nil
 			}
 		}
+		for _, c := range p.Status.Conditions {
+			if c.Type != "PodScheduled" {
+				continue
+			}
+			if c.Status == "True" {
+				h.unscheduled = ""
+			} else if c.Reason == "Unschedulable" {
+				if h.unscheduled == "" {
+					h.unscheduledAt = time.Now()
+				}
+				h.unscheduled = c.Message
+			}
+		}
+	}
+	if h.unscheduled != "" && h.scheduleTimeout > 0 && time.Since(h.unscheduledAt) >= h.scheduleTimeout {
+		return ExitUnschedulable, true, fmt.Errorf("the agent Pod found no node in %s: %s%s", h.scheduleTimeout, h.unscheduled, schedulingHint)
 	}
 	for _, c := range job.Status.Conditions {
 		if c.Status != "True" {
@@ -213,12 +322,42 @@ func (h *kubeJob) status(ctx context.Context) (string, bool, error) {
 			return ExitCompleted, true, nil
 		case "Failed":
 			if c.Reason == "DeadlineExceeded" {
+				if h.unscheduled != "" {
+					return ExitDeadline, true, fmt.Errorf("the agent Pod found no node: %s%s", h.unscheduled, schedulingHint)
+				}
 				return ExitDeadline, true, nil
 			}
 			return ExitFailed, true, nil
 		}
 	}
 	return "", false, nil
+}
+
+const schedulingHint = "; set SAYSO_K8S_TOLERATIONS or SAYSO_K8S_NODE_SELECTOR for the agent Pods"
+
+// UnscheduledFor is how long an agent Pod may wait for a node before
+// Unscheduled reports it.
+const UnscheduledFor = time.Minute
+
+// Unscheduled returns an error when an agent Pod in the namespace has waited
+// for a node for longer than UnscheduledFor.
+func (k *Kubernetes) Unscheduled(ctx context.Context) error {
+	var pods kubePodList
+	if err := k.Client.do(ctx, http.MethodGet, "/api/v1/namespaces/"+url.PathEscape(k.Namespace)+"/pods",
+		url.Values{"labelSelector": {"app.kubernetes.io/component=agent-run"}}, nil, &pods); err != nil {
+		return err
+	}
+	for _, p := range pods.Items {
+		if p.Status.Phase != "Pending" {
+			continue
+		}
+		for _, c := range p.Status.Conditions {
+			if c.Type == "PodScheduled" && c.Status == "False" && c.Reason == "Unschedulable" && time.Since(c.LastTransitionTime) > UnscheduledFor {
+				return fmt.Errorf("agent Pod %s has no node since %s: %s%s", p.Metadata.Name, c.LastTransitionTime.UTC().Format(time.RFC3339), c.Message, schedulingHint)
+			}
+		}
+	}
+	return nil
 }
 
 // Stop deletes the Job and its Pod.

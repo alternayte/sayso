@@ -57,6 +57,9 @@ func RunnerTestWorkflow(ctx workflow.Context, in RunnerTestInput) (RunnerTestRes
 	return res, err
 }
 
+// RunnerTestScheduleTimeout is how long the runner test waits for a node.
+const RunnerTestScheduleTimeout = 2 * time.Minute
+
 // RunnerTest starts a no-op agent run with the default image and waits for it.
 func (a *AgentActivities) RunnerTest(ctx context.Context, in RunnerTestInput) (RunnerTestResult, error) {
 	start := time.Now()
@@ -80,7 +83,8 @@ func (a *AgentActivities) RunnerTest(ctx context.Context, in RunnerTestInput) (R
 		return RunnerTestResult{}, err
 	}
 	res := RunnerTestResult{RunID: run.ID.String()}
-	h, err := a.Runner.Start(ctx, runner.Job{RunID: run.ID.String(), Token: tok, APIURL: a.APIURL, Image: image, Timeout: 4 * time.Minute})
+	h, err := a.Runner.Start(ctx, runner.Job{RunID: run.ID.String(), Token: tok, APIURL: a.APIURL, Image: image, Timeout: 4 * time.Minute,
+		ScheduleTimeout: RunnerTestScheduleTimeout})
 	if err != nil {
 		_, _ = a.Pool.Exec(ctx, `UPDATE agent_runs SET status = 'failed', exit_reason = $2, finished_at = now() WHERE id = $1`, run.ID, "start: "+err.Error())
 		res.Status, res.ExitReason = "failed", "start: "+err.Error()

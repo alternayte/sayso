@@ -54,6 +54,8 @@ All other configuration lives in the database. Set it in the UI.
 | `SAYSO_RUNNER_API_URL` | `SAYSO_BASE_URL` | API URL as agent runs see it. |
 | `SAYSO_K8S_NAMESPACE` | | Namespace of agent Jobs. Required for the `kubernetes` runner. |
 | `SAYSO_AGENT_IMAGE` | | Image of agent Jobs for the `kubernetes` runner. |
+| `SAYSO_K8S_TOLERATIONS` | | JSON array of Kubernetes tolerations. Sayso copies it to each agent Pod. |
+| `SAYSO_K8S_NODE_SELECTOR` | | JSON object of node labels. Sayso copies it to the `nodeSelector` of each agent Pod. |
 | `SAYSO_EXTRA_CA_PEM`, `SAYSO_EXTRA_CA_FILE` | | Extra CA certificates for outbound HTTPS, as PEM text or as a file. |
 | `SAYSO_LOG_LEVEL` | `info` | `debug`, `info`, `warn` or `error`. |
 | `HTTP_PROXY`, `HTTPS_PROXY`, `NO_PROXY` | | Outbound proxy. All outbound HTTP uses it. |

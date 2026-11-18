@@ -19,6 +19,7 @@ const (
 	ExitDeadline        = "deadline"
 	ExitEvicted         = "evicted"
 	ExitImagePullFailed = "image_pull_failed"
+	ExitUnschedulable   = "unschedulable"
 	ExitCancelled       = "cancelled"
 )
 
@@ -29,6 +30,9 @@ type Job struct {
 	APIURL  string
 	Image   string
 	Timeout time.Duration
+	// ScheduleTimeout ends a Kubernetes run whose Pod has no node after this
+	// time. Zero waits until the run timeout.
+	ScheduleTimeout time.Duration
 }
 
 // Handle is a started agent run.

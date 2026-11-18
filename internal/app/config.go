@@ -61,10 +61,12 @@ type Config struct {
 	K8sNamespace      string
 	// K8sResources are the requests and limits of each agent Job.
 	K8sResources runner.Resources
-	AgentImage   string
-	ExtraCAPEM   string
-	ExtraCAFile  string
-	LogLevel     slog.Level
+	// K8sScheduling are the tolerations and node selector of each agent Pod.
+	K8sScheduling runner.Scheduling
+	AgentImage    string
+	ExtraCAPEM    string
+	ExtraCAFile   string
+	LogLevel      slog.Level
 }
 
 var knownVars = map[string]bool{
@@ -76,6 +78,7 @@ var knownVars = map[string]bool{
 	"SAYSO_TEMPORAL_TLS_KEY": true, "SAYSO_TEMPORAL_API_KEY": true, "SAYSO_TEMPORAL_UI_URL": true,
 	"SAYSO_RUNNER": true, "SAYSO_RUNNER_API_URL": true, "SAYSO_K8S_NAMESPACE": true, "SAYSO_AGENT_IMAGE": true,
 	"SAYSO_K8S_CPU_REQUEST": true, "SAYSO_K8S_CPU_LIMIT": true, "SAYSO_K8S_MEMORY_REQUEST": true, "SAYSO_K8S_MEMORY_LIMIT": true,
+	"SAYSO_K8S_TOLERATIONS": true, "SAYSO_K8S_NODE_SELECTOR": true,
 	"SAYSO_EXTRA_CA_PEM": true, "SAYSO_EXTRA_CA_FILE": true, "SAYSO_LOG_LEVEL": true,
 }
 
@@ -128,6 +131,12 @@ func LoadConfig(getenv func(string) string, environ []string, need Need) (*Confi
 	}
 	if c.Runner != "process" && c.Runner != "kubernetes" {
 		return nil, nil, fmt.Errorf("SAYSO_RUNNER: %q is not process or kubernetes", c.Runner)
+	}
+	if c.K8sScheduling.Tolerations, err = runner.ParseTolerations(getenv("SAYSO_K8S_TOLERATIONS")); err != nil {
+		return nil, nil, fmt.Errorf("SAYSO_K8S_TOLERATIONS: %w", err)
+	}
+	if c.K8sScheduling.NodeSelector, err = runner.ParseNodeSelector(getenv("SAYSO_K8S_NODE_SELECTOR")); err != nil {
+		return nil, nil, fmt.Errorf("SAYSO_K8S_NODE_SELECTOR: %w", err)
 	}
 	if lvl := getenv("SAYSO_LOG_LEVEL"); lvl != "" {
 		if err := c.LogLevel.UnmarshalText([]byte(lvl)); err != nil {

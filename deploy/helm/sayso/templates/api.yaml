@@ -17,8 +17,15 @@ spec:
         {{- include "sayso.labels" . | nindent 8 }}
         app.kubernetes.io/component: api
     spec:
-      
       automountServiceAccountToken: false
+      {{- with .Values.api.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.api.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:

@@ -16,8 +16,8 @@ func KubernetesRunner(cfg *Config) (*runner.Kubernetes, error) {
 	if err != nil {
 		return nil, err
 	}
-	k := &runner.Kubernetes{Client: c, Namespace: cfg.K8sNamespace, Image: cfg.AgentImage, Resources: cfg.K8sResources}
-	// A wrong quantity fails at start, not at the first round.
+	k := &runner.Kubernetes{Client: c, Namespace: cfg.K8sNamespace, Image: cfg.AgentImage, Resources: cfg.K8sResources, Scheduling: cfg.K8sScheduling}
+	// A wrong quantity or toleration fails at start, not at the first round.
 	if _, err := k.Job(runner.Job{RunID: "check", Image: "check"}); err != nil {
 		return nil, err
 	}
