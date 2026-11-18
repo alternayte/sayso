@@ -94,7 +94,7 @@ sayso doctor --json
 | `temporal` | The Temporal connection and the namespace. |
 | `github_app` | The App credentials and an installation token mint. |
 | `webhook_ingress` | The ingress mode, the last delivery and, in `relay` mode, the relay stream state. The CLI holds no stream, so it checks that the relay answers. |
-| `runner` | The process runner binary, or the Kubernetes permissions. |
+| `runner` | The process runner binary, or the Kubernetes permissions and agent Pods with no node. A process without the worker role asks a worker to run this check through Temporal. `SAYSO_ROLE` sets the role for `sayso doctor`. |
 | `outbound_proxy` | The proxy variables and the extra CA certificates. |
 | `provider <name>` | Each model provider. |
 | `mcp <name>` | Each MCP server. |
