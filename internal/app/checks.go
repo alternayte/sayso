@@ -12,14 +12,19 @@ import (
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"go.temporal.io/api/serviceerror"
 	"go.temporal.io/api/workflowservice/v1"
+	"go.temporal.io/sdk/client"
+	"go.temporal.io/sdk/temporal"
+	"go.temporal.io/sdk/workflow"
 	"google.golang.org/protobuf/types/known/durationpb"
 
 	"github.com/alternayte/sayso/internal/auth"
 	"github.com/alternayte/sayso/internal/doctor"
 	"github.com/alternayte/sayso/internal/github"
+	"github.com/alternayte/sayso/internal/review/signals"
 	"github.com/alternayte/sayso/internal/settings"
 	"github.com/alternayte/sayso/internal/skills"
 	"github.com/alternayte/sayso/internal/storage"
@@ -148,7 +153,7 @@ func staticChecks(d *Deps, f *Features) []doctor.Check {
 			}
 			return "relay stream connected, " + when, nil
 		}},
-		{Name: "runner", Run: func(ctx context.Context) (string, error) { return runnerCheck(ctx, d.Config) }},
+		{Name: "runner", Run: func(ctx context.Context) (string, error) { return runnerCheck(ctx, d) }},
 		{Name: "outbound_proxy", Run: func(context.Context) (string, error) {
 			if _, err := HTTPClient(d.Config); err != nil {
 				return "", err
@@ -214,10 +219,72 @@ func registerDiagnostics(api huma.API, d *Deps, f *Features) {
 // AgentRuntime is the agent runtime entry point in the agent image.
 const AgentRuntime = "/opt/sayso/agent/dist/main.js"
 
-// runnerCheck checks that the configured runner can start agent runs.
-func runnerCheck(_ context.Context, cfg *Config) (string, error) {
+// RunnerCheckWorkflowType is the workflow that runs the runner check on a worker.
+const RunnerCheckWorkflowType = "RunnerCheck"
+
+// runnerCheckTimeout bounds the runner check on a worker. It fits in the
+// 10-second limit of each diagnostic.
+const runnerCheckTimeout = 9 * time.Second
+
+// RunnerCheckResult is the outcome of the runner check on a worker.
+type RunnerCheckResult struct {
+	OK     bool   `json:"ok"`
+	Detail string `json:"detail"`
+}
+
+// RunnerCheckWorkflow runs the runner check as one activity on a worker.
+func RunnerCheckWorkflow(ctx workflow.Context) (RunnerCheckResult, error) {
+	ctx = workflow.WithActivityOptions(ctx, workflow.ActivityOptions{
+		TaskQueue: signals.TaskQueue, ScheduleToCloseTimeout: runnerCheckTimeout,
+		RetryPolicy: &temporal.RetryPolicy{MaximumAttempts: 1},
+	})
+	var a *RunnerCheckActivities
+	var r RunnerCheckResult
+	err := workflow.ExecuteActivity(ctx, a.RunnerCheck).Get(ctx, &r)
+	return r, err
+}
+
+// RunnerCheckActivities run the runner check with the configuration of the worker.
+type RunnerCheckActivities struct{ Config *Config }
+
+func (a *RunnerCheckActivities) RunnerCheck(ctx context.Context) (RunnerCheckResult, error) {
+	detail, err := localRunnerCheck(ctx, a.Config)
+	if err != nil {
+		return RunnerCheckResult{Detail: err.Error()}, nil
+	}
+	return RunnerCheckResult{OK: true, Detail: detail}, nil
+}
+
+// runnerCheck checks that the configured runner can start agent runs. Only
+// the worker role starts agent runs, so a process without it asks a worker.
+func runnerCheck(ctx context.Context, d *Deps) (string, error) {
+	if d.Config.Role.RunsWorker() {
+		return localRunnerCheck(ctx, d.Config)
+	}
+	ctx, cancel := context.WithTimeout(ctx, runnerCheckTimeout)
+	defer cancel()
+	wr, err := d.Temporal.ExecuteWorkflow(ctx, client.StartWorkflowOptions{ID: "runner-check-" + uuid.NewString(), TaskQueue: signals.TaskQueue,
+		WorkflowExecutionTimeout: runnerCheckTimeout}, RunnerCheckWorkflowType)
+	if err != nil {
+		return "", err
+	}
+	var r RunnerCheckResult
+	if err := wr.Get(ctx, &r); err != nil {
+		var te *temporal.TimeoutError
+		if ctx.Err() != nil || errors.As(err, &te) {
+			return "", fmt.Errorf("no worker ran the runner check in %s; check that a worker runs", runnerCheckTimeout)
+		}
+		return "", err
+	}
+	if !r.OK {
+		return "", errors.New("worker: " + r.Detail)
+	}
+	return "worker: " + r.Detail, nil
+}
+
+func localRunnerCheck(ctx context.Context, cfg *Config) (string, error) {
 	if cfg.Runner == "kubernetes" {
-		return kubernetesCheck(cfg)
+		return kubernetesCheck(ctx, cfg)
 	}
 	node, err := exec.LookPath("node")
 	if err != nil {
@@ -229,12 +296,12 @@ func runnerCheck(_ context.Context, cfg *Config) (string, error) {
 	return "process runner, " + node, nil
 }
 
-func kubernetesCheck(cfg *Config) (string, error) {
+func kubernetesCheck(ctx context.Context, cfg *Config) (string, error) {
 	k, err := KubernetesRunner(cfg)
 	if err != nil {
 		return "", err
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 8*time.Second)
 	defer cancel()
 	if err := k.CheckPermissions(ctx); err != nil {
 		return "", err

@@ -105,7 +105,9 @@ services:
         condition: service_completed_successfully
       temporal:
         condition: service_healthy
-    environment: *sayso-env
+    environment:
+      <<: *sayso-env
+      SAYSO_ROLE: api
     ports:
       - "127.0.0.1:${SAYSO_PORT:-8080}:8080"
     restart: unless-stopped
@@ -118,7 +120,9 @@ services:
         condition: service_completed_successfully
       temporal:
         condition: service_healthy
-    environment: *sayso-env
+    environment:
+      <<: *sayso-env
+      SAYSO_ROLE: worker
     restart: unless-stopped
 
   # Profile relay: the public relay role, for testing the relay ingress path. Set SAYSO_INGRESS=relay,

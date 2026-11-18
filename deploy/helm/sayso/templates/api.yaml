@@ -34,6 +34,9 @@ spec:
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           args: ["serve", "--role", "api"]
           env:
+            # sayso doctor in this Pod reads the role from the environment.
+            - name: SAYSO_ROLE
+              value: api
             {{- include "sayso.env" . | nindent 12 }}
           envFrom:
             {{- include "sayso.secretEnv" . | nindent 12 }}
