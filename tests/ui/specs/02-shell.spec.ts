@@ -58,11 +58,12 @@ test("SCN-CFG-010 admins filter the audit log, and the API cannot change it", as
   expect(Number(sql("SELECT count(*) FROM audit_log WHERE action = 'settings.update'"))).toBeGreaterThan(0);
 });
 
-test("SCN-UI-002 the main routes have no serious axe violations and no horizontal scroll", async ({ page }) => {
-  await signIn(page, "octo-admin");
-  for (const width of [360, 1280]) {
-    await page.setViewportSize({ width, height: 800 });
-    for (const r of [...adminRoutes, "/signin"]) {
+// One test per route and width: 40 axe scans do not fit in the time limit of one test.
+for (const width of [360, 1280]) {
+  for (const r of [...adminRoutes, "/signin"]) {
+    test(`SCN-UI-002 ${r} at ${width} px has no serious axe violations and no horizontal scroll`, async ({ page }) => {
+      await signIn(page, "octo-admin");
+      await page.setViewportSize({ width, height: 800 });
       await page.goto(r);
       await page.locator("main").first().waitFor();
       const res = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"]).analyze();
@@ -70,9 +71,9 @@ test("SCN-UI-002 the main routes have no serious axe violations and no horizonta
       expect(bad.map((v) => `${r}@${width}: ${v.id} ${v.nodes[0]?.target}`)).toEqual([]);
       const scroll = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
       expect(scroll, `${r}@${width} scrolls sideways`).toBeLessThanOrEqual(0);
-    }
+    });
   }
-});
+}
 
 test("SCN-UI-008 reduced motion leaves no running movement, scale, blur or shimmer", async ({ browser }) => {
   const ctx = await browser.newContext({ reducedMotion: "reduce" });
