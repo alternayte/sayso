@@ -270,9 +270,7 @@ func runnerCheck(ctx context.Context, d *Deps) (string, error) {
 	}
 	var r RunnerCheckResult
 	if err := wr.Get(ctx, &r); err != nil {
-		// The gRPC deadline can fire before ctx reports its own expiry.
-		var te *temporal.TimeoutError
-		if ctx.Err() != nil || errors.Is(err, context.DeadlineExceeded) || errors.As(err, &te) {
+		if timedOut(ctx, err) {
 			return "", fmt.Errorf("no worker ran the runner check in %s; check that a worker runs", runnerCheckTimeout)
 		}
 		return "", err
@@ -281,6 +279,16 @@ func runnerCheck(ctx context.Context, d *Deps) (string, error) {
 		return "", errors.New("worker: " + r.Detail)
 	}
 	return "worker: " + r.Detail, nil
+}
+
+// timedOut reports whether a wait on Temporal ended at its deadline. The
+// gRPC deadline can fire before ctx reports its own expiry, and the server
+// can end the call first, which the SDK reports as a DeadlineExceeded
+// service error.
+func timedOut(ctx context.Context, err error) bool {
+	var te *temporal.TimeoutError
+	var de *serviceerror.DeadlineExceeded
+	return ctx.Err() != nil || errors.Is(err, context.DeadlineExceeded) || errors.As(err, &te) || errors.As(err, &de)
 }
 
 func localRunnerCheck(ctx context.Context, cfg *Config) (string, error) {
