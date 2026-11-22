@@ -270,8 +270,9 @@ func runnerCheck(ctx context.Context, d *Deps) (string, error) {
 	}
 	var r RunnerCheckResult
 	if err := wr.Get(ctx, &r); err != nil {
+		// The gRPC deadline can fire before ctx reports its own expiry.
 		var te *temporal.TimeoutError
-		if ctx.Err() != nil || errors.As(err, &te) {
+		if ctx.Err() != nil || errors.Is(err, context.DeadlineExceeded) || errors.As(err, &te) {
 			return "", fmt.Errorf("no worker ran the runner check in %s; check that a worker runs", runnerCheckTimeout)
 		}
 		return "", err

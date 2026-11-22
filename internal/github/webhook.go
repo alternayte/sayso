@@ -149,16 +149,19 @@ type payload struct {
 			Login string `json:"login"`
 		} `json:"account"`
 	} `json:"installation"`
-	Repositories        []ghRepo    `json:"repositories"`
-	RepositoriesAdded   []ghRepo    `json:"repositories_added"`
-	RepositoriesRemoved []ghRepo    `json:"repositories_removed"`
-	Repository          *ghRepo     `json:"repository"`
-	Sender              User        `json:"sender"`
-	Before              string      `json:"before"`
-	After               string      `json:"after"`
-	PullRequest         *pullEvent  `json:"pull_request"`
-	Issue               *issueEvent `json:"issue"`
-	Comment             *struct {
+	Repositories        []ghRepo   `json:"repositories"`
+	RepositoriesAdded   []ghRepo   `json:"repositories_added"`
+	RepositoriesRemoved []ghRepo   `json:"repositories_removed"`
+	Repository          *ghRepo    `json:"repository"`
+	Sender              User       `json:"sender"`
+	Before              string     `json:"before"`
+	After               string     `json:"after"`
+	PullRequest         *pullEvent `json:"pull_request"`
+	Changes             *struct {
+		Base *struct{} `json:"base"`
+	} `json:"changes"`
+	Issue   *issueEvent `json:"issue"`
+	Comment *struct {
 		ID        int64  `json:"id"`
 		Body      string `json:"body"`
 		User      User   `json:"user"`
@@ -193,9 +196,6 @@ type pullEvent struct {
 	Head   struct {
 		SHA string `json:"sha"`
 	} `json:"head"`
-	Base struct {
-		SHA string `json:"sha"`
-	} `json:"base"`
 }
 
 type issueEvent struct {
@@ -266,7 +266,7 @@ func (in *Ingest) dispatch(ctx context.Context, h Headers, body []byte, start ti
 			if p.Action == "ready_for_review" {
 				trigger = signals.TriggerReady
 			}
-			return ev.signal(signals.SignalHeadUpdated, signals.Signal{Trigger: trigger, HeadSHA: pr.Head.SHA, BaseSHA: pr.Base.SHA})
+			return ev.signal(signals.SignalHeadUpdated, signals.Signal{Trigger: trigger, HeadSHA: pr.Head.SHA})
 		case "synchronize":
 			if pr.Draft || strings.EqualFold(pr.User.Login, bot) {
 				return nil
@@ -275,7 +275,14 @@ func (in *Ingest) dispatch(ctx context.Context, h Headers, body []byte, start ti
 			if err != nil {
 				return err
 			}
-			return ev.signal(signals.SignalHeadUpdated, signals.Signal{Trigger: signals.TriggerPush, HeadSHA: pr.Head.SHA, BaseSHA: pr.Base.SHA, Forced: forced})
+			return ev.signal(signals.SignalHeadUpdated, signals.Signal{Trigger: signals.TriggerPush, HeadSHA: pr.Head.SHA, Forced: forced})
+		case "edited":
+			// A new base branch can change the merge base, so the change
+			// under review can change. A title or body edit cannot.
+			if p.Changes == nil || p.Changes.Base == nil || pr.Draft || strings.EqualFold(pr.User.Login, bot) {
+				return nil
+			}
+			return ev.signal(signals.SignalHeadUpdated, signals.Signal{Trigger: signals.TriggerBaseChanged, HeadSHA: pr.Head.SHA})
 		case "converted_to_draft":
 			return ev.signal(signals.SignalPausedDraft, signals.Signal{})
 		case "closed":

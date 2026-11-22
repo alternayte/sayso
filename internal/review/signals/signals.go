@@ -41,6 +41,7 @@ const (
 	TriggerCommand        = "command"
 	TriggerCheckRerequest = "check_rerequest"
 	TriggerReconcile      = "reconcile"
+	TriggerBaseChanged    = "base_changed"
 )
 
 // WorkflowID is the ID of the PRReview workflow of one pull request.
@@ -62,7 +63,6 @@ type Signal struct {
 	// head_updated
 	Trigger string `json:"trigger,omitempty"`
 	HeadSHA string `json:"head_sha,omitempty"`
-	BaseSHA string `json:"base_sha,omitempty"`
 	Forced  bool   `json:"forced,omitempty"`
 	// closed
 	Merged bool `json:"merged,omitempty"`

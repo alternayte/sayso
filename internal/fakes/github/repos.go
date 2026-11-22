@@ -124,6 +124,15 @@ func (f *Fake) CommitMain(repo string, files map[string]string) string {
 	return sha
 }
 
+// Branch points a branch at a commit, for pull requests on other base branches.
+func (f *Fake) Branch(repo, name, sha string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if _, err := f.git(f.repos[repo].dir, "branch", "--force", name, sha); err != nil {
+		panic(err)
+	}
+}
+
 // Repo returns a repository by full name.
 func (f *Fake) Repo(full string) *Repo {
 	f.mu.Lock()
@@ -405,7 +414,7 @@ func (f *Fake) compare(w http.ResponseWriter, r *http.Request) {
 	base, head, ok := strings.Cut(r.PathValue("basehead"), "...")
 	f.mu.Lock()
 	repo := f.repoOf(r)
-	status := "diverged"
+	status, mergeBase := "diverged", ""
 	if repo != nil && ok {
 		switch anc, known := f.isAncestor(repo, base, head); {
 		case !known:
@@ -417,13 +426,14 @@ func (f *Fake) compare(w http.ResponseWriter, r *http.Request) {
 		case anc:
 			status = "ahead"
 		}
+		mergeBase, _ = f.git(repo.dir, "merge-base", base, head)
 	}
 	f.mu.Unlock()
 	if repo == nil {
 		writeJSON(w, http.StatusNotFound, map[string]string{"message": "Not Found"})
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"status": status})
+	writeJSON(w, http.StatusOK, map[string]any{"status": status, "merge_base_commit": map[string]any{"sha": mergeBase}})
 }
 
 func (f *Fake) getComment(w http.ResponseWriter, r *http.Request) {
