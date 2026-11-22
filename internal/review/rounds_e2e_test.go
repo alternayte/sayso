@@ -19,6 +19,7 @@ import (
 	fakemodel "github.com/alternayte/sayso/internal/fakes/model"
 	"github.com/alternayte/sayso/internal/publish"
 	"github.com/alternayte/sayso/internal/runner"
+	enums "go.temporal.io/api/enums/v1"
 )
 
 const (
@@ -112,6 +113,35 @@ func (l *Ledger) Post(amount int64) error {
 func (l *Ledger) Balance() int64 { return l.balance }
 `
 
+// publishTime reads the Publish activity of a round from its workflow
+// history: the time from schedule to completion, the attempts and the last
+// failure. Temporal writes one started event, with the final attempt.
+func (e *env) publishTime(t *testing.T, round string) (time.Duration, int32, string) {
+	t.Helper()
+	var scheduled time.Time
+	var id int64
+	var attempt int32
+	var last string
+	it := e.Temporal.GetWorkflowHistory(context.Background(), "round/"+round, "", false, enums.HISTORY_EVENT_FILTER_TYPE_ALL_EVENT)
+	for it.HasNext() {
+		ev, err := it.Next()
+		if err != nil {
+			t.Fatal(err)
+		}
+		switch {
+		case ev.GetActivityTaskScheduledEventAttributes().GetActivityType().GetName() == "Publish":
+			scheduled, id = ev.GetEventTime().AsTime(), ev.GetEventId()
+		case id != 0 && ev.GetActivityTaskStartedEventAttributes().GetScheduledEventId() == id:
+			a := ev.GetActivityTaskStartedEventAttributes()
+			attempt, last = a.GetAttempt(), a.GetLastFailure().GetMessage()
+		case id != 0 && ev.GetActivityTaskCompletedEventAttributes().GetScheduledEventId() == id:
+			return ev.GetEventTime().AsTime().Sub(scheduled), attempt, last
+		}
+	}
+	t.Fatalf("round %s has no completed Publish activity", round)
+	return 0, 0, ""
+}
+
 func (e *env) summary(t *testing.T, n int) fakegh.IssueComment {
 	t.Helper()
 	for _, c := range e.GitHub.IssueComments("acme/payments", n) {
@@ -200,12 +230,13 @@ func TestSCN_PUB_002_003_SummaryInPlaceAndInlineLimit(t *testing.T) {
 			t.Fatalf("the summary has no %q", want)
 		}
 	}
-	var ms float64
-	if err := e.Deps.Pool.QueryRow(context.Background(), `SELECT extract(epoch FROM (ro.finished_at - ar.finished_at)) * 1000 FROM rounds ro JOIN agent_runs ar ON ar.id = ro.agent_run_id`).Scan(&ms); err != nil {
+	// NFR-002 is the Publish activity with its retries, not the exit of the agent.
+	var round string
+	if err := e.Deps.Pool.QueryRow(context.Background(), `SELECT id::text FROM rounds`).Scan(&round); err != nil {
 		t.Fatal(err)
 	}
-	if ms > 15000 {
-		t.Fatalf("publish took %.0f ms", ms)
+	if d, attempts, last := e.publishTime(t, round); d > 15*time.Second {
+		t.Fatalf("publish took %s in %d attempts; last failure: %q", d, attempts, last)
 	}
 	// SCN-PUB-002: a second round edits the one summary in place.
 	e.push(t, pr.Number, map[string]string{"ledger/fees.go": fees + "// more\n"})

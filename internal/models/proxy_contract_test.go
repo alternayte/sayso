@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/httptrace"
 	"sort"
 	"strings"
 	"sync"
@@ -273,23 +274,34 @@ func TestSCN_MOD_008_RetryBeforeFirstByteOnly(t *testing.T) {
 		t.Fatalf("cut stream: %d upstream requests", n)
 	}
 
-	// Proxy overhead p95 over 200 calls against the fake.
+	// Proxy overhead p95 to the first byte (NFR-005) over 200 calls against
+	// the fake. The usage writes after the last byte are not part of it.
 	e.model.Reset()
 	plain := `{"model":"fake-large","messages":[{"role":"user","content":"hi"}]}`
-	var direct, proxied []time.Duration
-	for i := 0; i < 200; i++ {
-		start := time.Now()
-		r, err := http.Post(e.url+"/v1/chat/completions", "application/json", strings.NewReader(plain))
+	firstByte := func(url string, h http.Header) time.Duration {
+		req, err := http.NewRequest(http.MethodPost, url, strings.NewReader(plain))
+		if err != nil {
+			t.Fatal(err)
+		}
+		req.Header = h.Clone()
+		req.Header.Set("Content-Type", "application/json")
+		var start, first time.Time
+		req = req.WithContext(httptrace.WithClientTrace(req.Context(), &httptrace.ClientTrace{GotFirstResponseByte: func() { first = time.Now() }}))
+		start = time.Now()
+		r, err := http.DefaultClient.Do(req)
 		if err != nil {
 			t.Fatal(err)
 		}
 		readAll(t, r)
-		direct = append(direct, time.Since(start))
-		start = time.Now()
-		if resp, _ := e.call(t, "main", "chat/completions", h, plain); resp.StatusCode != http.StatusOK {
-			t.Fatalf("call %d: %d", i, resp.StatusCode)
+		if r.StatusCode != http.StatusOK {
+			t.Fatalf("%s: %d", url, r.StatusCode)
 		}
-		proxied = append(proxied, time.Since(start))
+		return first.Sub(start)
+	}
+	var direct, proxied []time.Duration
+	for i := 0; i < 200; i++ {
+		direct = append(direct, firstByte(e.url+"/v1/chat/completions", http.Header{}))
+		proxied = append(proxied, firstByte(e.Base+"/llm/main/chat/completions", h))
 	}
 	p95 := func(d []time.Duration) time.Duration {
 		sort.Slice(d, func(i, j int) bool { return d[i] < d[j] })
@@ -297,7 +309,9 @@ func TestSCN_MOD_008_RetryBeforeFirstByteOnly(t *testing.T) {
 	}
 	overhead := p95(proxied) - p95(direct)
 	t.Logf("proxy p95 %s, direct p95 %s, overhead %s", p95(proxied), p95(direct), overhead)
-	if overhead > 50*time.Millisecond {
+	// The contract layer runs with the race detector; `just contract` runs
+	// this test again without it for the timing.
+	if !raceEnabled && overhead > 50*time.Millisecond {
 		t.Fatalf("proxy overhead p95 %s is more than 50 ms", overhead)
 	}
 }

@@ -48,6 +48,8 @@ test: ui-build
 # Contract tests against the fakes (layer C)
 contract:
     REPORTS="$(just _reports)" ./scripts/layer-test.sh contract
+    # NFR-005 timing in the build without the race detector
+    ./scripts/gotest.sh "$(just _reports)/contract-timing.jsonl" -tags contract -count=1 -run '^TestSCN_MOD_008' ./internal/models/
 
 # Generate sqlc code, the OpenAPI documents, the TypeScript clients and the result schema
 gen:
