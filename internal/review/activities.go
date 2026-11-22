@@ -72,8 +72,6 @@ type Decision struct {
 // DecideInput holds the IDs of a round candidate.
 type DecideInput struct {
 	ReviewID uuid.UUID `json:"review_id"`
-	HeadSHA  string    `json:"head_sha"`
-	BaseSHA  string    `json:"base_sha"`
 	Trigger  string    `json:"trigger"`
 	// Paused is the pause state of the workflow (command pause).
 	Paused bool `json:"paused"`
@@ -103,15 +101,10 @@ func (a *Activities) Decide(ctx context.Context, in DecideInput) (Decision, erro
 	if err != nil {
 		return Decision{}, err
 	}
-	head, base := in.HeadSHA, in.BaseSHA
-	if head == "" || pr.Head.SHA != head {
-		head = pr.Head.SHA
-	}
-	if base == "" {
-		base = pr.Base.SHA
-	}
-	if _, err := a.Pool.Exec(ctx, `UPDATE reviews SET head_sha = $2, base_sha = $3, pr_node_id = $4, author_login = $5, title = $6, head_ref = $7 WHERE id = $1`,
-		in.ReviewID, head, base, pr.NodeID, pr.User.Login, pr.Title, pr.Head.Ref); err != nil {
+	// The pull request as GitHub has it now wins over the signal.
+	head := pr.Head.SHA
+	if _, err := a.Pool.Exec(ctx, `UPDATE reviews SET head_sha = $2, pr_node_id = $3, author_login = $4, title = $5, head_ref = $6 WHERE id = $1`,
+		in.ReviewID, head, pr.NodeID, pr.User.Login, pr.Title, pr.Head.Ref); err != nil {
 		return Decision{}, err
 	}
 	explicit := in.Trigger == signals.TriggerCommand || in.Trigger == signals.TriggerCheckRerequest
@@ -131,14 +124,23 @@ func (a *Activities) Decide(ctx context.Context, in DecideInput) (Decision, erro
 	case in.Paused && !explicit:
 		return Decision{Reason: "the review is paused", Paused: true}, nil
 	}
+	// The base of a round is the merge base: the base branch can move after
+	// the branch point, and its newer commits are not part of the change.
+	base, err := gh.Client.MergeBase(ctx, gh.Token, gh.Inst, full, pr.Base.SHA, head)
+	if err != nil {
+		return Decision{}, err
+	}
+	if _, err := a.Pool.Exec(ctx, `UPDATE reviews SET base_sha = $2 WHERE id = $1`, in.ReviewID, base); err != nil {
+		return Decision{}, err
+	}
 	if !explicit {
 		var n int
-		if err := a.Pool.QueryRow(ctx, `SELECT count(*) FROM rounds WHERE review_id = $1 AND head_sha = $2 AND status IN ('queued', 'running', 'publishing', 'done')`,
-			in.ReviewID, head).Scan(&n); err != nil {
+		if err := a.Pool.QueryRow(ctx, `SELECT count(*) FROM rounds WHERE review_id = $1 AND head_sha = $2 AND base_sha = $3 AND status IN ('queued', 'running', 'publishing', 'done')`,
+			in.ReviewID, head, base).Scan(&n); err != nil {
 			return Decision{}, err
 		}
 		if n > 0 {
-			return Decision{Reason: "this head has a round"}, nil
+			return Decision{Reason: "this head and base have a round"}, nil
 		}
 	}
 	if spent, err := a.MonthlyBudgetSpent(ctx); err != nil {

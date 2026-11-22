@@ -172,7 +172,7 @@ func (a *ReconcileActivities) StartMissingRounds(ctx context.Context) (int, erro
 			if has {
 				continue
 			}
-			s := signals.Signal{Trigger: signals.TriggerReconcile, HeadSHA: pr.Head.SHA, BaseSHA: pr.Base.SHA}
+			s := signals.Signal{Trigger: signals.TriggerReconcile, HeadSHA: pr.Head.SHA}
 			if err := SignalReview(ctx, a.Temporal, r, pr.Number, signals.SignalHeadUpdated, s, nil); err != nil {
 				return n, err
 			}

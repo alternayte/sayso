@@ -4,6 +4,8 @@ The agent follows a review skill. Admins and repositories can add guidance and p
 
 Sayso reads the skill, the overlay, `AGENTS.md` and `CLAUDE.md` from the base commit only. A pull request cannot change the rules of its own review.
 
+The base commit is the merge base of the head commit and the base branch. It is the commit where the pull request branches off. Commits that the base branch gets after that point are not part of the review. A change to the skill or the overlay on the base branch applies to a pull request after the pull request merges or rebases onto that change. A pull request that moves to a new base branch gets a new round when its merge base changes.
+
 ## Skill resolution
 
 Each round uses one review skill. Sayso picks the first source that applies:

@@ -276,6 +276,24 @@ func (c *Client) IsAncestor(ctx context.Context, token string, inst int64, fullN
 	return out.Status == "ahead" || out.Status == "identical", nil
 }
 
+// MergeBase returns the best common ancestor of base and head: the commit
+// that the diff of a pull request starts at.
+func (c *Client) MergeBase(ctx context.Context, token string, inst int64, fullName, base, head string) (string, error) {
+	var out struct {
+		MergeBase struct {
+			SHA string `json:"sha"`
+		} `json:"merge_base_commit"`
+	}
+	path := fmt.Sprintf("/repos/%s/compare/%s...%s?per_page=1", fullName, url.PathEscape(base), url.PathEscape(head))
+	if err := c.call(ctx, call{method: http.MethodGet, path: path, auth: "Bearer " + token, out: &out, inst: inst, prio: High}); err != nil {
+		return "", err
+	}
+	if out.MergeBase.SHA == "" {
+		return "", fmt.Errorf("compare %s...%s: no merge base", base, head)
+	}
+	return out.MergeBase.SHA, nil
+}
+
 // ReviewComment is a pull request review comment.
 type ReviewComment struct {
 	ID        int64  `json:"id"`

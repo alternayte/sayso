@@ -235,7 +235,7 @@ func PRReview(ctx workflow.Context, st State) error {
 			return
 		}
 		var d Decision
-		in := DecideInput{ReviewID: st.ReviewID, HeadSHA: s.HeadSHA, BaseSHA: s.BaseSHA, Trigger: s.Trigger, Paused: st.Paused}
+		in := DecideInput{ReviewID: st.ReviewID, Trigger: s.Trigger, Paused: st.Paused}
 		if err := workflow.ExecuteActivity(sctx, act.Decide, in).Get(sctx, &d); err != nil {
 			log.Error("decide failed", "error", err)
 			return
