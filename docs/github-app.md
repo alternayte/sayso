@@ -60,7 +60,7 @@ GitHub sends `installation` and `installation_repositories` events to every App.
 | `pull_request` converted to draft | Pauses the review. |
 | `pull_request` closed | Ends the review. |
 | `issue_comment` that starts with `/sayso` | Runs a command. |
-| `pull_request_review_comment` in a Sayso thread | Starts a reply run. |
+| `pull_request_review_comment` in a Sayso thread | Starts a reply run. A reply from a GitHub App starts none. |
 | `pull_request_review_comment` by a person outside Sayso threads | Records a steering signal. Sayso does not reply. |
 | `pull_request_review_thread` resolved or unresolved | Updates the finding status. |
 | `check_run` rerequested on the `sayso` check | Starts a round now. |

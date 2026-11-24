@@ -50,6 +50,8 @@ type User struct {
 	ID    int64  `json:"id"`
 	Login string `json:"login"`
 	Name  string `json:"name"`
+	// Type is "Bot" for a GitHub App and "User" for a person.
+	Type string `json:"type"`
 }
 
 // ErrNotFound is a 404 from GitHub.

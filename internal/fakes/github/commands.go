@@ -395,6 +395,13 @@ func (f *Fake) SetFork(repo string, number int) {
 	f.mu.Unlock()
 }
 
+// SetAuthor sets the author login of a pull request.
+func (f *Fake) SetAuthor(repo string, number int, login string) {
+	f.mu.Lock()
+	f.repos[repo].Pulls[number].Author = login
+	f.mu.Unlock()
+}
+
 // FileAt reads a file of a repository at a branch or commit.
 func (f *Fake) FileAt(repo, path, ref string) (string, error) {
 	f.mu.Lock()

@@ -135,6 +135,24 @@ func TestSCN_CMD_003_FixPullRequest(t *testing.T) {
 		}
 		return false
 	})
+	// On a pull request that an app authored the command is refused.
+	owned := e.script(t, "e2e-commands", map[string]string{"ledger/ledger.go": noCheck})
+	waitFor(t, 4*time.Minute, "the app round", func() bool { return e.rounds(t, "acme/payments", owned.Number, "done") == 1 })
+	e.GitHub.SetAuthor("acme/payments", owned.Number, "coder-app[bot]")
+	ask := e.comment(t, owned.Number, "dev-alice", "/sayso fix S-2")
+	waitFor(t, 30*time.Second, "the app refusal", func() bool {
+		for _, b := range e.botIssueComments(owned.Number) {
+			if strings.Contains(b, "the app coder-app[bot] owns this pull request") {
+				return e.reacted(ask, "confused")
+			}
+		}
+		return false
+	})
+	for _, p := range e.GitHub.Pulls("acme/payments") {
+		if strings.HasPrefix(p.HeadRef, "sayso/fix/"+strconv.Itoa(owned.Number)+"-") {
+			t.Fatalf("a fix branch for the app pull request: %s", p.HeadRef)
+		}
+	}
 }
 
 func threadBodies(e *env, n int, top int64) []string {
@@ -181,6 +199,16 @@ func TestSCN_CMD_004_Replies(t *testing.T) {
 		r := e.botReplies(s2.ID)
 		return len(r) == 4 && r[3] == "I will look again after the next push."
 	})
+	// A reply from an app starts no reply run and does not change the finding.
+	runs := e.Count(t, `SELECT count(*) FROM agent_work WHERE kind = 'reply'`)
+	e.reply(t, pr.Number, s3.ID, "coder-app[bot]", "Dropped: the caller checks the amount.")
+	time.Sleep(5 * time.Second)
+	if n := e.Count(t, `SELECT count(*) FROM agent_work WHERE kind = 'reply'`); n != runs {
+		t.Fatalf("%d reply runs after the app reply, want %d", n, runs)
+	}
+	if e.Count(t, `SELECT count(*) FROM findings WHERE seq = 3 AND status = 'open'`) != 1 {
+		t.Fatal("the app reply changed S-3")
+	}
 	// A reply in a thread that a person started gets no answer.
 	own, code := e.GitHub.AddReviewComment("acme/payments", pr.Number, "dev-alice", "Note for later.", "ledger/ledger.go", 15, 0)
 	if code != http.StatusOK {

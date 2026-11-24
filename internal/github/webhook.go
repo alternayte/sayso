@@ -305,6 +305,11 @@ func (in *Ingest) dispatch(ctx context.Context, h Headers, body []byte, start ti
 		if isCommand(c.Body) {
 			return ev.signal(signals.SignalCommand, signals.Signal{CommentID: c.ID, CommentSource: "review", InReplyTo: c.InReplyTo})
 		}
+		// A reply from another app, such as a coding agent that triages
+		// findings, starts no reply run, so it cannot concede a finding.
+		if strings.HasSuffix(strings.ToLower(c.User.Login), "[bot]") {
+			return nil
+		}
 		if c.InReplyTo != 0 {
 			ours, err := ev.saysoComment(c.InReplyTo, bot)
 			if err != nil {
@@ -313,9 +318,6 @@ func (in *Ingest) dispatch(ctx context.Context, h Headers, body []byte, start ti
 			if ours {
 				return ev.signal(signals.SignalThreadReply, signals.Signal{CommentID: c.ID, CommentSource: "review", InReplyTo: c.InReplyTo})
 			}
-		}
-		if strings.HasSuffix(c.User.Login, "[bot]") {
-			return nil
 		}
 		return ev.signal(signals.SignalHumanComment, signals.Signal{CommentID: c.ID, CommentSource: "review", InReplyTo: c.InReplyTo})
 	case "pull_request_review_thread":
