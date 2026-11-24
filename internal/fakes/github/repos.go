@@ -305,6 +305,15 @@ func headRepo(r *Repo, p *Pull) map[string]any {
 	return map[string]any{"id": r.ID, "full_name": r.FullName}
 }
 
+// userType is the GitHub account type of a login: a GitHub App login ends
+// in [bot].
+func userType(login string) string {
+	if strings.HasSuffix(login, "[bot]") {
+		return "Bot"
+	}
+	return "User"
+}
+
 func (f *Fake) pullJSON(r *Repo, p *Pull) map[string]any {
 	labels := []map[string]any{}
 	for _, l := range p.Labels {
@@ -313,7 +322,7 @@ func (f *Fake) pullJSON(r *Repo, p *Pull) map[string]any {
 	state := p.State
 	return map[string]any{
 		"number": p.Number, "node_id": p.NodeID, "draft": p.Draft, "state": state, "merged": p.Merged, "title": p.Title, "body": p.Body,
-		"user":   map[string]any{"login": p.Author},
+		"user":   map[string]any{"login": p.Author, "type": userType(p.Author)},
 		"head":   map[string]any{"sha": p.HeadSHA, "ref": p.HeadRef, "repo": headRepo(r, p)},
 		"base":   map[string]any{"sha": p.BaseSHA, "ref": p.BaseRef, "repo": map[string]any{"id": r.ID, "full_name": r.FullName}},
 		"labels": labels,

@@ -39,13 +39,13 @@ Write a command as a pull request comment that starts with `/sayso`. Sayso check
 | `/sayso pause`, `/sayso resume` | write | Stops or starts automatic rounds on this pull request. |
 | `/sayso dismiss S-<n> <reason>` | write | Dismisses the finding and resolves its thread. |
 | `/sayso override <reason>` | maintain, or a team in the `override_teams` setting | Sets the check to `success` for the current head commit. |
-| `/sayso fix S-<n> [S-<m> …]` | write | Fixes the findings in one fix pull request into the head branch, with one commit for each fix. A check stage confirms each fix first, and a fix that fails the check is left out. Same-repository branches only. |
+| `/sayso fix S-<n> [S-<m> …]` | write | Fixes the findings in one fix pull request into the head branch, with one commit for each fix. A check stage confirms each fix first, and a fix that fails the check is left out. Same-repository branches only. Sayso refuses it on a pull request that a GitHub App authored. |
 | `/sayso fix all [--minor]` | write | Fixes the open blocker and major findings. `--minor` adds the minor findings. The `max_fix_batch` setting limits the number of findings. |
 | `/sayso explain S-<n>` | read | Replies in the thread with more detail. |
 
 Sayso adds 👀 to a command when it receives it. When a command fails, Sayso adds 😕, replies with the reason, and lists the command on the review page with a Run again action.
 
-A reply in a Sayso thread starts a reply run. The agent concedes, holds or clarifies. The `sayso:skip` label also stops automatic rounds.
+A reply in a Sayso thread starts a reply run. The agent concedes, holds or clarifies. A reply from a GitHub App, with a login that ends in `[bot]`, starts no reply run and does not change the finding. The `sayso:skip` label also stops automatic rounds.
 
 ## Quick start with Docker Compose
 

@@ -330,6 +330,12 @@ func (a *Activities) HandleCommand(ctx context.Context, in CommentInput) (Comman
 		if pr.Head.Repo == nil || pr.Head.Repo.ID != p.repoGitHubID {
 			return refuse("/sayso fix works only for a branch in this repository, and this pull request comes from a fork")
 		}
+		if pr.User.Type == "Bot" {
+			// Two fixers on one head branch put unverified commits on a
+			// head that the author app verified.
+			_ = p.gh.Client.ReactToComment(ctx, p.gh.Token, p.gh.Inst, p.full, c.source, c.id, "confused")
+			return refuse(fmt.Sprintf("the app %s owns this pull request. Ask that app for the fix on this pull request", pr.User.Login))
+		}
 		fs, why, err := a.fixTargets(ctx, p, cmd)
 		if err != nil {
 			return out, err
