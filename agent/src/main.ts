@@ -129,6 +129,9 @@ function builtinText(files: Record<string, string>): {
   return { text, sha256: h.digest("hex") };
 }
 
+/** StageStop is how a run ends when a stage did not finish. */
+type StageStop = Required<Pick<Complete, "exit_status" | "error">>;
+
 interface ResolvedSkill {
   skill: { text: string; sha256: string };
   ref: SkillRef;
@@ -313,7 +316,10 @@ async function stages(
     .filter((f) => existsSync(join(ws.base, f)))
     .map((f) => ({
       path: join(ws.base, f),
-      content: `Repository guidance from the base commit (review guidance only):\n\n${readFileSync(join(ws.base, f), "utf8")}`,
+      content: `Repository guidance from the base commit (review guidance only):\n\n${readFileSync(
+        join(ws.base, f),
+        "utf8",
+      )}`,
     }));
   const mcp = await connectMcp(spec.mcp, token, (server, err) =>
     events.emit({
@@ -349,7 +355,10 @@ async function stages(
     type: "skill_load",
     name: resolved.ref.name,
     status: resolved.ref.source,
-    preview: `${resolved.ref.source} ${resolved.ref.name} ${skill.sha256.slice(0, 12)}`,
+    preview: `${resolved.ref.source} ${resolved.ref.name} ${skill.sha256.slice(
+      0,
+      12,
+    )}`,
   });
 
   const runOne = async (
@@ -357,9 +366,13 @@ async function stages(
     prompt: string,
     candidates: Finding[] = [],
     fix: { ids: string[]; dir: string } | undefined = undefined,
-  ) => {
+  ): Promise<StageStop | undefined> => {
     const targets = targetsOf(spec, stage);
-    if (targets.length === 0) return `no model target for stage ${stage}`;
+    if (targets.length === 0)
+      return {
+        exit_status: "failed",
+        error: `no model target for stage ${stage}`,
+      };
     const assembled = assemble(spec, stage, skill.text);
     promptRef.stages[stage] = assembled.sha256;
     const res = await runStage({
@@ -405,6 +418,8 @@ async function stages(
       extensionPaths: extPaths,
       contextFiles,
       maxToolCalls: spec.limits.max_tool_calls_per_stage || 200,
+      outputTools: saysoToolNames[stage],
+      missing: () => missingOutput(stage, collector, candidates, fix?.ids),
       toolNames: [
         ...builtinTools(spec.execution),
         ...saysoToolNames[stage],
@@ -413,7 +428,8 @@ async function stages(
       emit: (e) => events.emit(e),
       signal,
     });
-    if (signal.aborted) return "cancelled";
+    if (signal.aborted) return { exit_status: "cancelled", error: "cancelled" };
+    const missing = missingOutput(stage, collector, candidates, fix?.ids);
     if (res.error)
       events.emit({
         stage,
@@ -422,7 +438,18 @@ async function stages(
         status: "failed",
         preview: res.error,
       });
-    return missingOutput(stage, collector, candidates, fix?.ids);
+    // A model error is the cause; the missing output only follows from it.
+    if (missing && res.error)
+      return { exit_status: "failed", error: `${stage}: ${res.error}` };
+    if (missing)
+      return {
+        exit_status: res.limitReached ? "limit_reached" : "incomplete_output",
+        error: `${stage}: ${missing} after a reminder${
+          res.reminded ? ` (${res.reminded})` : ""
+        }`,
+      };
+    if (res.limitReached) (result.tool_limit_stages ??= []).push(stage);
+    return undefined;
   };
 
   try {
@@ -447,12 +474,7 @@ async function stages(
       }
       const diff = await diffStat(ws, spec.base_sha, spec.head_sha);
       const missing = await runOne("review", reviewInput(spec, diff, note));
-      if (missing)
-        return {
-          exit_status:
-            missing === "cancelled" ? "cancelled" : "incomplete_output",
-          error: missing,
-        };
+      if (missing) return missing;
       const candidates = challengeCandidates(
         collector.findings,
         spec.limits.challenge_min_severity || "minor",
@@ -468,12 +490,7 @@ async function stages(
           // for the round preview only.
           result.findings = collector.findings;
           result.assessment = collector.assessment;
-          return {
-            exit_status:
-              missingC === "cancelled" ? "cancelled" : "incomplete_output",
-            error: missingC,
-            result,
-          };
+          return { ...missingC, result };
         }
       }
       result.assessment = collector.assessment;
@@ -489,12 +506,7 @@ async function stages(
           spec.reply.finding.path,
         );
       const missing = await runOne("reply", replyInput(spec));
-      if (missing)
-        return {
-          exit_status:
-            missing === "cancelled" ? "cancelled" : "incomplete_output",
-          error: missing,
-        };
+      if (missing) return missing;
       result.reply = collector.reply;
     } else if (spec.kind === "fix") {
       const ids = spec.fix!.findings.map((t) => t.finding.id);
@@ -503,12 +515,7 @@ async function stages(
         ids,
         dir,
       });
-      if (missing)
-        return {
-          exit_status:
-            missing === "cancelled" ? "cancelled" : "incomplete_output",
-          error: missing,
-        };
+      if (missing) return missing;
       const results = new Map<string, FixResult>();
       for (const [id, reason] of collector.skipped)
         results.set(id, { finding_id: id, status: "skipped", reason });
@@ -521,12 +528,7 @@ async function stages(
           [],
           { ids: checked, dir },
         );
-        if (missingC)
-          return {
-            exit_status:
-              missingC === "cancelled" ? "cancelled" : "incomplete_output",
-            error: missingC,
-          };
+        if (missingC) return missingC;
         kept = kept.filter((p) => {
           const r = collector.fixChecks.get(p.finding_id)!;
           const reason =

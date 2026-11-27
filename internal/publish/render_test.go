@@ -9,6 +9,7 @@ import (
 
 	"github.com/alternayte/sayso/internal/findings"
 	"github.com/alternayte/sayso/internal/github"
+	"github.com/alternayte/sayso/internal/runner"
 )
 
 func TestSCN_PUB_004_CheckConclusion(t *testing.T) {
@@ -112,5 +113,21 @@ func TestSCN_PUB_010_AnnotationsForFindingsWithoutComment(t *testing.T) {
 	}
 	if !strings.HasSuffix(links[offDiff.ID.String()], "#L90-L92") {
 		t.Fatalf("link %s", links[offDiff.ID.String()])
+	}
+}
+
+func TestSCN_PUB_021_ToolLimitLine(t *testing.T) {
+	a := &runner.Assessment{TLDR: "Small change.", Risk: "low"}
+	line := "The agent reached the tool-call limit in the review stage. The review can be incomplete."
+	sum := RenderSummary(Summary{Status: "done", HeadSHA: "abc1234", Verdict: findings.VerdictLooksGood, Assessment: a, ToolLimitStages: []string{"review"}})
+	if !strings.Contains(sum, line) {
+		t.Fatalf("summary without the limit line:\n%s", sum)
+	}
+	c := RenderCheck("gate", "done", findings.VerdictLooksGood, "", a, []string{"review"}, nil)
+	if !strings.Contains(c.Summary, line) || c.Conclusion != "success" {
+		t.Fatalf("check %+v", c)
+	}
+	if c := RenderCheck("gate", "done", findings.VerdictLooksGood, "", a, nil, nil); strings.Contains(c.Summary, "tool-call limit") {
+		t.Fatalf("check without a limit has the line: %+v", c)
 	}
 }

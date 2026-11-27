@@ -1,0 +1,15 @@
+marker: '[script:review-tool-limit-silent]'
+stages:
+  review:
+  - tools:
+    - name: read
+      args:
+        path: ledger/ledger.go
+    - name: read
+      args:
+        path: ledger/ledger.go
+    - name: read
+      args:
+        path: ledger/ledger.go
+  - text: I cannot read more files.
+  - text: I have nothing more to add.

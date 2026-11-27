@@ -43,6 +43,10 @@ func (f *Fake) answer(w http.ResponseWriter, r *http.Request, p parsed, mode str
 		failed(w, Fail429)
 		return rep, false
 	}
+	if rep.Status != 0 {
+		writeJSON(w, rep.Status, map[string]any{"error": map[string]any{"type": "invalid_request_error", "message": "the fake model rejects this request"}})
+		return rep, false
+	}
 	if rep.Delay > 0 {
 		select {
 		case <-time.After(rep.Delay):
@@ -115,6 +119,9 @@ func (f *Fake) completions(w http.ResponseWriter, r *http.Request) {
 		if rep.Text == "" {
 			msg["content"] = nil
 		}
+	}
+	if rep.Stop == "length" {
+		finish = "length"
 	}
 	if !in.Stream {
 		writeJSON(w, http.StatusOK, map[string]any{"id": "chatcmpl-fake", "object": "chat.completion", "model": in.Model,
@@ -303,6 +310,9 @@ func (f *Fake) messages(w http.ResponseWriter, r *http.Request) {
 		_ = json.Unmarshal([]byte(c.Args), &args)
 		content = append(content, map[string]any{"type": "tool_use", "id": fmt.Sprintf("toolu_%d_%d", p.Turns, i), "name": c.Name, "input": args})
 		stop = "tool_use"
+	}
+	if rep.Stop == "length" {
+		stop = "max_tokens"
 	}
 	if !in.Stream {
 		writeJSON(w, http.StatusOK, map[string]any{"id": "msg_fake", "type": "message", "role": "assistant", "model": in.Model,

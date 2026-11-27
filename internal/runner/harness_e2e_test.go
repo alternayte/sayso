@@ -89,6 +89,7 @@ type runOpts struct {
 	skill      *runner.Skill
 	mcp        []string
 	maxFind    int
+	maxCalls   int
 	timeout    time.Duration
 	proxy      string
 	beforeHead func()
@@ -122,6 +123,9 @@ func (h *harness) start(t *testing.T, o runOpts) outcome {
 	}
 	if o.maxFind == 0 {
 		o.maxFind = 25
+	}
+	if o.maxCalls == 0 {
+		o.maxCalls = 200
 	}
 	if o.timeout == 0 {
 		o.timeout = 5 * time.Minute
@@ -167,7 +171,7 @@ func (h *harness) start(t *testing.T, o runOpts) outcome {
 		Extensions:  []runner.SpecExtension{},
 		Feeds:       sf,
 		Skael:       o.skael,
-		Limits:      runner.Limits{MaxFindings: o.maxFind, MaxToolCallsPerStage: 200, TimeoutSeconds: int(o.timeout.Seconds()), SetupTimeoutSeconds: 300, ChallengeMinSeverity: o.threshold},
+		Limits:      runner.Limits{MaxFindings: o.maxFind, MaxToolCallsPerStage: o.maxCalls, TimeoutSeconds: int(o.timeout.Seconds()), SetupTimeoutSeconds: 300, ChallengeMinSeverity: o.threshold},
 		Prompts:     runner.Prompts{Repository: runner.PromptLayer{Version: "1", Text: "Use the script " + o.script + "."}},
 		Execution:   o.execution,
 	}

@@ -255,6 +255,7 @@ export type Result = {
     skael_manifest?: SkaelManifest;
     skill_ref?: SkillRef;
     skills_loaded?: Array<SkillLoaded>;
+    tool_limit_stages?: Array<string>;
     usage: Usage;
 };
 

@@ -1,0 +1,19 @@
+marker: '[script:review-cut]'
+stages:
+  review:
+  - text: I read the change and I start to write a long answer that
+    stop: length
+  - tools:
+    - name: set_assessment
+      args:
+        tldr: The change touches the ledger. Charges flow through Post.
+        risk: low
+        risk_reasons:
+        - small change
+        where_to_look:
+        - path_or_area: ledger/ledger.go
+          why: balance update
+        impact:
+        - area: api/handler.go
+          why: Charge calls Post
+  - text: Review done.

@@ -632,8 +632,12 @@ func (a *Activities) ReconcileLedger(ctx context.Context, roundID uuid.UUID) (Re
 	if res.PromptRef != nil {
 		promptRef, _ = json.Marshal(res.PromptRef)
 	}
-	if _, err := tx.Exec(ctx, `UPDATE rounds SET status = 'publishing', verdict = $2, risk = $3, assessment = $4, skill_ref = $5, prompt_ref = $6, ledger_outcome = $7
-		WHERE id = $1`, roundID, out.Verdict, risk, assessment, skillRef, promptRef, outRaw); err != nil {
+	limited := res.ToolLimitStages
+	if limited == nil {
+		limited = []string{}
+	}
+	if _, err := tx.Exec(ctx, `UPDATE rounds SET status = 'publishing', verdict = $2, risk = $3, assessment = $4, skill_ref = $5, prompt_ref = $6, ledger_outcome = $7,
+		tool_limit_stages = $8 WHERE id = $1`, roundID, out.Verdict, risk, assessment, skillRef, promptRef, outRaw, limited); err != nil {
 		return Reconciled{}, err
 	}
 	return Reconciled{}, tx.Commit(ctx)

@@ -116,6 +116,7 @@ type round struct {
 	Profiles                     map[string]string
 	CheckRunID, SummaryCommentID *int64
 	Unchallenged                 []runner.Finding
+	ToolLimitStages              []string
 }
 
 func (p *Publisher) load(ctx context.Context, roundID uuid.UUID) (*round, error) {
@@ -124,10 +125,10 @@ func (p *Publisher) load(ctx context.Context, roundID uuid.UUID) (*round, error)
 	var assessment, outcome, config, skill, unchallenged []byte
 	err := p.Pool.QueryRow(ctx, `SELECT ro.review_id, rv.repository_id, rv.pr_number, rp.full_name, rp.mode, rp.installation_id, ro.head_sha, ro.status,
 			ro.failure_reason, ro.verdict, rv.state = 'paused',
-			ro.assessment, ro.ledger_outcome, ro.config_snapshot, ro.skill_ref, ro.check_run_id, rv.summary_comment_id, ro.unchallenged
+			ro.assessment, ro.ledger_outcome, ro.config_snapshot, ro.skill_ref, ro.check_run_id, rv.summary_comment_id, ro.unchallenged, ro.tool_limit_stages
 		FROM rounds ro JOIN reviews rv ON rv.id = ro.review_id JOIN repositories rp ON rp.id = rv.repository_id WHERE ro.id = $1`, roundID).
 		Scan(&r.ReviewID, &r.RepositoryID, &r.Number, &r.FullName, &r.Mode, &r.Inst, &r.HeadSHA, &r.Status, &r.Reason, &verdict, &r.Paused,
-			&assessment, &outcome, &config, &skill, &r.CheckRunID, &r.SummaryCommentID, &unchallenged)
+			&assessment, &outcome, &config, &skill, &r.CheckRunID, &r.SummaryCommentID, &unchallenged, &r.ToolLimitStages)
 	if err != nil {
 		return nil, err
 	}
@@ -184,8 +185,9 @@ func (p *Publisher) webURL(ctx context.Context) string {
 func (p *Publisher) summaryOf(ctx context.Context, tx pgx.Tx, r *round, ledger []findings.Finding, links map[string]string) (Summary, error) {
 	s := Summary{Status: r.Status, HeadSHA: r.HeadSHA, Reason: r.Reason, Paused: r.Paused, Verdict: r.Verdict, Assessment: r.Assessment, Links: links,
 		RoundURL: strings.TrimRight(p.BaseURL, "/") + "/rounds/" + r.ID.String(), ModelsURL: strings.TrimRight(p.BaseURL, "/") + "/settings/models",
-		Skill: r.Skill, Profiles: r.Profiles}
+		Skill: r.Skill, Profiles: r.Profiles, ToolLimitStages: r.ToolLimitStages}
 	if r.Status != "done" {
+		s.ToolLimitStages = nil
 		var verdict *string
 		var a []byte
 		err := tx.QueryRow(ctx, `SELECT verdict, assessment FROM rounds WHERE review_id = $1 AND status = 'done' AND id <> $2 ORDER BY finished_at DESC LIMIT 1`,
@@ -465,7 +467,7 @@ func (p *Publisher) Publish(ctx context.Context, roundID uuid.UUID) (Preview, er
 			open = append(open, f)
 		}
 	}
-	check := RenderCheck(r.Mode, r.Status, r.Verdict, r.Reason, r.Assessment, open)
+	check := RenderCheck(r.Mode, r.Status, r.Verdict, r.Reason, r.Assessment, r.ToolLimitStages, open)
 	pv = Preview{Summary: RenderSummary(s), Comments: comments, Replies: replies, Check: &check, Annotations: annotations, Unchallenged: r.Unchallenged}
 	if pv.Annotations == nil {
 		pv.Annotations = []Annotation{}

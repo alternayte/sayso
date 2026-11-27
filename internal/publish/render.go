@@ -94,6 +94,8 @@ type Summary struct {
 	ModelsURL string
 	Skill     *runner.SkillRef
 	Profiles  map[string]string
+	// ToolLimitStages are the stages that reached the tool-call limit.
+	ToolLimitStages []string
 }
 
 var verdictText = map[string]string{
@@ -152,6 +154,9 @@ func RenderSummary(s Summary) string {
 		}
 		b.WriteString("\n\n")
 		b.WriteString("**TL;DR:** " + Safe(s.Assessment.TLDR) + "\n\n")
+		if line := toolLimitLine(s.ToolLimitStages); line != "" {
+			b.WriteString(line + "\n\n")
+		}
 		if len(s.Assessment.WhereToLook) > 0 {
 			b.WriteString("**Where to look**\n\n")
 			for _, w := range s.Assessment.WhereToLook[:min(6, len(s.Assessment.WhereToLook))] {
@@ -305,7 +310,20 @@ func riskText(r string) string {
 }
 
 // RenderCheck is the finished check run of a round.
-func RenderCheck(mode, status, verdict, reason string, a *runner.Assessment, open []findings.Finding) Check {
+// toolLimitLine says that the agent stopped at the tool-call limit, so the
+// review can be incomplete. Empty when no stage reached it.
+func toolLimitLine(stages []string) string {
+	if len(stages) == 0 {
+		return ""
+	}
+	noun := "stage"
+	if len(stages) > 1 {
+		noun = "stages"
+	}
+	return fmt.Sprintf("The agent reached the tool-call limit in the %s %s. The review can be incomplete.", strings.Join(stages, " and "), noun)
+}
+
+func RenderCheck(mode, status, verdict, reason string, a *runner.Assessment, limited []string, open []findings.Finding) Check {
 	c := Check{Status: "completed", Conclusion: Conclusion(mode, status, verdict)}
 	switch status {
 	case "done":
@@ -317,6 +335,9 @@ func RenderCheck(mode, status, verdict, reason string, a *runner.Assessment, ope
 		var b strings.Builder
 		if a != nil {
 			b.WriteString(Safe(a.TLDR) + "\n\n")
+		}
+		if line := toolLimitLine(limited); line != "" {
+			b.WriteString(line + "\n\n")
 		}
 		var blocking []string
 		for _, f := range open {

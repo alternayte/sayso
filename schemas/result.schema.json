@@ -564,6 +564,12 @@
       },
       "type": "array"
     },
+    "tool_limit_stages": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
     "usage": {
       "$ref": "#/$defs/Usage"
     }

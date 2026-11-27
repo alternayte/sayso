@@ -152,6 +152,10 @@ type reply struct {
 	Calls   []call
 	In, Out int
 	Delay   time.Duration
+	// Stop "length" reports a turn cut off at the output token limit.
+	Stop string
+	// Status is an HTTP error to answer with.
+	Status int
 }
 
 // parsed is what the fake reads from a request of any API type.
@@ -176,12 +180,12 @@ func (f *Fake) decide(p parsed, noTools bool) (reply, bool) {
 	}
 	if sc := f.script(p.System + "\n" + p.Prompt); sc != nil {
 		st := sc.step(p.System, p.Prompt, p.Turns)
-		r.Text, r.Delay = st.Text, time.Duration(st.DelayMS)*time.Millisecond
+		r.Text, r.Delay, r.Stop, r.Status = st.Text, time.Duration(st.DelayMS)*time.Millisecond, st.Stop, st.Status
 		for _, c := range st.Tools {
 			b, _ := json.Marshal(c.Args)
 			r.Calls = append(r.Calls, call{Name: c.Name, Args: string(b)})
 		}
-		if len(r.Calls) == 0 && r.Text == "" {
+		if len(r.Calls) == 0 && r.Text == "" && r.Status == 0 {
 			r.Text = "Done."
 		}
 	} else {
