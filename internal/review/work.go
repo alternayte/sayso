@@ -143,9 +143,7 @@ func (a *Activities) PrepareWork(ctx context.Context, id uuid.UUID) error {
 			}
 		}
 		entry := runner.LedgerEntry{ID: f.Label(), Severity: f.Severity, Category: f.Category, Title: f.Title, Path: f.Path, StartLine: f.StartLine, EndLine: f.EndLine, Status: f.Status}
-		if n := len(thread); n > 0 && !strings.HasSuffix(thread[n-1].Author, "[bot]") {
-			entry.LastHumanReply = thread[n-1].Body
-		}
+		setReplies(&entry, thread, a.appLogin(ctx))
 		entries = append(entries, entry)
 		targets = append(targets, runner.FixTarget{Finding: entry, Thread: thread})
 	}
@@ -530,4 +528,37 @@ func patchPath(name string) (string, bool) {
 		}
 	}
 	return name, true
+}
+
+// setReplies sets the last reply of a person and the last reply of
+// another app in the thread of a finding. Sayso's own comments do not count.
+func setReplies(e *runner.LedgerEntry, thread []runner.Comment, sayso string) {
+	for i := len(thread) - 1; i >= 0; i-- {
+		c := thread[i]
+		switch {
+		case sayso != "" && strings.EqualFold(c.Author, sayso):
+		case strings.HasSuffix(strings.ToLower(c.Author), "[bot]"):
+			if e.LastAppReplyBy == "" {
+				e.LastAppReply, e.LastAppReplyBy = clipReply(c.Body), c.Author
+			}
+		default:
+			if e.LastHumanReply == "" {
+				e.LastHumanReply = clipReply(c.Body)
+			}
+		}
+	}
+}
+
+func clipReply(s string) string {
+	if r := []rune(s); len(r) > 2000 {
+		return string(r[:2000])
+	}
+	return s
+}
+
+func (a *Activities) appLogin(ctx context.Context) string {
+	if a.AppLogin == nil {
+		return ""
+	}
+	return a.AppLogin(ctx)
 }

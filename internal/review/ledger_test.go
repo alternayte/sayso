@@ -334,3 +334,41 @@ func TestSCN_LIFE_010_Budgets(t *testing.T) {
 		t.Fatal("the banner flag is not set")
 	}
 }
+
+// The next round gets the last reply of a person and of another app in
+// each finding thread; Sayso's own replies do not count.
+func TestSCN_FND_009_LedgerCarriesReplies(t *testing.T) {
+	var mu sync.Mutex
+	var ledgers [][]runner.LedgerEntry
+	s := &scripted{}
+	e := start(t, func(spec runner.Spec) runnertest.Answer {
+		mu.Lock()
+		ledgers = append(ledgers, spec.Ledger)
+		mu.Unlock()
+		return s.script(spec)
+	}, nil)
+	s.set(withFindings(rounding(3)))
+	pr := e.openWith(t, splitFile("func Split() {}", "// a", "// b", "// c"))
+	waitFor(t, 60*time.Second, "round 1", func() bool { return e.rounds(t, "acme/payments", pr.Number, "done") == 1 })
+	first := e.sayso(pr.Number)[0]
+	top := first.ID
+	for _, c := range []struct{ author, body string }{
+		{"dev-alice", "Is this real?"},
+		{"coder-app[bot]", "Dropped: the caller checks the remainder."},
+		{first.Author, "I will look again after the next push."},
+	} {
+		if _, code := e.GitHub.AddReviewComment("acme/payments", pr.Number, c.author, c.body, "", 0, top); code != http.StatusOK {
+			t.Fatalf("reply %q: %d", c.body, code)
+		}
+	}
+	s.set(lookGood())
+	e.push(t, pr.Number, splitFile("func Split() {}", "// a", "// b", "// c", "// d"))
+	waitFor(t, 60*time.Second, "round 2", func() bool { return e.rounds(t, "acme/payments", pr.Number, "done") == 2 })
+	mu.Lock()
+	defer mu.Unlock()
+	l := ledgers[len(ledgers)-1]
+	if len(l) != 1 || l[0].LastHumanReply != "Is this real?" || l[0].LastAppReplyBy != "coder-app[bot]" ||
+		l[0].LastAppReply != "Dropped: the caller checks the remainder." {
+		t.Fatalf("round 2 ledger %+v", l)
+	}
+}

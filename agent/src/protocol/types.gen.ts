@@ -158,6 +158,8 @@ export type LedgerEntry = {
      * S-<seq>
      */
     id: string;
+    last_app_reply?: string;
+    last_app_reply_by?: string;
     last_human_reply?: string;
     path: string;
     severity: string;
