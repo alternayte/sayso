@@ -307,12 +307,34 @@ func (a *Activities) ResolveConfig(ctx context.Context, roundID uuid.UUID) error
 	if err != nil {
 		return err
 	}
+	// The ledger carries the last replies in each finding thread (§8.7).
+	var comments []github.PullComment
+	for _, f := range ledger {
+		if f.Status == findings.StatusOpen && f.CommentID != nil {
+			if comments, err = gh.Client.PullComments(ctx, gh.Token, gh.Inst, repo.FullName, number); err != nil {
+				return err
+			}
+			break
+		}
+	}
+	sayso := a.appLogin(ctx)
 	entries := []runner.LedgerEntry{}
 	for _, f := range ledger {
-		if f.Status == findings.StatusOpen {
-			entries = append(entries, runner.LedgerEntry{ID: f.Label(), Severity: f.Severity, Category: f.Category, Title: f.Title, Path: f.Path,
-				StartLine: f.StartLine, EndLine: f.EndLine, Status: f.Status})
+		if f.Status != findings.StatusOpen {
+			continue
 		}
+		e := runner.LedgerEntry{ID: f.Label(), Severity: f.Severity, Category: f.Category, Title: f.Title, Path: f.Path,
+			StartLine: f.StartLine, EndLine: f.EndLine, Status: f.Status}
+		if f.CommentID != nil {
+			var thread []runner.Comment
+			for _, c := range comments {
+				if c.ID == *f.CommentID || c.InReplyTo == *f.CommentID {
+					thread = append(thread, runner.Comment{Author: c.User.Login, Body: c.Body})
+				}
+			}
+			setReplies(&e, thread, sayso)
+		}
+		entries = append(entries, e)
 	}
 	overlay := runner.Overlay{Instructions: eff.Instructions, Ignore: eff.Ignore, Nits: eff.Nits, Block: eff.Block, Toolchain: eff.Toolchain, Restore: eff.Restore,
 		Setup: eff.Setup, MaxInlineComments: eff.MaxInlineComments}

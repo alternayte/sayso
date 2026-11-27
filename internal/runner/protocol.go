@@ -69,6 +69,11 @@ type LedgerEntry struct {
 	EndLine        int    `json:"end_line"`
 	Status         string `json:"status"`
 	LastHumanReply string `json:"last_human_reply,omitempty"`
+	// LastAppReply is the last reply of another GitHub App in the thread,
+	// for example the coding agent that wrote the change. It is a claim
+	// for the agent to check against the code, not evidence.
+	LastAppReply   string `json:"last_app_reply,omitempty"`
+	LastAppReplyBy string `json:"last_app_reply_by,omitempty"`
 }
 
 // Overlay is the effective .sayso.yml of the base commit (Appendix E).

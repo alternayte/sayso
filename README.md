@@ -45,7 +45,7 @@ Write a command as a pull request comment that starts with `/sayso`. Sayso check
 
 Sayso adds 👀 to a command when it receives it. When a command fails, Sayso adds 😕, replies with the reason, and lists the command on the review page with a Run again action.
 
-A reply in a Sayso thread starts a reply run. The agent concedes, holds or clarifies. A reply from a GitHub App, with a login that ends in `[bot]`, starts no reply run and does not change the finding. The `sayso:skip` label also stops automatic rounds.
+A reply in a Sayso thread starts a reply run. The agent concedes, holds or clarifies. A reply from a GitHub App, with a login that ends in `[bot]`, starts no reply run and does not change the finding. The next round reads the last reply of a person and of an app in each finding thread, and checks a reply against the code. The `sayso:skip` label also stops automatic rounds.
 
 ## Quick start with Docker Compose
 

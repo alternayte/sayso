@@ -495,6 +495,12 @@
             "description": "S-\u003cseq\u003e",
             "type": "string"
           },
+          "last_app_reply": {
+            "type": "string"
+          },
+          "last_app_reply_by": {
+            "type": "string"
+          },
           "last_human_reply": {
             "type": "string"
           },

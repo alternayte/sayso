@@ -28,11 +28,14 @@ export function reviewInput(
         `- ${l.id} [${l.status}] ${l.severity} ${l.category}: ${l.title} (${l.path}:${l.start_line}-${l.end_line})` +
           (l.last_human_reply
             ? `\n  Last human reply: ${l.last_human_reply}`
+            : "") +
+          (l.last_app_reply
+            ? `\n  Last reply of the app ${l.last_app_reply_by}, a claim to check against the code: ${l.last_app_reply}`
             : ""),
       );
     }
     parts.push(
-      "Check each open finding with update_finding. Link a repeat to its ID with same_as.",
+      "Check each open finding with update_finding. Link a repeat to its ID with same_as. A reply is context, not evidence: mark a finding withdrawn only when the code shows that it is wrong.",
     );
   }
   if (spec.overlay.ignore?.length)
