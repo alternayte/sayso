@@ -31,6 +31,10 @@ export interface StageSession {
   contextFiles: { path: string; content: string }[];
   maxToolCalls: number;
   toolNames: string[];
+  /** outputTools are the Sayso tools of the stage, the only tools a reminder may call. */
+  outputTools: string[];
+  /** missing names the required tool calls that the stage has not made. */
+  missing: () => string | undefined;
   emit: (e: NewEvent) => void;
   signal: AbortSignal;
 }
@@ -117,14 +121,56 @@ export function resourceLoader(
   });
 }
 
+/** StageEnd is how a stage session ended. */
+export interface StageEnd {
+  error?: string;
+  sessionFile?: string;
+  /** limitReached is true when the guard blocked a call at max_tool_calls_per_stage. */
+  limitReached: boolean;
+  /** reminded is the cause of the reminder prompt, when the stage got one. */
+  reminded?: string;
+}
+
+/** reminderBudget is the number of Sayso tool calls a reminder may make. */
+export function reminderBudget(missing: string): number {
+  const items = missing.includes(" for ")
+    ? missing.slice(missing.lastIndexOf(" for ") + 5).split(", ").length
+    : 1;
+  return 10 + 2 * items;
+}
+
+/**
+ * reminderPrompt asks for the missing tool calls and names why the stage
+ * ended without them (issue #25).
+ */
+export function reminderPrompt(
+  missing: string,
+  cause: { cut: boolean; limit?: number },
+): { text: string; cause: string } {
+  const parts = [`The stage is not complete: ${missing}.`];
+  let why = "the model ended its turn without the call";
+  if (cause.limit !== undefined) {
+    why = `the stage reached the limit of ${cause.limit} tool calls`;
+    parts.push(
+      `The stage reached its limit of ${cause.limit} tool calls. Only the Sayso tools of this stage are available now.`,
+    );
+  }
+  if (cause.cut) {
+    why = "the output was cut off at the output token limit";
+    parts.push(
+      "Your last message was cut off at the output token limit. Keep the next message short.",
+    );
+  }
+  parts.push("Make the missing calls now with what you know.");
+  return { text: parts.join(" "), cause: why };
+}
+
 /**
  * runStage runs one pi session with explicit resources only (§8.5): no
  * project extensions, settings, skills or context files from the head
  * worktree. Models go through the model proxy with the run token.
  */
-export async function runStage(
-  s: StageSession,
-): Promise<{ error?: string; sessionFile?: string }> {
+export async function runStage(s: StageSession): Promise<StageEnd> {
   const auth = AuthStorage.inMemory();
   const registry = ModelRegistry.inMemory(auth);
   const providers = new Map<string, SpecModel[]>();
@@ -146,14 +192,35 @@ export async function runStage(
     enableSkillCommands: false,
   });
   let toolCalls = 0;
+  let limitReached = false;
+  // During a reminder only the Sayso tools of the stage run, within their
+  // own budget.
+  let reminder: { calls: number; budget: number } | undefined;
   const guard: ExtensionFactory = (pi) => {
     pi.on("tool_call", (event) => {
+      if (reminder) {
+        if (!s.outputTools.includes(event.toolName))
+          return {
+            block: true,
+            reason: `Only the Sayso tools of this stage are available now: ${s.outputTools.join(
+              ", ",
+            )}.`,
+          };
+        if (++reminder.calls > reminder.budget)
+          return {
+            block: true,
+            reason: `limit_reached: ${reminder.budget} tool calls in the reminder`,
+          };
+        return undefined;
+      }
       toolCalls++;
-      if (toolCalls > s.maxToolCalls)
+      if (toolCalls > s.maxToolCalls) {
+        limitReached = true;
         return {
           block: true,
           reason: `limit_reached: ${s.maxToolCalls} tool calls in this stage`,
         };
+      }
       return confine(event, s.cwd, s.workRoot);
     });
   };
@@ -168,7 +235,8 @@ export async function runStage(
     });
   mkdirSync(s.sessionDir, { recursive: true });
   const first = registry.find(s.targets[0]!.provider, s.targets[0]!.model);
-  if (!first) return { error: "no model target for this stage" };
+  if (!first)
+    return { error: "no model target for this stage", limitReached: false };
   const { session } = await createAgentSession({
     cwd: s.cwd,
     agentDir: s.agentDir,
@@ -202,22 +270,24 @@ export async function runStage(
   const onAbort = () => void session.abort();
   s.signal.addEventListener("abort", onAbort);
   let error: string | undefined;
-  try {
-    let target = 0;
-    let message = s.prompt;
+  let reminded: string | undefined;
+  let target = 0;
+  // send prompts the session and moves it to the next target while the
+  // model call fails with a retryable error.
+  const send = async (first: string) => {
+    let message = first;
     for (;;) {
       await session.prompt(message);
       error = session.agent.state.errorMessage;
       if (s.signal.aborted) {
         error = "cancelled";
-        break;
+        return;
       }
-      if (!error || !retryable(error) || target + 1 >= s.targets.length) break;
-      // Fallback: move the session to the next target and continue.
+      if (!error || !retryable(error) || target + 1 >= s.targets.length) return;
       target++;
       const next = s.targets[target]!;
       const m = registry.find(next.provider, next.model);
-      if (!m) break;
+      if (!m) return;
       s.emit({
         stage: s.stage,
         type: "note",
@@ -232,13 +302,37 @@ export async function runStage(
       message =
         "The model call failed and the session moved to another model. Continue the stage from where it stopped.";
     }
+  };
+  try {
+    await send(s.prompt);
+    const missing = error ? undefined : s.missing();
+    if (missing) {
+      const last = [...session.messages]
+        .reverse()
+        .find((m) => m.role === "assistant") as
+        { stopReason?: string } | undefined;
+      const r = reminderPrompt(missing, {
+        cut: last?.stopReason === "length",
+        limit: limitReached ? s.maxToolCalls : undefined,
+      });
+      reminded = r.cause;
+      s.emit({
+        stage: s.stage,
+        type: "note",
+        name: "reminder",
+        status: "sent",
+        preview: `${missing}: ${r.cause}`.slice(0, 500),
+      });
+      reminder = { calls: 0, budget: reminderBudget(missing) };
+      await send(r.text);
+    }
   } finally {
     s.signal.removeEventListener("abort", onAbort);
     unsubscribe();
   }
   const sessionFile = session.sessionFile;
   session.dispose();
-  return { error, sessionFile };
+  return { error, sessionFile, limitReached, reminded };
 }
 
 export const sessionsDir = (root: string) => join(root, ".sayso", "sessions");

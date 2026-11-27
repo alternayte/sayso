@@ -122,7 +122,7 @@ func TestReview2_05_RunCannotStoreItsOwnResult(t *testing.T) {
 	if resp.StatusCode != http.StatusUnprocessableEntity {
 		t.Fatalf("PUT result.json: %d", resp.StatusCode)
 	}
-	c := publish.RenderCheck("gate", "done", "pass", "", &runner.Assessment{Risk: "high @acme/security"}, nil)
+	c := publish.RenderCheck("gate", "done", "pass", "", &runner.Assessment{Risk: "high @acme/security"}, nil, nil)
 	if strings.Contains(c.Title, "@acme") {
 		t.Fatalf("check title %q", c.Title)
 	}

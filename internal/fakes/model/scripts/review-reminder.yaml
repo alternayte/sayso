@@ -1,0 +1,18 @@
+marker: '[script:review-reminder]'
+stages:
+  review:
+  - text: The change looks fine to me.
+  - tools:
+    - name: set_assessment
+      args:
+        tldr: The change touches the ledger. Charges flow through Post.
+        risk: low
+        risk_reasons:
+        - small change
+        where_to_look:
+        - path_or_area: ledger/ledger.go
+          why: balance update
+        impact:
+        - area: api/handler.go
+          why: Charge calls Post
+  - text: Review done.

@@ -1,0 +1,31 @@
+marker: '[script:review-tool-limit]'
+stages:
+  review:
+  - tools:
+    - name: read
+      args:
+        path: ledger/ledger.go
+    - name: read
+      args:
+        path: ledger/ledger.go
+    - name: read
+      args:
+        path: ledger/ledger.go
+  - text: I cannot read more files.
+  - tools:
+    - name: read
+      args:
+        path: ledger/ledger.go
+    - name: set_assessment
+      args:
+        tldr: The change touches the ledger. Charges flow through Post.
+        risk: low
+        risk_reasons:
+        - small change
+        where_to_look:
+        - path_or_area: ledger/ledger.go
+          why: balance update
+        impact:
+        - area: api/handler.go
+          why: Charge calls Post
+  - text: Review done.

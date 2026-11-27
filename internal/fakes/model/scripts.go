@@ -28,11 +28,14 @@ type Script struct {
 	Stages map[string][]Step `yaml:"stages"`
 }
 
-// Step is one model turn.
+// Step is one model turn. Stop "length" ends the turn as cut off at the
+// output token limit. Status answers with that HTTP error instead.
 type Step struct {
 	Text    string     `yaml:"text"`
 	Tools   []ToolCall `yaml:"tools"`
 	DelayMS int        `yaml:"delay_ms"`
+	Stop    string     `yaml:"stop"`
+	Status  int        `yaml:"status"`
 }
 
 // ToolCall is one scripted tool call.

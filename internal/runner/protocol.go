@@ -230,6 +230,10 @@ type Result struct {
 	Usage        Usage           `json:"usage"`
 	PromptRef    *PromptRef      `json:"prompt_ref,omitempty"`
 	Environment  []EnvironmentOK `json:"environment,omitempty"`
+	// ToolLimitStages are the stages that reached max_tool_calls_per_stage
+	// and recorded their output in the reminder. The review can be
+	// incomplete.
+	ToolLimitStages []string `json:"tool_limit_stages,omitempty"`
 }
 
 type Harness struct {
