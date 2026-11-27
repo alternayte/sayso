@@ -32,6 +32,7 @@ One Go binary serves the api, worker and relay roles, and a separate agent image
 - round: one review of one head commit, with one agent run. Avoid: job.
 - agent run: one execution of the agent runtime in a runner. Avoid: bot run.
 - stage: one agent session inside an agent run.
+- reminder: the one follow-up prompt that a stage gets in the same session when it ends without its required tool calls. Avoid: nudge, retry.
 - finding: one issue the agent reports, with severity, location and evidence.
 - pre-existing finding: a finding whose bug exists at the base commit and that the pull request did not introduce. Avoid: legacy finding, old bug.
 - ledger: all findings of a review with their status history.
